@@ -1,0 +1,15 @@
+[tools]
+go = "latest"
+"go:mvdan.cc/gofumpt" = "latest"
+"go:golang.org/x/tools/gopls" = "latest"
+"github:golangci/golangci-lint" = "latest"
+
+[tasks.build]
+description = "Build a binary"
+run = "go build -o shebang"
+sources = ["**/*.go", "go.mod", "go.sum"]
+outputs = ["mtg"]
+
+[tasks.lint]
+description = "Run a static analysis"
+run = "golangci-lint run"
