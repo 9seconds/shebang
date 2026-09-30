@@ -1,0 +1,82 @@
+// this is what we propagate to env command. This command will be executed with
+// -S flag, so technically this is the same as `env -S {execute}` so you are
+// free to drop there many arguments.
+// A list of arguments is fine, they all would be joined in the same and passed
+// with `-S` flag.
+//
+// Default value: bash
+execute "bash"
+
+// The description of the command.
+//
+// Default value: ""
+description ""
+
+// scheme for the option.
+//
+// It must contain a single argument that is a name of the option.
+// You cannot define 2 options with the same name, this is an error.
+//
+// All options make a list that is joined by \x00. A single value is a list
+// of 1 elements.
+option "name" short="n" {
+    // Short description of the option.
+    //
+    // Default value: ""
+    description ""
+
+    // A minimal number of arguments that must be present.
+    //
+    // Default value: 0
+    min-count 0
+
+    // A maximal number of arguments that must be present.
+    //
+    // Default value: no value
+    max-count 4096
+
+    // A value of the option.
+    //
+    // Default value: str
+    value "str" {
+
+    }
+
+    // Now we have other types here with all possible values.
+
+    // A generic string
+    value "str" {
+        // Minimal size of the string
+        //
+        // Default value: 0
+        min-length 0
+
+        // Maximal size of the string
+        //
+        // Default value: no value
+        max-length 4096
+
+        // Regular expression to match
+        //
+        // Default value: .*
+        re ".*"
+    }
+
+    // An integer
+    value "int" {
+        // Minimal value
+        //
+        // Default value: no value
+        min -100
+
+        // Maximal value
+        //
+        // Default value: no value
+        max 100
+    }
+}
+
+// Scheme for the arguments
+//
+argument "str" min=0 max=0 {
+}
