@@ -101,7 +101,10 @@ func parseConfigNodeDescription(conf *Config, node *document.Node) error {
 }
 
 func parseConfigNodeOption(conf *Config, node *document.Node) error {
-	option := configOption{}
+	option := configOption{
+		minCount: -1,
+		maxCount: int(^uint(0) >> 1),
+	}
 
 	name, err := parseOneArgument[string](node)
 	if err != nil {

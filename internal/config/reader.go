@@ -13,7 +13,7 @@ var (
 	regexpConfigLine  = regexp.MustCompile(`^\s*#(.*?)$`)
 )
 
-func NewReader(r io.Reader) (int, io.Reader, error) {
+func NewReader(r io.Reader) (int, *bytes.Buffer, error) {
 	scanner := bufio.NewScanner(r)
 	buf := &bytes.Buffer{}
 	version := 0
