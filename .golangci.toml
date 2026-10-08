@@ -1,0 +1,10 @@
+# https://golangci-lint.run/docs/configuration/file/
+
+version = '2'
+
+[run]
+concurrency = 4
+tests = true
+
+[linters]
+enable-all = true
