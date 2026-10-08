@@ -498,7 +498,7 @@ func (suite *ParseTestSuite) TestEmptyValueType() {
 					conf, err := v1.Parse(strings.NewReader(doc))
 					suite.Require().Error(err)
 					suite.ErrorContains(err, "cannot process node "+node+":")
-					suite.ErrorContains(err, "please define a value type")
+					suite.ErrorIs(err, v1.ErrNoValueType)
 					suite.Nil(conf)
 				})
 			}
@@ -670,6 +670,96 @@ func (suite *ParseTestSuite) TestCaseInsensitiveDuplicateNames() {
 				}
 			})
 		}
+	}
+}
+
+func (suite *ParseTestSuite) TestReservedNames() {
+	for _, node := range []string{"option", "flag", "arg", "vararg"} {
+		suite.Run(node, func() {
+			for _, test := range []struct {
+				name     string
+				value    string
+				reserved bool
+			}{
+				{
+					name:     "lowercase reserved name",
+					value:    "help",
+					reserved: true,
+				},
+				{
+					name:     "uppercase reserved name",
+					value:    "HELP",
+					reserved: true,
+				},
+				{
+					name:     "mixed case reserved name",
+					value:    "HeLp",
+					reserved: true,
+				},
+				{
+					name:  "reserved name prefix allowed",
+					value: "helper",
+				},
+				{
+					name:  "reserved name suffix allowed",
+					value: "myhelp",
+				},
+			} {
+				suite.Run(test.name, func() {
+					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
+					if test.reserved {
+						suite.Require().Error(err)
+						suite.ErrorIs(err, v1.ErrReservedName)
+						suite.ErrorContains(err, "cannot process node "+node+": cannot set a name:")
+						suite.Nil(conf)
+					} else {
+						suite.NoError(err)
+						suite.NotNil(conf)
+					}
+				})
+			}
+		})
+	}
+}
+
+func (suite *ParseTestSuite) TestReservedShorts() {
+	for _, node := range []string{"option", "flag"} {
+		suite.Run(node, func() {
+			for _, test := range []struct {
+				name     string
+				value    string
+				reserved bool
+			}{
+				{
+					name:     "lowercase reserved shorthand",
+					value:    "h",
+					reserved: true,
+				},
+				{
+					name:     "uppercase reserved shorthand",
+					value:    "H",
+					reserved: true,
+				},
+				{
+					name:  "nonreserved shorthand",
+					value: "o",
+				},
+			} {
+				suite.Run(test.name, func() {
+					doc := fmt.Sprintf("%s \"item\" { short %q; }\n", node, test.value)
+					conf, err := v1.Parse(strings.NewReader(doc))
+					if test.reserved {
+						suite.Require().Error(err)
+						suite.ErrorIs(err, v1.ErrReservedShort)
+						suite.ErrorContains(err, "cannot process "+node+" short:")
+						suite.Nil(conf)
+					} else {
+						suite.NoError(err)
+						suite.NotNil(conf)
+					}
+				})
+			}
+		})
 	}
 }
 

@@ -17,8 +17,18 @@ var (
 	ErrUnknownNode         = errors.New("unknown node")
 	ErrOneArgumentExpected = errors.New("only 1 vararg can be defined")
 	ErrDefineExecute       = errors.New("execute cannot be empty")
+	ErrReservedName        = errors.New("name is reserved")
+	ErrReservedShort       = errors.New("shorthand is reserved")
+	ErrNoValueType         = errors.New("value type is not defined")
 
 	ReName = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+
+	ReservedShorts = map[string]bool{
+		"h": true,
+	}
+	ReservedNames = map[string]bool{
+		"help": true,
+	}
 )
 
 func Parse(r io.Reader) (*Config, error) {
@@ -287,6 +297,10 @@ func processShort(data *string, node *document.Node) error {
 		return fmt.Errorf("must comply %s regexp", ReName.String())
 	}
 
+	if ReservedShorts[*data] {
+		return ErrReservedShort
+	}
+
 	return nil
 }
 
@@ -325,6 +339,10 @@ func setName(target *string, node *document.Node) error {
 			*target,
 			ReName.String(),
 		)
+	}
+
+	if ReservedNames[*target] {
+		return ErrReservedName
 	}
 
 	return nil
