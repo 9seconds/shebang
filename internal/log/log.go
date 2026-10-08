@@ -1,47 +1,67 @@
 package log
 
 import (
+	"fmt"
 	"io"
+	"iter"
 	"log"
 	"os"
-	"slices"
 	"strings"
 	"unicode"
-
-	"github.com/9seconds/shebang/internal/cli"
 )
 
-func Configure() {
-	log.SetOutput(io.Discard)
-	log.SetPrefix(">>> ")
-	log.SetFlags(0)
+var (
+	main = log.New(io.Discard, ">>> ", 0)
+	err  = log.New(os.Stderr, "", 0)
+)
 
-	if _, ok := os.LookupEnv(cli.Env("DEBUG")); ok {
-		log.SetOutput(os.Stderr)
-		_ = os.Unsetenv(cli.Env("DEBUG"))
+func Configure(env string) {
+	if _, ok := os.LookupEnv(env); ok {
+		main.SetOutput(os.Stderr)
+		_ = os.Unsetenv(env)
 	}
 }
 
-func PrintVal(prefix string, value string) {
-	value = strings.TrimSpace(value)
-	prefix = prefix + ": "
-	spaces := strings.Repeat(" ", len(prefix))
-	printedFirst := false
-	lines := slices.Collect(strings.Lines(value))
+func Die(format string, arg ...any) {
+	format = strings.TrimRightFunc(format, unicode.IsSpace) + "\n"
+	err.Fatalf(format, arg...)
+}
 
-	if len(lines) < 2 {
-		log.Println(prefix, value)
-		return
+func Print(format string, arg ...any) {
+	PrintVal("", fmt.Sprintf(format, arg...))
+}
+
+func PrintVal(reason string, value string) {
+	value = strings.TrimSpace(value)
+
+	reason = strings.TrimSpace(reason)
+	if !strings.HasSuffix(reason, ":") {
+		reason = reason + ": "
 	}
 
-	for line := range strings.Lines(value) {
-		line  = strings.TrimRightFunc(line, unicode.IsSpace)
+	emptyPrefix := strings.Repeat(" ", len(reason))
+	currentPrefix := reason
 
-		if printedFirst {
-			log.Println(spaces, line)
-		} else {
-			printedFirst = true
-			log.Println(prefix, line)
+	for line := range iterLines(value) {
+		main.Println(currentPrefix, line)
+		currentPrefix = emptyPrefix
+	}
+}
+
+func iterLines(value string) iter.Seq[string] {
+	value = strings.TrimRightFunc(value, unicode.IsSpace)
+
+	return func(yield func(string) bool) {
+		if value == "" {
+			yield("")
+			return
+		}
+
+		for line := range strings.Lines(value) {
+			line = strings.TrimRightFunc(line, unicode.IsSpace)
+			if !yield(line) {
+				return
+			}
 		}
 	}
 }
