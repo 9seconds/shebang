@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,51 +9,36 @@ import (
 
 	"github.com/9seconds/shebang/internal/cli"
 	"github.com/9seconds/shebang/internal/config"
+	"github.com/9seconds/shebang/internal/env"
 	"github.com/9seconds/shebang/internal/log"
 )
 
 func main() {
+	log.Configure(env.Var("debug"))
+
 	if len(os.Args) < 2 {
-		die("usage: shebang <script> <arg>...")
+		log.Die("usage: shebang <script> [arg...]")
 	}
 
-	log.Configure()
-
-	scriptName, err := getScript()
+	scriptPath, err := getScript()
 	if err != nil {
-		die("cannot execute %s: %s", os.Args[1], err)
+		log.Die("cannot detect a script %s: %s", os.Args[1], err.Error())
 	}
+	log.PrintVal("Script", scriptPath)
 
-	conf, err := parseConfig(scriptName)
+	conf, err := parseConfig(scriptPath)
 	if err != nil {
-		die("cannot read config: %s", err)
+		log.Die("cannot read a config for %s: %s", scriptPath, err)
 	}
 
-	cmd := cli.NewCommand()
+	cmd := cli.NewCommand(scriptPath, syscall.Exec)
 	if err := conf.Configure(cmd); err != nil {
-		die("cannot configure CLI: %s", err)
+		log.Die("cannot configure command: %s", err)
 	}
 
-	args, err := cmd.Process(os.Args[2:])
-	switch {
-	case errors.Is(err, cli.ErrStop):
-		return
-	case err != nil:
-		die("cannot process flags: %s", err)
+	if err := cmd.Execute(os.Args[2:]); err != nil {
+		log.Die("cannot execute command: %s", err)
 	}
-
-	execArgs := append(cmd.ExecuteAs, scriptName)
-	execArgs = append(execArgs, args...)
-
-	if err := syscall.Exec(execArgs[0], execArgs, os.Environ()); err != nil {
-		die("cannot run a command: %s", err)
-	}
-}
-
-func die(format string, arg ...any) {
-	fmt.Fprintf(os.Stderr, format, arg...)
-	fmt.Fprint(os.Stderr, "\n")
-	os.Exit(1)
 }
 
 func parseConfig(path string) (config.Config, error) {
@@ -62,16 +46,16 @@ func parseConfig(path string) (config.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot open %s: %w", path, err)
 	}
-	defer fp.Close()
+	defer func() { _ = fp.Close() }()
 
 	return config.Parse(fp)
 }
 
 func getScript() (string, error) {
-	scriptName, err := filepath.Abs(os.Args[1])
+	scriptPath, err := filepath.Abs(os.Args[1])
 	if err != nil {
-		die("cannot execute %s: %s", os.Args[1], err)
+		return "", err
 	}
 
-	return exec.LookPath(scriptName)
+	return exec.LookPath(scriptPath)
 }

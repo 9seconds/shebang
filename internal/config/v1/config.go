@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/9seconds/shebang/internal/cli"
@@ -16,7 +17,7 @@ type configItem struct {
 	minCount    int
 	maxCount    int
 	valueType   string
-	valueParams map[string]any
+	valueParams map[string][]any
 }
 
 type configOption struct {
@@ -43,20 +44,18 @@ func (c *Config) Configure(cmd *cli.Command) error {
 	cmd.Example = c.example
 	log.PrintVal("Example", c.example)
 
-	cmd.ExecuteAs = []string{"bash"}
+	cmd.Argv = []string{"bash"}
 	if len(c.execute) > 0 {
-		cmd.ExecuteAs = append([]string(nil), c.execute...)
+		cmd.Argv = slices.Clone(c.execute)
 	}
-
-	if !filepath.IsAbs(cmd.ExecuteAs[0]) {
+	if !filepath.IsAbs(cmd.Argv[0]) {
 		path, err := exec.LookPath("env")
 		if err != nil {
 			return fmt.Errorf("cannot find 'env' in PATH: %w", err)
 		}
-		cmd.ExecuteAs = []string{path, "-S " + strings.Join(cmd.ExecuteAs, " ")}
+		cmd.Argv = []string{path, "-S " + strings.Join(cmd.Argv, " ")}
 	}
-
-	log.PrintVal("Execute As", fmt.Sprint(cmd.ExecuteAs))
+	log.PrintVal("Argv", strings.Join(cmd.Argv, " "))
 
 	cmd.Options = []*cli.Option{}
 	flagSet := cmd.Flags()
@@ -67,7 +66,13 @@ func (c *Config) Configure(cmd *cli.Command) error {
 			return fmt.Errorf("cannot initialize validator for %s: %w", name, err)
 		}
 
-		option := cli.NewOption(name, opt.valueType, opt.minCount, opt.maxCount, vld)
+		option := &cli.Option{
+			Name: name,
+			OptionType: opt.valueType,
+			MinCount: opt.minCount,
+			MaxCount: opt.maxCount,
+			Validator: vld,
+		}
 		cmd.Options = append(cmd.Options, option)
 
 		if opt.short == "" {
@@ -76,7 +81,7 @@ func (c *Config) Configure(cmd *cli.Command) error {
 			flagSet.VarP(option, name, opt.short, opt.description)
 		}
 
-		log.PrintVal("Option", option.String())
+		log.PrintVal("Option", option.Repr())
 	}
 
 	return nil

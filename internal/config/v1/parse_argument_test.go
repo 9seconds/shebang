@@ -43,23 +43,74 @@ func (suite *ParseArgumentTestSuite) TestInvalidChildFields() {
 		doc  string
 		want string
 	}{
-		{name: "unknown child", doc: `argument { unknown; }`, want: "cannot parse unknown node: unknown node type"},
-		{name: "description missing argument", doc: `argument { description; }`, want: "cannot parse description: expected 1 argument, got 0"},
-		{name: "description extra argument", doc: `argument { description "a" "b"; }`, want: "cannot parse description: expected 1 argument, got 2"},
-		{name: "description wrong type", doc: `argument { description 42; }`, want: "cannot parse description: unexpected value of type int64, expected string"},
-		{name: "min-count missing argument", doc: `argument { min-count; }`, want: "cannot parse min-count: expected 1 argument, got 0"},
-		{name: "min-count extra argument", doc: `argument { min-count 0 1; }`, want: "cannot parse min-count: expected 1 argument, got 2"},
-		{name: "min-count wrong type", doc: `argument { min-count "0"; }`, want: "cannot parse min-count: unexpected value of type string, expected int64"},
-		{name: "min-count float", doc: `argument { min-count 1.5; }`, want: "cannot parse min-count: unexpected value of type float64, expected int64"},
-		{name: "max-count missing argument", doc: `argument { max-count; }`, want: "cannot parse max-count: expected 1 argument, got 0"},
-		{name: "max-count extra argument", doc: `argument { max-count 1 2; }`, want: "cannot parse max-count: expected 1 argument, got 2"},
-		{name: "max-count wrong type", doc: `argument { max-count "1"; }`, want: "cannot parse max-count: unexpected value of type string, expected int64"},
-		{name: "max-count float", doc: `argument { max-count 1.5; }`, want: "cannot parse max-count: unexpected value of type float64, expected int64"},
-		{name: "value missing type", doc: `argument { value; }`, want: "cannot parse value type: expected 1 argument, got 0"},
-		{name: "value extra type", doc: `argument { value "str" "int"; }`, want: "cannot parse value type: expected 1 argument, got 2"},
-		{name: "value wrong type", doc: `argument { value 42; }`, want: "cannot parse value type: unexpected value of type int64, expected string"},
-		{name: "value parameter missing argument", doc: `argument { value "str" { min-length; }; }`, want: "cannot parse argument of value min-length: expected 1 argument, got 0"},
-		{name: "value parameter extra argument", doc: `argument { value "str" { min-length 0 1; }; }`, want: "cannot parse argument of value min-length: expected 1 argument, got 2"},
+		{
+			name: "unknown child", doc: `argument { unknown; }`,
+			want: "cannot parse unknown node: unknown node type",
+		},
+		{
+			name: "description missing argument", doc: `argument { description; }`,
+			want: "cannot parse description: expected 1 argument, got 0",
+		},
+		{
+			name: "description extra argument", doc: `argument { description "a" "b"; }`,
+			want: "cannot parse description: expected 1 argument, got 2",
+		},
+		{
+			name: "description wrong type", doc: `argument { description 42; }`,
+			want: "cannot parse description: unexpected value of type int64, expected string",
+		},
+		{
+			name: "min-count missing argument", doc: `argument { min-count; }`,
+			want: "cannot parse min-count: expected 1 argument, got 0",
+		},
+		{
+			name: "min-count extra argument", doc: `argument { min-count 0 1; }`,
+			want: "cannot parse min-count: expected 1 argument, got 2",
+		},
+		{
+			name: "min-count wrong type", doc: `argument { min-count "0"; }`,
+			want: "cannot parse min-count: unexpected value of type string, expected int64",
+		},
+		{
+			name: "min-count float", doc: `argument { min-count 1.5; }`,
+			want: "cannot parse min-count: unexpected value of type float64, expected int64",
+		},
+		{
+			name: "max-count missing argument", doc: `argument { max-count; }`,
+			want: "cannot parse max-count: expected 1 argument, got 0",
+		},
+		{
+			name: "max-count extra argument", doc: `argument { max-count 1 2; }`,
+			want: "cannot parse max-count: expected 1 argument, got 2",
+		},
+		{
+			name: "max-count wrong type", doc: `argument { max-count "1"; }`,
+			want: "cannot parse max-count: unexpected value of type string, expected int64",
+		},
+		{
+			name: "max-count float", doc: `argument { max-count 1.5; }`,
+			want: "cannot parse max-count: unexpected value of type float64, expected int64",
+		},
+		{
+			name: "value missing type", doc: `argument { value; }`,
+			want: "cannot parse value type: expected 1 argument, got 0",
+		},
+		{
+			name: "value extra type", doc: `argument { value "str" "int"; }`,
+			want: "cannot parse value type: expected 1 argument, got 2",
+		},
+		{
+			name: "value wrong type", doc: `argument { value 42; }`,
+			want: "cannot parse value type: unexpected value of type int64, expected string",
+		},
+		{
+			name: "value parameter missing argument", doc: `argument { value "str" { min-length; }; }`,
+			want: "cannot parse argument of value min-length: expected 1 argument, got 0",
+		},
+		{
+			name: "value parameter extra argument", doc: `argument { value "str" { min-length 0 1; }; }`,
+			want: "cannot parse argument of value min-length: expected 1 argument, got 2",
+		},
 	} {
 		suite.Run(test.name, func() {
 			conf, err := suite.Parse(test.doc)

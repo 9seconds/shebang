@@ -2,6 +2,9 @@ package validators
 
 import (
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 )
 
 type Validator interface {
@@ -11,7 +14,7 @@ type Validator interface {
 
 type baseValidator[T any] struct {
 	validatorType string
-	checks []func(item T) error
+	checks        map[string]func(item T) error
 }
 
 func (b baseValidator[T]) validate(value string, prepare func() (T, error)) error {
@@ -30,10 +33,14 @@ func (b baseValidator[T]) validate(value string, prepare func() (T, error)) erro
 }
 
 func (b *baseValidator[T]) String() string {
-	return fmt.Sprintf("%s(checks=%d)", b.validatorType, len(b.checks))
+	return fmt.Sprintf(
+		"%s(checks=%s)",
+		b.validatorType,
+		strings.Join(slices.Sorted(maps.Keys(b.checks)), ", "),
+	)
 }
 
-func New(valueType string, properties map[string]any) (Validator, error) {
+func New(valueType string, properties map[string][]any) (Validator, error) {
 	switch valueType {
 	case "str":
 		return newStringValidator(properties)

@@ -70,9 +70,18 @@ func (suite *ParseTestSuite) TestInvalidConfig() {
 		want string
 	}{
 		{name: "malformed KDL", doc: "#!shebang.1\n#execute \"unterminated\n", want: "cannot parse config as KDL:"},
-		{name: "unknown node", doc: "#!shebang.1\n#unknown\n", want: "cannot process node unknown: unknown node type"},
-		{name: "invalid field type", doc: "#!shebang.1\n#execute 42\n", want: "cannot process node execute: unexpected value of type int64, expected string"},
-		{name: "invalid version zero config", doc: "#!shebang.0\n#description\n", want: "cannot process node description: expected 1 argument, got 0"},
+		{
+			name: "unknown node", doc: "#!shebang.1\n#unknown\n",
+			want: "cannot process node unknown: unknown node type",
+		},
+		{
+			name: "invalid field type", doc: "#!shebang.1\n#execute 42\n",
+			want: "cannot process node execute: unexpected value of type int64, expected string",
+		},
+		{
+			name: "invalid version zero config", doc: "#!shebang.0\n#description\n",
+			want: "cannot process node description: expected 1 argument, got 0",
+		},
 	} {
 		suite.Run(test.name, func() {
 			conf, err := config.Parse(strings.NewReader(test.doc))

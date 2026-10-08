@@ -214,11 +214,11 @@ func parseConfigItemChildValue(item *configItem, node *document.Node) error {
 	}
 
 	item.valueType = valueType
-	item.valueParams = map[string]any{}
+	item.valueParams = map[string][]any{}
 
 	for _, child := range node.Children {
 		paramName := child.Name.NodeNameString()
-		paramValue, err := parseOneArgument[any](child)
+		paramValue, err := parseArguments[any](child)
 		if err != nil {
 			return fmt.Errorf("cannot parse argument of value %s: %w", paramName, err)
 		}
