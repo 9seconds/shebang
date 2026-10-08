@@ -13,11 +13,11 @@ import (
 )
 
 var (
-	ErrUnknownNode = errors.New("unknown node")
+	ErrUnknownNode         = errors.New("unknown node")
 	ErrOneArgumentExpected = errors.New("only 1 vararg can be defined")
-	ErrDefineExecute = errors.New("execute cannot be empty")
+	ErrDefineExecute       = errors.New("execute cannot be empty")
 
-	ReName = regexp.MustCompile(`[a-zA-Z0-9]+`)
+	ReName = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
 )
 
 func Parse(r io.Reader) (*Config, error) {
@@ -27,8 +27,8 @@ func Parse(r io.Reader) (*Config, error) {
 	}
 
 	conf := &Config{
-		Argv: []string{"bash"},
-		seenLongNames: make(map[string]bool),
+		Argv:           []string{"bash"},
+		seenLongNames:  make(map[string]bool),
 		seenShortNames: make(map[string]bool),
 	}
 
@@ -250,6 +250,10 @@ func processWithValue(data *WithValue, node *document.Node) error {
 		return fmt.Errorf("cannot get a type of the value: %w", err)
 	}
 
+	if valueType == "" {
+		return errors.New("please define a value type")
+	}
+
 	data.Type = valueType
 	data.Properties = make(map[string][]any)
 
@@ -274,6 +278,10 @@ func processShort(data *string, node *document.Node) error {
 
 	if lv := utf8.RuneCountInString(*data); lv != 1 {
 		return fmt.Errorf("short must contain 1 character, not %d", lv)
+	}
+
+	if !ReName.MatchString(*data) {
+		return fmt.Errorf("must comply %s regexp", ReName.String())
 	}
 
 	return nil
@@ -302,7 +310,7 @@ func setPointer[T any](target **T, node *document.Node) error {
 }
 
 func setName(target *string, node *document.Node) error {
-	if err := setSingleArgument[string](target, node); err != nil {
+	if err := setSingleArgument(target, node); err != nil {
 		return err
 	}
 

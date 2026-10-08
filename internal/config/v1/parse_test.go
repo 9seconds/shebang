@@ -147,13 +147,13 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 			},
 		},
 		{
-			name: "declaration order and unicode shorts",
-			doc:  "flag \"z\" { short \"п\"; }\noption \"b\" { short \"р\"; }\nflag \"c\"\noption \"a\"\n",
+			name: "declaration order",
+			doc:  "flag \"z\" { short \"z\"; }\noption \"b\" { short \"b\"; }\nflag \"c\"\noption \"a\"\n",
 			options: []v1.Option{
 				{
 					Flag: v1.Flag{
 						Name:  "b",
-						Short: "р",
+						Short: "b",
 					},
 				},
 				{
@@ -165,7 +165,7 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 			flags: []v1.Flag{
 				{
 					Name:  "z",
-					Short: "п",
+					Short: "z",
 				},
 				{
 					Name: "c",
@@ -437,8 +437,9 @@ func (suite *ParseTestSuite) TestValues() {
 				},
 				{
 					name: "value clears properties",
-					doc:  "value \"str\" {\nre \"old\"\n}\nvalue \"\"\n",
+					doc:  "value \"str\" {\nre \"old\"\n}\nvalue \"str\"\n",
 					want: v1.WithValue{
+						Type:       "str",
 						Properties: map[string][]any{},
 					},
 				},
@@ -462,6 +463,43 @@ func (suite *ParseTestSuite) TestValues() {
 						suite.Equal(test.want, conf.VarArgs.WithValue)
 						suite.Equal("Item", conf.VarArgs.Description)
 					}
+				})
+			}
+		})
+	}
+}
+
+func (suite *ParseTestSuite) TestEmptyValueType() {
+	for _, node := range []string{"option", "arg", "vararg"} {
+		suite.Run(node, func() {
+			for _, test := range []struct {
+				name string
+				doc  string
+			}{
+				{
+					name: "without properties",
+					doc:  "value \"\"\n",
+				},
+				{
+					name: "with properties",
+					doc:  "value \"\" {\nmin-length 3\n}\n",
+				},
+				{
+					name: "after valid value",
+					doc:  "value \"str\"\nvalue \"\"\n",
+				},
+				{
+					name: "before valid value",
+					doc:  "value \"\"\nvalue \"str\"\n",
+				},
+			} {
+				suite.Run(test.name, func() {
+					doc := node + " \"item\" {\n" + test.doc + "}\n"
+					conf, err := v1.Parse(strings.NewReader(doc))
+					suite.Require().Error(err)
+					suite.ErrorContains(err, "cannot process node "+node+":")
+					suite.ErrorContains(err, "please define a value type")
+					suite.Nil(conf)
 				})
 			}
 		})
@@ -766,6 +804,26 @@ func (suite *ParseTestSuite) TestInvalidNames() {
 					name:  "nonascii",
 					value: "привет",
 				},
+				{
+					name:  "invalid prefix",
+					value: "=name",
+				},
+				{
+					name:  "invalid middle",
+					value: "na=me",
+				},
+				{
+					name:  "invalid suffix",
+					value: "name=",
+				},
+				{
+					name:  "spaces",
+					value: "name with spaces",
+				},
+				{
+					name:  "mixed ascii and unicode",
+					value: "nameпривет",
+				},
 			} {
 				suite.Run(test.name, func() {
 					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
@@ -773,6 +831,86 @@ func (suite *ParseTestSuite) TestInvalidNames() {
 					suite.ErrorContains(err, "cannot set a name:")
 					suite.ErrorContains(err, "does not match regex")
 					suite.Nil(conf)
+				})
+			}
+		})
+	}
+}
+
+func (suite *ParseTestSuite) TestNameControlCharacters() {
+	for _, node := range []string{"option", "flag", "arg", "vararg"} {
+		suite.Run(node, func() {
+			for _, test := range []struct {
+				name  string
+				value string
+			}{
+				{
+					name:  "embedded nul",
+					value: `"na\u{0}me"`,
+				},
+				{
+					name:  "trailing nul",
+					value: `"name\u{0}"`,
+				},
+				{
+					name:  "embedded newline",
+					value: `"na\nme"`,
+				},
+				{
+					name:  "trailing newline",
+					value: `"name\n"`,
+				},
+			} {
+				suite.Run(test.name, func() {
+					conf, err := v1.Parse(strings.NewReader(node + " " + test.value + "\n"))
+					suite.Require().Error(err)
+					suite.ErrorContains(err, "cannot set a name:")
+					suite.ErrorContains(err, "does not match regex")
+					suite.Nil(conf)
+				})
+			}
+		})
+	}
+}
+
+func (suite *ParseTestSuite) TestValidNames() {
+	for _, node := range []string{"option", "flag", "arg", "vararg"} {
+		suite.Run(node, func() {
+			for _, test := range []struct {
+				name  string
+				value string
+			}{
+				{
+					name:  "lowercase letters",
+					value: "output",
+				},
+				{
+					name:  "mixed case and digit",
+					value: "Output2",
+				},
+				{
+					name:  "digits only",
+					value: "123",
+				},
+			} {
+				suite.Run(test.name, func() {
+					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
+					suite.Require().NoError(err)
+					suite.Require().NotNil(conf)
+					switch node {
+					case "option":
+						suite.Require().Len(conf.Options, 1)
+						suite.Equal(test.value, conf.Options[0].Name)
+					case "flag":
+						suite.Require().Len(conf.Flags, 1)
+						suite.Equal(test.value, conf.Flags[0].Name)
+					case "arg":
+						suite.Require().Len(conf.FirstArgs, 1)
+						suite.Equal(test.value, conf.FirstArgs[0].Name)
+					case "vararg":
+						suite.Require().NotNil(conf.VarArgs)
+						suite.Equal(test.value, conf.VarArgs.Name)
+					}
 				})
 			}
 		})
@@ -807,6 +945,75 @@ func (suite *ParseTestSuite) TestInvalidShorts() {
 					suite.Require().Error(err)
 					suite.ErrorContains(err, fmt.Sprintf("short must contain 1 character, not %d", test.count))
 					suite.Nil(conf)
+				})
+			}
+		})
+	}
+}
+
+func (suite *ParseTestSuite) TestShortNameCharacters() {
+	for _, node := range []string{"option", "flag"} {
+		suite.Run(node, func() {
+			for _, test := range []struct {
+				name  string
+				value string
+				valid bool
+			}{
+				{
+					name:  "lowercase letter",
+					value: "a",
+					valid: true,
+				},
+				{
+					name:  "uppercase letter",
+					value: "Z",
+					valid: true,
+				},
+				{
+					name:  "digit",
+					value: "0",
+					valid: true,
+				},
+				{
+					name:  "unicode letter from привет",
+					value: "п",
+				},
+				{
+					name:  "hyphen",
+					value: "-",
+				},
+				{
+					name:  "underscore",
+					value: "_",
+				},
+				{
+					name:  "equals",
+					value: "=",
+				},
+				{
+					name:  "space",
+					value: " ",
+				},
+			} {
+				suite.Run(test.name, func() {
+					doc := fmt.Sprintf("%s \"item\" { short %q; }\n", node, test.value)
+					conf, err := v1.Parse(strings.NewReader(doc))
+					if !test.valid {
+						suite.Require().Error(err)
+						suite.ErrorContains(err, "cannot process "+node+" short:")
+						suite.ErrorContains(err, "must comply "+v1.ReName.String()+" regexp")
+						suite.Nil(conf)
+						return
+					}
+					suite.Require().NoError(err)
+					suite.Require().NotNil(conf)
+					if node == "option" {
+						suite.Require().Len(conf.Options, 1)
+						suite.Equal(test.value, conf.Options[0].Short)
+					} else {
+						suite.Require().Len(conf.Flags, 1)
+						suite.Equal(test.value, conf.Flags[0].Short)
+					}
 				})
 			}
 		})
