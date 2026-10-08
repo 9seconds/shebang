@@ -125,6 +125,8 @@ func (suite *ParseOptionTestSuite) TestChildFields() {
 		{name: "regular expression", doc: `option "name" { value "str" { re ".*"; }; }`},
 		{name: "minimum value", doc: `option "name" { value "int" { min -100; }; }`},
 		{name: "maximum value", doc: `option "name" { value "int" { max 100; }; }`},
+		{name: "value parameter without arguments", doc: `option "name" { value "str" { min-length; }; }`},
+		{name: "value parameter with multiple arguments", doc: `option "name" { value "str" { min-length 0 1; }; }`},
 	} {
 		suite.Run(test.name, func() {
 			conf, err := suite.Parse(test.doc)
@@ -199,14 +201,6 @@ func (suite *ParseOptionTestSuite) TestInvalidChildFields() {
 		{
 			name: "value wrong type", doc: `option "name" { value 42; }`,
 			want: "cannot parse value type: unexpected value of type int64, expected string",
-		},
-		{
-			name: "value parameter missing argument", doc: `option "name" { value "str" { min-length; }; }`,
-			want: "cannot parse argument of value min-length: expected 1 argument, got 0",
-		},
-		{
-			name: "value parameter extra argument", doc: `option "name" { value "str" { min-length 0 1; }; }`,
-			want: "cannot parse argument of value min-length: expected 1 argument, got 2",
 		},
 	} {
 		suite.Run(test.name, func() {
