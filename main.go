@@ -24,8 +24,9 @@ func main() {
 
 	log.Configure(debugMode)
 
-	if len(os.Args) < 2 {
-		log.Dief("usage: shebang <script> [arg...]")
+	if wantsReadme(os.Args[1:]) {
+		renderReadme()
+		os.Exit(0)
 	}
 
 	scriptPath, err := getScript()
@@ -50,12 +51,14 @@ func main() {
 		log.Dief("cannot configure command: %s", err)
 	}
 
+	cmd.Cmd.SetArgs(os.Args[2:])
+
 	if _, ok := os.LookupEnv(env.Var("COMPLETION")); ok {
 		if err := runCompletion(&cmd.Cmd); err != nil {
 			log.Dief("cannot generate shell completions: %s", err)
 		}
 	} else {
-		if err := cmd.Execute(os.Args[2:]); err != nil {
+		if err := cmd.Cmd.Execute(); err != nil {
 			log.Dief("cannot execute command: %s", err)
 		}
 	}

@@ -54,10 +54,3 @@ func NewCommand(scriptName string, execute func(*cobra.Command, []string) error)
 
 	return cmd
 }
-
-// Execute parses args and runs the configured command.
-func (c *Command) Execute(args []string) error {
-	c.Cmd.SetArgs(args)
-
-	return c.Cmd.Execute()
-}

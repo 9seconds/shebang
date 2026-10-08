@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/glamour/v2"
 	"github.com/9seconds/shebang/internal/config/v1"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/suite"
@@ -20,6 +21,58 @@ const mainProcessMode = "SHEBANG_TEST_MAIN_PROCESS"
 
 type MainTestSuite struct {
 	suite.Suite
+}
+
+func (suite *MainTestSuite) TestWantsReadme() {
+	for _, test := range []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{
+			name: "nil arguments",
+			want: true,
+		},
+		{
+			name: "empty arguments",
+			args: []string{},
+			want: true,
+		},
+		{
+			name: "short help",
+			args: []string{"-h"},
+			want: true,
+		},
+		{
+			name: "long help",
+			args: []string{"--help"},
+			want: true,
+		},
+		{
+			name: "script name",
+			args: []string{"script"},
+		},
+		{
+			name: "unknown flag",
+			args: []string{"--unknown"},
+		},
+		{
+			name: "script help",
+			args: []string{"script", "--help"},
+		},
+		{
+			name: "short help with extra argument",
+			args: []string{"-h", "привет"},
+		},
+		{
+			name: "long help with extra argument",
+			args: []string{"--help", "привет"},
+		},
+	} {
+		suite.Run(test.name, func() {
+			suite.Equal(test.want, wantsReadme(test.args))
+		})
+	}
 }
 
 func (suite *MainTestSuite) TestParseConfig() {
@@ -309,6 +362,7 @@ type mainTestCase struct {
 	stderr     string
 	completion bool
 	debug      bool
+	readme     bool
 }
 
 func (suite *MainTestSuite) TestMain() {
@@ -317,10 +371,42 @@ func (suite *MainTestSuite) TestMain() {
 
 	for _, test := range []mainTestCase{
 		{
-			name:     "usage without script",
+			name:     "README without script",
 			noScript: true,
+			readme:   true,
+		},
+		{
+			name:     "README with standalone short help flag",
+			noScript: true,
+			args:     []string{"-h"},
+			readme:   true,
+		},
+		{
+			name:     "README with standalone long help flag",
+			noScript: true,
+			args:     []string{"--help"},
+			readme:   true,
+		},
+		{
+			name:     "short help flag with another argument is a script path",
+			noScript: true,
+			args:     []string{"-h", "extra"},
 			exit:     1,
-			stderr:   "usage: shebang <script> [arg...]",
+			stderr:   "cannot detect a script -h:",
+		},
+		{
+			name:     "long help flag with another argument is a script path",
+			noScript: true,
+			args:     []string{"--help", "extra"},
+			exit:     1,
+			stderr:   "cannot detect a script --help:",
+		},
+		{
+			name:     "two help flags do not select README help",
+			noScript: true,
+			args:     []string{"-h", "--help"},
+			exit:     1,
+			stderr:   "cannot detect a script -h:",
 		},
 		{
 			name:    "missing script",
@@ -419,12 +505,14 @@ func (suite *MainTestSuite) TestMain() {
 			cmd := exec.CommandContext(ctx, executable, processArgs...)
 
 			for _, entry := range os.Environ() {
-				if !strings.HasPrefix(entry, "SHEBANG_") && !strings.HasPrefix(entry, "SHELL=") {
+				if !strings.HasPrefix(entry, "SHEBANG_") &&
+					!strings.HasPrefix(entry, "SHELL=") && !strings.HasPrefix(entry, "GLAMOUR_STYLE=") {
 					cmd.Env = append(cmd.Env, entry)
 				}
 			}
 
 			cmd.Env = append(cmd.Env, mainProcessMode+"=1")
+			cmd.Env = append(cmd.Env, "GLAMOUR_STYLE=notty")
 			cmd.Env = append(cmd.Env, test.environ...)
 
 			var stdout, stderr bytes.Buffer
@@ -454,6 +542,13 @@ func (suite *MainTestSuite) checkMainResult(
 	shellPath, path string,
 ) {
 	suite.T().Helper()
+
+	if test.readme {
+		rendered, renderError := glamour.Render(readmeContent, "notty")
+		suite.Require().NoError(renderError)
+		suite.Equal(rendered+"\n", stdout)
+		suite.Empty(stderr)
+	}
 
 	if test.exit == 0 {
 		suite.Require().NoError(err, stderr)

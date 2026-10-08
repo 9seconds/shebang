@@ -86,7 +86,10 @@ func (suite *CommandTestSuite) TestExecute() {
 			cmd.Cmd.SetOut(io.Discard)
 			cmd.Cmd.SetErr(io.Discard)
 
-			err := cmd.Execute(test.args)
+			cmd.Cmd.SetArgs(test.args)
+			suite.Zero(calls)
+
+			err := cmd.Cmd.Execute()
 			if test.err == nil {
 				suite.Require().NoError(err)
 			} else {
@@ -144,7 +147,21 @@ func (suite *CommandTestSuite) TestExecuteExportsEnvironment() {
 	}
 	cmd.Cmd.Flags().VarP(&cmd.Options[0], "output", "o", "Output")
 	cmd.Cmd.Flags().BoolVarP(&cmd.Flags[0].Value, "verbose", "v", false, "Verbose")
-	suite.Require().NoError(cmd.Execute([]string{"-o", "привет", "-v", "source"}))
+	cmd.Cmd.SetArgs([]string{"-o", "привет", "-v", "source"})
+	suite.False(called)
+	suite.Nil(cmd.Options[0].Value)
+	suite.False(cmd.Flags[0].Value)
+
+	for _, key := range []string{
+		"SHEBANG_OL_OUTPUT",
+		"SHEBANG_OS_O",
+		"SHEBANG_FL_VERBOSE",
+		"SHEBANG_FS_V",
+	} {
+		suite.Equal("old", os.Getenv(key))
+	}
+
+	suite.Require().NoError(cmd.Cmd.Execute())
 	suite.True(called)
 }
 
@@ -183,7 +200,9 @@ func (suite *CommandTestSuite) TestRejectedArgumentsDoNotExecute() {
 				}
 			}
 
-			err := cmd.Execute(test.args)
+			cmd.Cmd.SetArgs(test.args)
+
+			err := cmd.Cmd.Execute()
 			suite.Require().Error(err)
 
 			if test.validate {
