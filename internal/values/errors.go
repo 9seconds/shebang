@@ -73,3 +73,41 @@ func NewRegexMismatchError(value, pattern string) *RegexMismatchError {
 func (e *RegexMismatchError) Error() string {
 	return fmt.Sprintf("%s does not match %s", e.Value, e.Pattern)
 }
+
+// IntConstraintKind identifies the integer bound that failed.
+type IntConstraintKind int
+
+const (
+	// IntConstraintMin indicates an integer below its inclusive minimum.
+	IntConstraintMin IntConstraintKind = iota
+	// IntConstraintMax indicates an integer above its inclusive maximum.
+	IntConstraintMax
+)
+
+// IntConstraintError describes a violation of an inclusive integer bound.
+type IntConstraintError struct {
+	Kind     IntConstraintKind
+	Expected int64
+	Actual   int64
+}
+
+// NewIntConstraintError constructs an error for an integer bound violation.
+func NewIntConstraintError(kind IntConstraintKind, expected, actual int64) *IntConstraintError {
+	return &IntConstraintError{
+		Kind:     kind,
+		Expected: expected,
+		Actual:   actual,
+	}
+}
+
+// Error describes the failed integer bound and the supplied value.
+func (e *IntConstraintError) Error() string {
+	switch e.Kind {
+	case IntConstraintMin:
+		return fmt.Sprintf("number must be at least %d, got %d", e.Expected, e.Actual)
+	case IntConstraintMax:
+		return fmt.Sprintf("number must be at most %d, got %d", e.Expected, e.Actual)
+	}
+
+	return fmt.Sprintf("expected %d, got %d", e.Expected, e.Actual)
+}

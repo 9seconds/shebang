@@ -21,7 +21,7 @@ type Value interface {
 }
 
 // New constructs a validator for valueType. An empty type selects an
-// unconstrained string validator; str applies the supplied properties.
+// unconstrained string validator; explicit types apply the supplied properties.
 //
 //nolint:ireturn // Configured value types share the Value interface.
 func New(valueType string, properties map[string][]any) (Value, error) {
@@ -30,6 +30,8 @@ func New(valueType string, properties map[string][]any) (Value, error) {
 		return NewStr(nil)
 	case "str":
 		return NewStr(properties)
+	case "int":
+		return NewInt(properties)
 	}
 
 	return nil, ErrUnknownValueType

@@ -48,6 +48,6 @@ func (b *baseValue[T]) Complete(value string) ([]cobra.Completion, cobra.ShellCo
 	return b.complete(prepared)
 }
 
-func noopComplete(_ string) ([]cobra.Completion, cobra.ShellCompDirective) {
+func noopComplete[T any](_ T) ([]cobra.Completion, cobra.ShellCompDirective) {
 	return nil, cobra.ShellCompDirectiveNoFileComp
 }

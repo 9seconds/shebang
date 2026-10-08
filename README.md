@@ -459,8 +459,8 @@ option "exclude" {
 option "bandwidth" {
   description "Limit transfer bandwidth in KiB/s; 0 means unlimited"
   short "b"
-  value "str" {
-    re "^[0-9]+$"
+  value "int" {
+    min 0
   }
 }
 
@@ -936,3 +936,53 @@ For example, `"pod-1-xx"` and `"pod-1-"` pass. `"pod-12-xx"` fails because
 `[0-9]` matches exactly one digit, and `"prefix-pod-1-xx"` fails because the
 pattern is anchored at the start. A matching string longer than 1,024 code
 points fails the length constraint.
+
+### `int` value
+
+`int` accepts signed decimal integers within the int64 range. Without
+subvalidators, any 64 bit integer passes. It provides no completion suggestions
+and disables automatic file completion.
+
+An optional `+` or `-` sign and leading zeros are accepted: `"12"`, `"+12"`,
+`"0012"`, and `"-12"` are valid integers. Leading zeros do not select octal
+notation.
+
+| Subvalidator | Example definition | Passes                | Fails          | Description                            |
+| ------------ | ------------------ | --------------------- | -------------- | -------------------------------------- |
+| `min`        | `min 0`            | `"0"`, `"12"`, `"+12"` | `"-1"`, `"-12"` | Requires a value at least this minimum. |
+| `max`        | `max 10`           | `"10"`, `"0"`, `"-12"` | `"11"`, `"12"`  | Allows a value at most this maximum.    |
+
+Both bounds are inclusive and optional. Each takes exactly one unquoted KDL
+integer within the int64 range; negative bounds and zero are allowed. For
+example, `min -10` is valid, but `min "-10"` and `min 1.5` are not. Omitting
+a bound leaves that side unrestricted within the int64 range. Equal bounds
+accept only that numeric value; reversed bounds are accepted as configuration,
+but no input can satisfy both.
+
+Validation parses the number internally, but preserves the original string
+passed to the script. For example, `"+0012"` is validated as 12 and remains
+`"+0012"` in positional arguments or an option's environment variables.
+
+> [!IMPORTANT]
+> Negative positional integers can look like command-line flags. Place `--`
+> before positional arguments to end flag parsing, for example
+> `your-script -- -12`. For a value-taking option, use `--offset=-12` or
+> `--offset -12`.
+
+#### Example
+
+```kdl
+option "retries" {
+  description "Number of retry attempts, from 0 to 10"
+  short "r"
+  value "int" {
+    min 0
+    max 10
+  }
+}
+```
+
+This definition accepts `--retries 0`, `--retries 10`, and `-r +03`.
+`--retries 11` and `--retries -1` fail the bounds, while `--retries 1.5`
+fails integer parsing. The script reads the original value from
+`SHEBANG_OL_RETRIES` or `SHEBANG_OS_R`.

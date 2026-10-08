@@ -467,6 +467,30 @@ printf '%s|%s|%s|%s' "$1" "$SHEBANG_OL_ARCHIVE_NAME" \
 			stdout: "source|привет|привет|true",
 		},
 		{
+			name: "integer validation preserves original values",
+			doc: `# option "limit" {
+#   value "int" { min 1; max 20; }
+# }
+# arg "first" { value "int"; }
+# vararg "items" { value "int"; min-count 1; }
+# arg "last" { value "int"; }
+
+printf '%s|%s|%s|%s' "$SHEBANG_OL_LIMIT" "$1" "$2" "$3"
+`,
+			args:   []string{"--limit", "+0012", "--", "0002", "-3", "04"},
+			stdout: "+0012|0002|-3|04",
+		},
+		{
+			name: "invalid integer option prevents execution",
+			doc: `# option "limit" { value "int" { min 1; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"--limit", "0"},
+			exit:   1,
+			stderr: "number must be at least 1, got 0",
+		},
+		{
 			name: "interpreter exit status preserved",
 			doc: `
 exit 7
