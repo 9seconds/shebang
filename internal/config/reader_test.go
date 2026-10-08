@@ -22,16 +22,47 @@ func (suite *ReaderTestSuite) TestExtractConfig() {
 		version int
 		want    string
 	}{
-		{name: "empty input"},
-		{name: "no marker", doc: "#!/bin/bash\n# execute \"bash\"\necho hello\n"},
-		{name: "marker without version", doc: "#!shebang\n# execute \"bash\"\n"},
-		{name: "marker with invalid version", doc: "#!shebang.one\n# execute \"bash\"\n"},
-		{name: "version zero", doc: "#!shebang.0\n", version: 0},
-		{name: "version one", doc: "#!shebang.1\n", version: 1},
+		{
+			name: "empty input",
+		},
+		{
+			name: "no marker",
+			doc: "#!/bin/bash\n# execute \"bash\"\necho hello\n",
+		},
+		{
+			name: "marker without version",
+			doc: "#!shebang\n# execute \"bash\"\n",
+		},
+		{
+			name: "marker with invalid version",
+			doc: "#!shebang.one\n# execute \"bash\"\n",
+		},
+		{
+			name: "version zero",
+			doc: "#!shebang.0\n",
+			version: 0,
+		},
+		{
+			name: "version one",
+			doc: "#!shebang.1\n",
+			version: 1,
+		},
 		{name: "multiple digit version", doc: "#!shebang.12\n", version: 12},
-		{name: "case insensitive marker", doc: "#!ShEbAnG.1\n", version: 1},
-		{name: "marker whitespace", doc: "  #!  shebang.1  \n", version: 1},
-		{name: "marker at eof", doc: "#!shebang.1", version: 1},
+		{
+			name: "case insensitive marker",
+			doc: "#!ShEbAnG.1\n",
+			version: 1,
+		},
+		{
+			name: "marker whitespace",
+			doc: "  #!  shebang.1  \n",
+			version: 1,
+		},
+		{
+			name: "marker at eof",
+			doc: "#!shebang.1",
+			version: 1,
+		},
 		{
 			name:    "skip script preamble",
 			doc:     "#!/bin/bash\n# a script\necho before\n#!shebang.1\n#execute \"bash\"\n",
@@ -92,6 +123,7 @@ func (suite *ReaderTestSuite) TestExtractConfig() {
 			suite.Require().NoError(err)
 			suite.Require().NotNil(reader)
 			suite.Equal(test.version, version)
+
 			data, err := io.ReadAll(reader)
 			suite.Require().NoError(err)
 			suite.Equal(test.want, string(data))
@@ -105,13 +137,22 @@ func (suite *ReaderTestSuite) TestReadErrors() {
 		name   string
 		prefix string
 	}{
-		{name: "before marker"},
-		{name: "after marker", prefix: "#!shebang.1\n"},
-		{name: "after config line", prefix: "#!shebang.1\n#execute \"bash\"\n"},
+		{
+			name: "before marker",
+		},
+		{
+			name: "after marker",
+			prefix: "#!shebang.1\n",
+		},
+		{
+			name: "after config line",
+			prefix: "#!shebang.1\n#execute \"bash\"\n",
+		},
 	} {
 		suite.Run(test.name, func() {
 			input := io.MultiReader(strings.NewReader(test.prefix), iotest.ErrReader(want))
 			version, reader, err := config.NewReader(input)
+
 			suite.ErrorIs(err, want)
 			suite.Zero(version)
 			suite.Nil(reader)
@@ -124,8 +165,14 @@ func (suite *ReaderTestSuite) TestOversizedLines() {
 		name string
 		doc  string
 	}{
-		{name: "before marker", doc: strings.Repeat("x", 128*1024)},
-		{name: "config line", doc: "#!shebang.1\n#" + strings.Repeat("x", 128*1024)},
+		{
+			name: "before marker",
+			doc: strings.Repeat("x", 128*1024),
+		},
+		{
+			name: "config line",
+			doc: "#!shebang.1\n#" + strings.Repeat("x", 128*1024),
+		},
 	} {
 		suite.Run(test.name, func() {
 			version, reader, err := config.NewReader(strings.NewReader(test.doc))

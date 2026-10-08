@@ -15,10 +15,9 @@ var (
 	err  = log.New(os.Stderr, "", 0)
 )
 
-func Configure(env string) {
-	if _, ok := os.LookupEnv(env); ok {
+func Configure(isDebug bool) {
+	if isDebug {
 		main.SetOutput(os.Stderr)
-		_ = os.Unsetenv(env)
 	}
 }
 
@@ -35,7 +34,7 @@ func PrintVal(reason string, value string) {
 	value = strings.TrimSpace(value)
 
 	reason = strings.TrimSpace(reason)
-	if !strings.HasSuffix(reason, ":") {
+	if reason != "" && !strings.HasSuffix(reason, ":") {
 		reason = reason + ": "
 	}
 

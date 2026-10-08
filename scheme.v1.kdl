@@ -1,0 +1,75 @@
+// Reference configuration for shebang.1 (the version marker belongs in the
+// script header, as shown in examples/test, not in this KDL document).
+//
+// Each node below illustrates the v1 syntax; names and constraints are
+// examples. Single-value nodes take exactly one argument. execute takes a list
+// of strings. Repeated scalar nodes use the last value; repeated value nodes
+// replace both the type and all constraints. Repeated constraint names use the
+// last arguments.
+
+// Interpreter command and its arguments. Default: "bash" with no arguments.
+execute "bash"
+
+// Command description for help output. Default: "".
+description ""
+
+// Usage example for help output. Default: "".
+example ""
+
+// Named option (--name) that takes a value; shares its name namespace with
+// flags.
+// Default: no options are declared; the name is required when declaring one.
+option "name" {
+    // Optional short form (-n); exactly one Unicode code point.
+    // Default: "" (no short form). Short names are unique across flags/options.
+    short "n"
+
+    // Option description for help output. Default: "".
+    description ""
+
+    // Value validator; please check documentation below in comments
+    // By default nothing is validated.
+    value "str"
+}
+
+// Leading positional argument; arg nodes before vararg predate varargs.
+// Default: no positional arguments; name is required.
+arg "first" {
+    // Positional argument description for help output. Default: "".
+    description ""
+
+    // Validator for this argument; accepts the string constraints shown above.
+    // Nothing is validated by default
+    value "str"
+}
+
+// Variable-length positional group between leading and trailing arg nodes.
+// At most one vararg is allowed. Default: no group; name is required.
+vararg "items" {
+    // Variable-length group description for help output. Default: "".
+    description ""
+
+    // Validator for each item; accepts the string constraints shown above.
+    // Default if omitted: type "" (unset), no properties.
+    value "str"
+
+    // Minimum item count (int64). Default: -1 (no minimum count restriction).
+    // Must not exceed max-count; the parser accepts negative counts.
+    min-count -1
+
+    // Maximum item count (int64). Default: 9223372036854775807 (max int64).
+    // Must not be less than min-count.
+    max-count 9223372036854775807
+}
+
+// Trailing positional argument; arg nodes after vararg populate LastArgs
+// in declaration order. Without vararg, every arg belongs to FirstArgs.
+// Default: no trailing positional arguments; name is required.
+arg "dest" {
+    // Trailing argument description for help output. Default: "".
+    description ""
+
+    // Validator for this argument; accepts the string constraints shown above.
+    // Default if omitted: type "" (unset), no properties.
+    value "str"
+}

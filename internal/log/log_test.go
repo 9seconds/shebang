@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"slices"
+	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 )
+
+const logProcessCase = "SHEBANG_TEST_LOG_PROCESS_CASE"
 
 type LogTestSuite struct {
 	suite.Suite
@@ -16,44 +19,14 @@ type LogTestSuite struct {
 }
 
 func (suite *LogTestSuite) SetupTest() {
-	writer := main.Writer()
-	suite.T().Cleanup(func() {
-		main.SetOutput(writer)
-	})
 	suite.output.Reset()
+
+	previous := main.Writer()
 	main.SetOutput(&suite.output)
-}
 
-func (suite *LogTestSuite) TestConfigure() {
-	for _, value := range []string{"", "1", "false"} {
-		suite.Run("value="+value, func() {
-			const key = "SHEBANG_LOG_TEST_CONFIGURE"
-			suite.T().Setenv(key, value)
-			main.SetOutput(io.Discard)
-
-			Configure(key)
-
-			suite.Same(os.Stderr, main.Writer())
-			_, exists := os.LookupEnv(key)
-			suite.False(exists)
-		})
-	}
-}
-
-func (suite *LogTestSuite) TestConfigureUnsetVariable() {
-	const key = "SHEBANG_LOG_TEST_CONFIGURE"
-	suite.T().Setenv(key, "1")
-	suite.Require().NoError(os.Unsetenv(key))
-
-	Configure(key)
-
-	suite.Same(&suite.output, main.Writer())
-}
-
-func (suite *LogTestSuite) TestPrint() {
-	Print("hello %s: %d", "world", 42)
-
-	suite.Equal(">>> :  hello world: 42\n", suite.output.String())
+	suite.T().Cleanup(func() {
+		main.SetOutput(previous)
+	})
 }
 
 func (suite *LogTestSuite) TestPrintVal() {
@@ -63,26 +36,71 @@ func (suite *LogTestSuite) TestPrintVal() {
 		value  string
 		want   string
 	}{
-		{name: "reason", reason: "status", value: "ready", want: ">>> status:  ready\n"},
-		{name: "reason with colon", reason: "status:", value: "ready", want: ">>> status: ready\n"},
-		{name: "empty reason", value: "ready", want: ">>> :  ready\n"},
-		{name: "empty value", reason: "status", want: ">>> status:  \n"},
-		{name: "whitespace value", reason: "status", value: " \t\n\u2003", want: ">>> status:  \n"},
 		{
-			name: "trim surrounding whitespace", reason: " \tstatus\u2003 ",
-			value: "\u2003 ready \t\n", want: ">>> status:  ready\n",
+			name: "empty value",
+			want: ">>>  \n",
 		},
 		{
-			name: "multiline alignment", reason: "status", value: "first\nsecond\nthird",
-			want: ">>> status:  first\n>>>          second\n>>>          third\n",
+			name:  "plain value",
+			value: "hello",
+			want:  ">>>  hello\n",
 		},
 		{
-			name: "multiline colon alignment", reason: "status:", value: "first\nsecond",
-			want: ">>> status: first\n>>>         second\n",
+			name:   "reason gets colon",
+			reason: "Name",
+			value:  "value",
+			want:   ">>> Name:  value\n",
 		},
 		{
-			name: "interior whitespace", reason: "x", value: "first \t\n\n  second \u2003\nthird",
-			want: ">>> x:  first\n>>>     \n>>>       second\n>>>     third\n",
+			name:   "existing colon",
+			reason: "Name:",
+			value:  "value",
+			want:   ">>> Name: value\n",
+		},
+		{
+			name:   "trim outer whitespace",
+			reason: " \tName \n",
+			value:  " \tvalue\n \t",
+			want:   ">>> Name:  value\n",
+		},
+		{
+			name:   "whitespace only",
+			reason: " \t\n",
+			value:  " \t\n",
+			want:   ">>>  \n",
+		},
+		{
+			name:   "empty value with reason",
+			reason: "Name",
+			want:   ">>> Name:  \n",
+		},
+		{
+			name:   "multiline indentation",
+			reason: "Name",
+			value:  "first\nsecond\nthird",
+			want:   ">>> Name:  first\n>>>        second\n>>>        third\n",
+		},
+		{
+			name:   "multiline with existing colon",
+			reason: "Name:",
+			value:  "first\nsecond",
+			want:   ">>> Name: first\n>>>       second\n",
+		},
+		{
+			name:  "blank lines and inner indentation",
+			value: "first  \n\n  second\t\n",
+			want:  ">>>  first\n>>>  \n>>>    second\n",
+		},
+		{
+			name:  "windows line endings",
+			value: "first\r\nsecond\r\n",
+			want:  ">>>  first\n>>>  second\n",
+		},
+		{
+			name:   "unicode value",
+			reason: "Greeting",
+			value:  "привет\nпривет",
+			want:   ">>> Greeting:  привет\n>>>            привет\n",
 		},
 	} {
 		suite.Run(test.name, func() {
@@ -93,36 +111,217 @@ func (suite *LogTestSuite) TestPrintVal() {
 	}
 }
 
+func (suite *LogTestSuite) TestPrint() {
+	for _, test := range []struct {
+		name   string
+		format string
+		args   []any
+		want   string
+	}{
+		{
+			name: "empty format",
+			want: ">>>  \n",
+		},
+		{
+			name:   "literal message",
+			format: "message",
+			want:   ">>>  message\n",
+		},
+		{
+			name:   "formatted arguments",
+			format: "%s %d %t",
+			args:   []any{"привет", 2, true},
+			want:   ">>>  привет 2 true\n",
+		},
+		{
+			name:   "formatted multiline value",
+			format: "  %s\n  ",
+			args:   []any{"first\nsecond"},
+			want:   ">>>  first\n>>>  second\n",
+		},
+	} {
+		suite.Run(test.name, func() {
+			suite.output.Reset()
+			Print(test.format, test.args...)
+			suite.Equal(test.want, suite.output.String())
+		})
+	}
+}
+
+func (suite *LogTestSuite) TestConfigure() {
+	for _, test := range []struct {
+		name  string
+		debug bool
+	}{
+		{
+			name: "disabled preserves output",
+		},
+		{
+			name:  "enabled uses stderr",
+			debug: true,
+		},
+	} {
+		suite.Run(test.name, func() {
+			main.SetOutput(&suite.output)
+			Configure(test.debug)
+			if test.debug {
+				suite.Same(os.Stderr, main.Writer())
+			} else {
+				suite.Same(&suite.output, main.Writer())
+			}
+		})
+	}
+
+	Configure(true)
+	Configure(false)
+	suite.Same(os.Stderr, main.Writer())
+}
+
 func (suite *LogTestSuite) TestIterLines() {
 	for _, test := range []struct {
 		name  string
 		value string
 		want  []string
 	}{
-		{name: "empty", want: []string{""}},
-		{name: "whitespace only", value: " \t\n\u2003", want: []string{""}},
-		{name: "single line", value: "hello", want: []string{"hello"}},
-		{name: "trailing newlines", value: "hello\n\n", want: []string{"hello"}},
-		{name: "multiple lines", value: "one\ntwo\nthree", want: []string{"one", "two", "three"}},
-		{name: "blank lines preserved", value: "\none\n\ntwo", want: []string{"", "one", "", "two"}},
-		{name: "trailing whitespace trimmed", value: "one \t\ntwo\u2003\n", want: []string{"one", "two"}},
-		{name: "leading whitespace preserved", value: "  one\n\ttwo", want: []string{"  one", "\ttwo"}},
-		{name: "CRLF", value: "one\r\ntwo\r\n", want: []string{"one", "two"}},
+		{
+			name: "empty",
+			want: []string{""},
+		},
+		{
+			name:  "whitespace only",
+			value: " \t\n",
+			want:  []string{""},
+		},
+		{
+			name:  "single line",
+			value: "привет",
+			want:  []string{"привет"},
+		},
+		{
+			name:  "preserve leading whitespace",
+			value: "  first\n\tsecond",
+			want:  []string{"  first", "\tsecond"},
+		},
+		{
+			name:  "trim trailing whitespace on each line",
+			value: "first \t\nsecond\t\n\n",
+			want:  []string{"first", "second"},
+		},
+		{
+			name:  "preserve inner empty lines",
+			value: "\nfirst\n\nsecond",
+			want:  []string{"", "first", "", "second"},
+		},
+		{
+			name:  "windows line endings",
+			value: "first\r\nsecond\r\n",
+			want:  []string{"first", "second"},
+		},
 	} {
 		suite.Run(test.name, func() {
-			suite.Equal(test.want, slices.Collect(iterLines(test.value)))
+			var lines []string
+			for line := range iterLines(test.value) {
+				lines = append(lines, line)
+			}
+
+			suite.Equal(test.want, lines)
 		})
 	}
 }
 
 func (suite *LogTestSuite) TestIterLinesEarlyStop() {
-	var lines []string
-	iterLines("one\ntwo\nthree")(func(line string) bool {
-		lines = append(lines, line)
-		return false
-	})
+	for _, test := range []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{
+			name: "empty",
+		},
+		{
+			name:  "stop before second line",
+			value: "привет\nsecond\nthird",
+			want:  "привет",
+		},
+	} {
+		suite.Run(test.name, func() {
+			calls := 0
+			iterLines(test.value)(func(line string) bool {
+				calls++
+				suite.Equal(test.want, line)
+				return false
+			})
+			suite.Equal(1, calls)
+		})
+	}
+}
 
-	suite.Equal([]string{"one"}, lines)
+func (suite *LogTestSuite) TestDie() {
+	executable, executableError := os.Executable()
+	suite.Require().NoError(executableError)
+	for _, test := range []struct {
+		name string
+		mode string
+		want string
+	}{
+		{
+			name: "formatted message",
+			mode: "formatted",
+			want: "failed привет: 3\n",
+		},
+		{
+			name: "trailing whitespace",
+			mode: "whitespace",
+			want: "failed\n",
+		},
+		{
+			name: "empty message",
+			mode: "empty",
+			want: "\n",
+		},
+		{
+			name: "multiline message",
+			mode: "multiline",
+			want: "first\nsecond\n",
+		},
+	} {
+		suite.Run(test.name, func() {
+			cmd := exec.Command(executable, "-test.run=^TestLogProcess$")
+			for _, entry := range os.Environ() {
+				name, _, _ := strings.Cut(entry, "=")
+				if name != logProcessCase {
+					cmd.Env = append(cmd.Env, entry)
+				}
+			}
+			cmd.Env = append(cmd.Env, logProcessCase+"="+test.mode)
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+			cmd.Stdout = io.Discard
+			processError := cmd.Run()
+			var exitError *exec.ExitError
+			suite.Require().ErrorAs(processError, &exitError)
+			suite.Equal(1, exitError.ExitCode())
+			suite.Equal(test.want, stderr.String())
+		})
+	}
+}
+
+func TestLogProcess(t *testing.T) {
+	switch os.Getenv(logProcessCase) {
+	case "":
+		t.Skip("subprocess helper")
+	case "formatted":
+		Die("failed %s: %d", "привет", 3)
+	case "whitespace":
+		Die("failed \t\r\n  ")
+	case "empty":
+		Die("")
+	case "multiline":
+		Die("first\nsecond\n\n")
+	default:
+		t.Fatal("unknown subprocess mode")
+	}
+	t.Fatal("Die returned instead of exiting")
 }
 
 func TestLog(t *testing.T) {

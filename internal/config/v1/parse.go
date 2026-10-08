@@ -4,10 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"unicode/utf8"
 
+	"github.com/9seconds/shebang/internal/utils"
 	kdl "github.com/njreid/gokdl2"
 	"github.com/njreid/gokdl2/document"
+)
+
+var (
+	ErrUnknownNode = errors.New("unknown node")
+	ErrOneArgumentExpected = errors.New("only 1 vararg can be defined")
+	ErrDefineExecute = errors.New("execute cannot be empty")
+
+	ReName = regexp.MustCompile(`[a-zA-Z0-9]+`)
 )
 
 func Parse(r io.Reader) (*Config, error) {
@@ -17,242 +27,310 @@ func Parse(r io.Reader) (*Config, error) {
 	}
 
 	conf := &Config{
-		options: map[string]*configOption{},
+		Argv: []string{"bash"},
+		seenLongNames: make(map[string]bool),
+		seenShortNames: make(map[string]bool),
 	}
 
 	for _, node := range doc.Nodes {
-		if err := parseConfigNode(conf, node); err != nil {
-			return nil, fmt.Errorf(
-				"cannot process node %s: %w",
-				node.Name.NodeNameString(),
-				err,
-			)
+		name := node.Name.NodeNameString()
+		if err := processConfigNode(conf, node); err != nil {
+			return nil, fmt.Errorf("cannot process node %s: %w", name, err)
 		}
 	}
 
-	seenShorts := map[string]string{}
-	for name, opt := range conf.options {
-		if opt.short == "" {
-			continue
-		}
-
-		if previous, ok := seenShorts[opt.short]; ok {
-			return nil, fmt.Errorf(
-				"short option %s is defined in both %s and %s",
-				opt.short,
-				name,
-				previous,
-			)
-		}
-		seenShorts[opt.short] = name
+	if len(conf.Argv) == 0 {
+		return nil, ErrDefineExecute
 	}
 
 	return conf, nil
 }
 
-func parseConfigNode(conf *Config, node *document.Node) error {
+func processConfigNode(conf *Config, node *document.Node) error {
 	switch node.Name.NodeNameString() {
-	case "execute":
-		return parseConfigNodeExecute(conf, node)
+	case "description":
+		return setSingleArgument(&conf.Description, node)
 	case "example":
-		return parseConfigNodeExample(conf, node)
-	case "description":
-		return parseConfigNodeDescription(conf, node)
+		return setSingleArgument(&conf.Example, node)
+	case "execute":
+		return processConfigNodeExecute(conf, node)
 	case "option":
-		return parseConfigNodeOption(conf, node)
-	case "argument":
-		return parseConfigNodeArgument(conf, node)
+		return processConfigNodeOption(conf, node)
+	case "flag":
+		return processConfigNodeFlag(conf, node)
+	case "arg":
+		return processConfigNodeArg(conf, node)
+	case "vararg":
+		return processConfigNodeVarArg(conf, node)
 	}
 
-	return errors.New("unknown node type")
+	return ErrUnknownNode
 }
 
-func parseConfigNodeExecute(conf *Config, node *document.Node) error {
-	args, err := parseArguments[string](node)
-	if err != nil {
-		return err
+func processConfigNodeOption(conf *Config, node *document.Node) error {
+	opt := Option{}
+
+	if err := setName(&opt.Name, node); err != nil {
+		return fmt.Errorf("cannot set a name: %w", err)
 	}
 
-	conf.execute = args
-
-	return nil
-}
-
-func parseConfigNodeExample(conf *Config, node *document.Node) error {
-	val, err := parseOneArgument[string](node)
-	if err != nil {
-		return err
+	if _, ok := conf.seenLongNames[opt.Name]; ok {
+		return fmt.Errorf("duplicate long name %s", opt.Name)
 	}
+	conf.seenLongNames[opt.Name] = true
 
-	conf.example = val
-
-	return nil
-}
-
-func parseConfigNodeDescription(conf *Config, node *document.Node) error {
-	val, err := parseOneArgument[string](node)
-	if err != nil {
-		return err
-	}
-
-	conf.description = val
-
-	return nil
-}
-
-func parseConfigNodeOption(conf *Config, node *document.Node) error {
-	option := &configOption{
-		minCount: -1,
-		maxCount: int(^uint(0) >> 1),
-	}
-
-	name, err := parseOneArgument[string](node)
-	if err != nil {
-		return errors.New("cannot parse name")
-	}
-
-	if val, ok := node.Properties.Get("short"); ok && val != nil {
-		val2, ok := val.Value.(string)
-		if !ok {
-			return errors.New("value of 'short' must be string")
-		}
-		if lv := utf8.RuneCountInString(val2); lv != 1 {
-			return fmt.Errorf("length of 'short' must be 1, not %d", lv)
-		}
-		option.short = val2
-	}
-
-	if err := parseConfigItem(&option.configItem, node); err != nil {
-		return fmt.Errorf("cannot parse option %s: %w", name, err)
-	}
-
-	conf.options[name] = option
-
-	return nil
-}
-
-func parseConfigNodeArgument(conf *Config, node *document.Node) error {
-	arg := &configArgument{}
-
-	if err := parseConfigItem(&arg.configItem, node); err != nil {
-		return fmt.Errorf("cannot parse argument: %w", err)
-	}
-
-	conf.argument = arg
-
-	return nil
-}
-
-func parseConfigItem(item *configItem, node *document.Node) error {
-	for _, child := range node.Children {
-		if err := parseConfigItemChild(item, child); err != nil {
-			return fmt.Errorf("cannot parse %s node: %w", child.Name.NodeNameString(), err)
+	for _, chld := range node.Children {
+		name := chld.Name.NodeNameString()
+		if err := processOptionNode(&opt, chld); err != nil {
+			return fmt.Errorf("cannot process option %s: %w", name, err)
 		}
 	}
 
+	if opt.Short != "" {
+		if _, ok := conf.seenShortNames[opt.Short]; ok {
+			return fmt.Errorf("duplicate short name %s", opt.Short)
+		}
+		conf.seenShortNames[opt.Short] = true
+	}
+
+	conf.Options = append(conf.Options, opt)
+
 	return nil
 }
 
-func parseConfigItemChild(item *configItem, node *document.Node) error {
+func processOptionNode(opt *Option, node *document.Node) error {
 	switch node.Name.NodeNameString() {
 	case "description":
-		return parseConfigItemChildDescription(item, node)
-	case "min-count":
-		return parseConfigItemChildMinCount(item, node)
-	case "max-count":
-		return parseConfigItemChildMaxCount(item, node)
+		return setSingleArgument(&opt.Description, node)
+	case "short":
+		return processShort(&opt.Short, node)
 	case "value":
-		return parseConfigItemChildValue(item, node)
+		return processWithValue(&opt.WithValue, node)
 	}
 
-	return errors.New("unknown node type")
+	return ErrUnknownNode
 }
 
-func parseConfigItemChildDescription(item *configItem, node *document.Node) error {
-	arg, err := parseOneArgument[string](node)
-	if err != nil {
-		return fmt.Errorf("cannot parse description: %w", err)
+func processConfigNodeFlag(conf *Config, node *document.Node) error {
+	flag := Flag{}
+
+	if err := setName(&flag.Name, node); err != nil {
+		return fmt.Errorf("cannot set a name: %w", err)
 	}
 
-	item.description = arg
+	if _, ok := conf.seenLongNames[flag.Name]; ok {
+		return fmt.Errorf("duplicate long name %s", flag.Name)
+	}
+	conf.seenLongNames[flag.Name] = true
+
+	for _, chld := range node.Children {
+		name := chld.Name.NodeNameString()
+		if err := processFlagNode(&flag, chld); err != nil {
+			return fmt.Errorf("cannot process flag %s: %w", name, err)
+		}
+	}
+
+	if flag.Short != "" {
+		if _, ok := conf.seenShortNames[flag.Short]; ok {
+			return fmt.Errorf("duplicate short name %s", flag.Short)
+		}
+		conf.seenShortNames[flag.Short] = true
+	}
+
+	conf.Flags = append(conf.Flags, flag)
 
 	return nil
 }
 
-func parseConfigItemChildMinCount(item *configItem, node *document.Node) error {
-	arg, err := parseOneArgument[int64](node)
-	if err != nil {
-		return fmt.Errorf("cannot parse min-count: %w", err)
+func processFlagNode(flag *Flag, node *document.Node) error {
+	switch node.Name.NodeNameString() {
+	case "short":
+		return processShort(&flag.Short, node)
+	case "description":
+		return setSingleArgument(&flag.Description, node)
 	}
 
-	if int64(int(arg)) != arg {
-		return fmt.Errorf("min-count %d is out of range for int", arg)
+	return ErrUnknownNode
+}
+
+func processConfigNodeArg(conf *Config, node *document.Node) error {
+	arg := Arg{}
+
+	if err := setName(&arg.Name, node); err != nil {
+		return fmt.Errorf("cannot set a name: %w", err)
 	}
-	item.minCount = int(arg)
+
+	for _, chld := range node.Children {
+		name := chld.Name.NodeNameString()
+		if err := processArgNode(&arg, chld); err != nil {
+			return fmt.Errorf("cannot process argument %s: %w", name, err)
+		}
+	}
+
+	if conf.VarArgs == nil {
+		conf.FirstArgs = append(conf.FirstArgs, arg)
+	} else {
+		conf.LastArgs = append(conf.LastArgs, arg)
+	}
 
 	return nil
 }
 
-func parseConfigItemChildMaxCount(item *configItem, node *document.Node) error {
-	arg, err := parseOneArgument[int64](node)
-	if err != nil {
-		return fmt.Errorf("cannot parse max-count: %w", err)
+func processArgNode(arg *Arg, node *document.Node) error {
+	switch node.Name.NodeNameString() {
+	case "description":
+		return setSingleArgument(&arg.Description, node)
+	case "value":
+		return processWithValue(&arg.WithValue, node)
 	}
 
-	if int64(int(arg)) != arg {
-		return fmt.Errorf("max-count %d is out of range for int", arg)
+	return ErrUnknownNode
+}
+
+func processConfigNodeVarArg(conf *Config, node *document.Node) error {
+	if conf.VarArgs != nil {
+		return ErrOneArgumentExpected
 	}
-	item.maxCount = int(arg)
+
+	arg := &VarArg{}
+
+	if err := setName(&arg.Name, node); err != nil {
+		return fmt.Errorf("cannot set a name: %w", err)
+	}
+
+	for _, chld := range node.Children {
+		name := chld.Name.NodeNameString()
+		if err := processVarArgNode(arg, chld); err != nil {
+			return fmt.Errorf("cannot process vararg %s: %w", name, err)
+		}
+	}
+
+	if arg.MinCount != nil && arg.MaxCount != nil && *arg.MinCount > *arg.MaxCount {
+		return fmt.Errorf(
+			"min-count %d is greater than max-count %d",
+			*arg.MinCount,
+			*arg.MaxCount,
+		)
+	}
+
+	conf.VarArgs = arg
 
 	return nil
 }
 
-func parseConfigItemChildValue(item *configItem, node *document.Node) error {
-	valueType, err := parseOneArgument[string](node)
-	if err != nil {
-		return fmt.Errorf("cannot parse value type: %w", err)
+func processVarArgNode(arg *VarArg, node *document.Node) error {
+	switch node.Name.NodeNameString() {
+	case "description":
+		return setSingleArgument(&arg.Description, node)
+	case "value":
+		return processWithValue(&arg.WithValue, node)
+	case "min-count":
+		return setPointer(&arg.MinCount, node)
+	case "max-count":
+		return setPointer(&arg.MaxCount, node)
 	}
 
-	item.valueType = valueType
-	item.valueParams = map[string][]any{}
+	return ErrUnknownNode
+}
 
-	for _, child := range node.Children {
-		paramName := child.Name.NodeNameString()
-		paramValue, err := parseArguments[any](child)
-		if err != nil {
-			return fmt.Errorf("cannot parse argument of value %s: %w", paramName, err)
+func processConfigNodeExecute(conf *Config, node *document.Node) error {
+	argv, err := getNodeArguments[string](node)
+	if err != nil {
+		return err
+	}
+
+	conf.Argv = argv
+
+	return nil
+}
+
+func processWithValue(data *WithValue, node *document.Node) error {
+	valueType, err := getNodeArgument[string](node)
+	if err != nil {
+		return fmt.Errorf("cannot get a type of the value: %w", err)
+	}
+
+	data.Type = valueType
+	data.Properties = make(map[string][]any)
+
+	for _, chld := range node.Children {
+		propName := chld.Name.NodeNameString()
+
+		propValues := make([]any, len(chld.Arguments))
+		for idx, arg := range chld.Arguments {
+			propValues[idx] = arg.Value
 		}
 
-		item.valueParams[paramName] = paramValue
+		data.Properties[propName] = propValues
 	}
 
 	return nil
 }
 
-func parseOneArgument[T any](node *document.Node) (T, error) {
-	if lv := len(node.Arguments); lv != 1 {
-		return *new(T), fmt.Errorf("expected 1 argument, got %d", lv)
+func processShort(data *string, node *document.Node) error {
+	if err := setSingleArgument(data, node); err != nil {
+		return err
 	}
 
-	val, ok := node.Arguments[0].Value.(T)
-	if !ok {
-		return *new(T), fmt.Errorf("unexpected value of type %T, expected %T", node.Arguments[0].Value, *new(T))
+	if lv := utf8.RuneCountInString(*data); lv != 1 {
+		return fmt.Errorf("short must contain 1 character, not %d", lv)
 	}
 
-	return val, nil
+	return nil
 }
 
-func parseArguments[T any](node *document.Node) ([]T, error) {
-	rv := make([]T, len(node.Arguments))
-
-	for idx, item := range node.Arguments {
-		val, ok := item.Value.(T)
-		if !ok {
-			return nil, fmt.Errorf("unexpected value of type %T, expected %T", item.Value, *new(T))
-		}
-
-		rv[idx] = val
+func setSingleArgument[T any](target *T, node *document.Node) error {
+	val, err := getNodeArgument[T](node)
+	if err != nil {
+		return err
 	}
 
-	return rv, nil
+	*target = val
+
+	return nil
+}
+
+func setPointer[T any](target **T, node *document.Node) error {
+	val, err := getNodeArgument[T](node)
+	if err != nil {
+		return err
+	}
+
+	*target = &val
+
+	return nil
+}
+
+func setName(target *string, node *document.Node) error {
+	if err := setSingleArgument[string](target, node); err != nil {
+		return err
+	}
+
+	if !ReName.MatchString(*target) {
+		return fmt.Errorf(
+			"value %s does not match regex %s",
+			*target,
+			ReName.String(),
+		)
+	}
+
+	return nil
+}
+
+func getNodeArguments[T any](node *document.Node) ([]T, error) {
+	return utils.All[T](convertNodeArgsToAny(node))
+}
+
+func getNodeArgument[T any](node *document.Node) (T, error) {
+	return utils.One[T](convertNodeArgsToAny(node))
+}
+
+func convertNodeArgsToAny(node *document.Node) []any {
+	values := make([]any, len(node.Arguments))
+
+	for idx, arg := range node.Arguments {
+		values[idx] = arg.Value
+	}
+
+	return values
 }

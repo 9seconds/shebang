@@ -1,57 +1,53 @@
 package cli
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/9seconds/shebang/internal/env"
 	"github.com/spf13/cobra"
 )
 
-type (
-	ExecFunc func(string, []string, []string) error
-)
-
 type Command struct {
-	cobra.Command
-
-	Argv    []string
-	Options []*Option
-	Flags   []*Flag
+	Cmd cobra.Command
+	ScriptName string
+	Argv []string
+	Options []Option
+	Flags []Flag
 }
 
 func (c *Command) Execute(args []string) error {
-	c.SetArgs(args)
-	return c.Command.Execute()
+	c.Cmd.SetArgs(args)
+	return c.Cmd.Execute()
 }
 
-func NewCommand(scriptName string, execute ExecFunc) *Command {
+func NewCommand(scriptName string, execute func ([]string) error) *Command {
 	cmd := &Command{
-		DisableAutoGenTag: true,
+		ScriptName: scriptName,
+		Cmd: cobra.Command{
+			DisableAutoGenTag: true,
+			DisableFlagsInUseLine: true,
+			CompletionOptions: cobra.CompletionOptions{
+				DisableDefaultCmd: true,
+				DisableNoDescFlag: true,
+				HiddenDefaultCmd: true,
+			},
+		},
 	}
+	cmd.Cmd.Flags().SortFlags = true
+	cmd.Cmd.CompletionOptions.SetDefaultShellCompDirective(
+		cobra.ShellCompDirectiveNoFileComp,
+	)
 
-	cmd.PreRunE = func(_ *cobra.Command, _ []string) error {
+	cmd.Cmd.PreRun = func(_ *cobra.Command, _ []string) {
 		for _, opt := range cmd.Options {
-			if err := opt.Validate(); err != nil {
-				return fmt.Errorf("invalid option %s: %w", opt.Name, err)
-			}
 			opt.SetEnv()
 		}
-
 		for _, flag := range cmd.Flags {
-			if flag.Value {
-				env.Set(flag.Name, flag.String())
-			}
+			flag.SetEnv()
 		}
-
-		return nil
 	}
-
-	cmd.RunE = func(_ *cobra.Command, args []string) error {
-		toExecute := append(cmd.Argv, scriptName)
+	cmd.Cmd.RunE = func(_ *cobra.Command, args []string) error {
+		toExecute := append(cmd.Argv, cmd.ScriptName)
 		toExecute = append(toExecute, args...)
 
-		return execute(toExecute[0], toExecute, os.Environ())
+		return execute(toExecute)
 	}
 
 	return cmd
