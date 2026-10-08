@@ -37,8 +37,10 @@ var (
 	// ErrNoValueType indicates an explicitly empty value type.
 	ErrNoValueType = errors.New("value type is not defined")
 
-	// ReName matches nonempty ASCII-alphanumeric declaration names.
-	ReName = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+	// ReName matches ASCII-alphanumeric declaration names with internal hyphens.
+	ReName = regexp.MustCompile(`^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$`)
+	// ReShort matches an ASCII-alphanumeric shorthand.
+	ReShort = regexp.MustCompile(`^[a-zA-Z0-9]$`)
 
 	// ReservedShorts contains normalized shorthands unavailable to declarations.
 	ReservedShorts = map[string]bool{
@@ -198,6 +200,8 @@ func processConfigNodeArg(conf *Config, node *document.Node) error {
 		return fmt.Errorf("cannot set a name: %w", err)
 	}
 
+	arg.Name = strings.ReplaceAll(arg.Name, "-", "_")
+
 	for _, chld := range node.Children {
 		name := chld.Name.NodeNameString()
 		if err := processArgNode(&arg, chld); err != nil {
@@ -235,6 +239,8 @@ func processConfigNodeVarArg(conf *Config, node *document.Node) error {
 	if err := setName(&arg.Name, node); err != nil {
 		return fmt.Errorf("cannot set a name: %w", err)
 	}
+
+	arg.Name = strings.ReplaceAll(arg.Name, "-", "_")
 
 	for _, chld := range node.Children {
 		name := chld.Name.NodeNameString()
@@ -346,8 +352,8 @@ func processShort(data *string, node *document.Node) error {
 		return NewShortNameLengthError(lv)
 	}
 
-	if !ReName.MatchString(*data) {
-		return NewShortNamePatternError(ReName.String())
+	if !ReShort.MatchString(*data) {
+		return NewShortNamePatternError(ReShort.String())
 	}
 
 	if ReservedShorts[*data] {

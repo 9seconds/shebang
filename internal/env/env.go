@@ -18,13 +18,14 @@ var debugModeValue = func() string {
 	return value
 }()
 
-// Var adds Prefix when absent and converts the resulting name to uppercase.
+// Var adds Prefix when absent, replaces hyphens with underscores, and converts
+// the resulting name to uppercase.
 func Var(name string) string {
 	if !strings.HasPrefix(name, Prefix) {
 		name = Prefix + name
 	}
 
-	return strings.ToUpper(name)
+	return strings.ToUpper(strings.ReplaceAll(name, "-", "_"))
 }
 
 // IsDebug reports whether SHEBANG_DEBUG was nonempty at process startup.

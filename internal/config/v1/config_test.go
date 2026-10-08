@@ -185,6 +185,20 @@ func (suite *ConfigTestSuite) TestUse() {
 	}
 }
 
+func (suite *ConfigTestSuite) TestHyphenatedPositionalNames() {
+	conf, err := v1.Parse(strings.NewReader("arg \"source-dir\"\n" +
+		"vararg \"extra-path\" { min-count 1; }\narg \"destination-dir\"\n"))
+	suite.Require().NoError(err)
+
+	conf.Argv = []string{suite.runner}
+	cmd := cli.NewCommand("script", nil)
+	suite.Require().NoError(conf.Configure(cmd))
+	suite.Equal("script [--] SOURCE_DIR EXTRA_PATH1 [EXTRA_PATH2 ...] DESTINATION_DIR", cmd.Cmd.Use)
+	suite.Contains(cmd.Cmd.Long, "SOURCE_DIR")
+	suite.Contains(cmd.Cmd.Long, "EXTRA_PATH")
+	suite.Contains(cmd.Cmd.Long, "DESTINATION_DIR")
+}
+
 func (suite *ConfigTestSuite) TestNormalizedVarArgBounds() {
 	for _, test := range []struct {
 		name    string

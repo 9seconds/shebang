@@ -69,6 +69,16 @@ func (suite *EnvTestSuite) TestVar() {
 			input: "привет",
 			want:  "SHEBANG_ПРИВЕТ",
 		},
+		{
+			name:  "hyphenated option export",
+			input: "SHEBANG_OL_archive-name",
+			want:  "SHEBANG_OL_ARCHIVE_NAME",
+		},
+		{
+			name:  "multiple hyphens",
+			input: "filesystem-type-name",
+			want:  "SHEBANG_FILESYSTEM_TYPE_NAME",
+		},
 	} {
 		suite.Run(test.name, func() {
 			suite.Equal(test.want, env.Var(test.input))
@@ -83,6 +93,12 @@ func (suite *EnvTestSuite) TestSet() {
 		key   string
 		value string
 	}{
+		{
+			name:  "hyphenated name",
+			input: "OL_archive-name",
+			key:   "SHEBANG_OL_ARCHIVE_NAME",
+			value: "привет",
+		},
 		{
 			name:  "unprefixed lowercase name",
 			input: "test_value",

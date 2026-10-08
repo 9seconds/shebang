@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -84,11 +85,15 @@ func (suite *MainTestSuite) TestParseConfig() {
 	}{
 		{
 			name: "default configuration",
-			doc:  "#!/bin/sh\necho привет\n",
+			doc: `#!/bin/sh
+echo привет
+`,
 		},
 		{
 			name: "embedded configuration",
-			doc:  "#!shebang.1\n# description \"привет\"\n",
+			doc: `#!shebang.1
+# description "привет"
+`,
 		},
 		{
 			name:    "missing file",
@@ -96,8 +101,10 @@ func (suite *MainTestSuite) TestParseConfig() {
 			message: "cannot open",
 		},
 		{
-			name:    "invalid configuration",
-			doc:     "#!shebang.1\n# unknown\n",
+			name: "invalid configuration",
+			doc: `#!shebang.1
+# unknown
+`,
 			message: "cannot process node unknown:",
 		},
 	} {
@@ -340,7 +347,9 @@ func (suite *MainTestSuite) TestRunDebug() {
 	cmd := &cobra.Command{}
 	cmd.SetOut(&output)
 	suite.Require().NoError(runDebug(cmd, []string{"runner", "script", "привет"}))
-	suite.Contains(output.String(), "Argv: [runner script привет]\nEnvironment:\n")
+	suite.Contains(output.String(), `Argv: [runner script привет]
+Environment:
+`)
 	suite.Contains(output.String(), "SHEBANG_TEST_VALUE=привет=world\n")
 	suite.NotContains(output.String(), "OTHER_TEST_VALUE")
 }
@@ -434,36 +443,62 @@ func (suite *MainTestSuite) TestMain() {
 		},
 		{
 			name: "exec preserves arguments and environment",
-			doc: "# option \"output\" { short \"o\"; }\n" +
-				"# flag \"verbose\" { short \"v\"; }\n# arg \"word\"\n\n" +
-				"printf '%s|%s|%s|%s' \"$1\" \"$SHEBANG_OL_OUTPUT\" " +
-				"\"$SHEBANG_FL_VERBOSE\" \"$SHEBANG_TEST_INHERITED\"\n",
+			doc: `# option "output" { short "o"; }
+# flag "verbose" { short "v"; }
+# arg "word"
+
+printf '%s|%s|%s|%s' "$1" "$SHEBANG_OL_OUTPUT" \
+  "$SHEBANG_FL_VERBOSE" "$SHEBANG_TEST_INHERITED"
+`,
 			args:    []string{"-o", "привет", "-v", "word"},
 			environ: []string{"SHEBANG_TEST_INHERITED=привет"},
 			stdout:  "word|привет|true|привет",
 		},
 		{
+			name: "hyphenated CLI names export shell-readable variables",
+			doc: `# option "archive-name" { short "a"; }
+# flag "local-only"
+# arg "source-dir"
+
+printf '%s|%s|%s|%s' "$1" "$SHEBANG_OL_ARCHIVE_NAME" \
+  "$SHEBANG_OS_A" "$SHEBANG_FL_LOCAL_ONLY"
+`,
+			args:   []string{"--archive-name", "привет", "--local-only", "source"},
+			stdout: "source|привет|привет|true",
+		},
+		{
 			name: "interpreter exit status preserved",
-			doc:  "\nexit 7\n",
+			doc: `
+exit 7
+`,
 			exit: 7,
 		},
 		{
-			name:    "debug does not execute script",
-			doc:     "# arg \"word\"\n\nprintf 'SCRIPT RAN'\nexit 7\n",
+			name: "debug does not execute script",
+			doc: `# arg "word"
+
+printf 'SCRIPT RAN'
+exit 7
+`,
 			args:    []string{"привет"},
 			environ: []string{"SHEBANG_DEBUG=1"},
 			debug:   true,
 		},
 		{
-			name:       "completion takes precedence over execution",
-			doc:        "# arg \"required\"\n\nprintf 'SCRIPT RAN'\n",
+			name: "completion takes precedence over execution",
+			doc: `# arg "required"
+
+printf 'SCRIPT RAN'
+`,
 			args:       []string{"--unknown"},
 			environ:    []string{"SHEBANG_COMPLETION=bash"},
 			completion: true,
 		},
 		{
-			name:       "present empty completion uses shell",
-			doc:        "\nprintf 'SCRIPT RAN'\n",
+			name: "present empty completion uses shell",
+			doc: `
+printf 'SCRIPT RAN'
+`,
 			environ:    []string{"SHEBANG_COMPLETION=", "SHELL=/bin/bash"},
 			completion: true,
 		},
@@ -474,8 +509,11 @@ func (suite *MainTestSuite) TestMain() {
 			stderr:  "cannot generate shell completions: unsupported shell unsupported",
 		},
 		{
-			name:   "help does not execute script",
-			doc:    "# description \"привет\"\n\nprintf 'SCRIPT RAN'\n",
+			name: "help does not execute script",
+			doc: `# description "привет"
+
+printf 'SCRIPT RAN'
+`,
 			args:   []string{"--help"},
 			stdout: "привет",
 		},
@@ -484,7 +522,9 @@ func (suite *MainTestSuite) TestMain() {
 			path := filepath.Join(suite.T().TempDir(), "script")
 
 			if !test.missing && !test.noScript {
-				doc := "#!shebang.1\n# execute \"" + shellPath + "\"\n" + test.doc
+				doc := fmt.Sprintf(`#!shebang.1
+# execute %q
+%s`, shellPath, test.doc)
 				suite.Require().NoError(os.WriteFile(path, []byte(doc), 0o700))
 			}
 

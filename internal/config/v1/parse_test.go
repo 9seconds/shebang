@@ -1111,6 +1111,18 @@ func (suite *ParseTestSuite) TestInvalidNames() {
 					value: "name=",
 				},
 				{
+					name:  "leading hyphen",
+					value: "-name",
+				},
+				{
+					name:  "trailing hyphen",
+					value: "name-",
+				},
+				{
+					name:  "consecutive hyphens",
+					value: "archive--name",
+				},
+				{
 					name:  "spaces",
 					value: "name with spaces",
 				},
@@ -1194,6 +1206,14 @@ func (suite *ParseTestSuite) TestValidNames() {
 					name:  "digits only",
 					value: "123",
 				},
+				{
+					name:  "hyphenated name",
+					value: "archive-name",
+				},
+				{
+					name:  "multiple hyphens and mixed case",
+					value: "Archive-Name-2",
+				},
 			} {
 				suite.Run(test.name, func() {
 					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
@@ -1209,10 +1229,12 @@ func (suite *ParseTestSuite) TestValidNames() {
 						suite.Equal(strings.ToLower(test.value), conf.Flags[0].Name)
 					case "arg":
 						suite.Require().Len(conf.FirstArgs, 1)
-						suite.Equal(strings.ToLower(test.value), conf.FirstArgs[0].Name)
+						suite.Equal(strings.ReplaceAll(strings.ToLower(test.value), "-", "_"),
+							conf.FirstArgs[0].Name)
 					case "vararg":
 						suite.Require().NotNil(conf.VarArgs)
-						suite.Equal(strings.ToLower(test.value), conf.VarArgs.Name)
+						suite.Equal(strings.ReplaceAll(strings.ToLower(test.value), "-", "_"),
+							conf.VarArgs.Name)
 					}
 				})
 			}
@@ -1316,14 +1338,14 @@ func (suite *ParseTestSuite) TestShortNameCharacters() {
 					if !test.valid {
 						suite.Require().Error(err)
 						suite.Require().ErrorContains(err, "cannot process "+node+" short:")
-						suite.Require().ErrorContains(err, "must comply "+v1.ReName.String()+" regexp")
+						suite.Require().ErrorContains(err, "must comply "+v1.ReShort.String()+" regexp")
 						suite.Nil(conf)
 
 						var patternError *v1.ShortNamePatternError
 
 						suite.Require().ErrorAs(err, &patternError)
-						suite.Equal(v1.ReName.String(), patternError.Pattern)
-						constructed := v1.NewShortNamePatternError(v1.ReName.String())
+						suite.Equal(v1.ReShort.String(), patternError.Pattern)
+						constructed := v1.NewShortNamePatternError(v1.ReShort.String())
 						suite.Equal(*constructed, *patternError)
 						suite.Equal(constructed.Error(), patternError.Error())
 
