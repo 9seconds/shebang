@@ -59,7 +59,12 @@ func (suite *GettersTestSuite) TestAllStrings() {
 				suite.Require().NoError(err)
 				suite.Equal(test.want, got)
 			} else {
-				suite.EqualError(err, test.message)
+				suite.Require().EqualError(err, test.message)
+
+				var typeError *utils.ArgumentTypeError
+
+				suite.Require().ErrorAs(err, &typeError)
+				suite.Equal("string", typeError.Expected)
 				suite.Nil(got)
 			}
 		})
@@ -95,7 +100,12 @@ func (suite *GettersTestSuite) TestAllIntegers() {
 				suite.Require().NoError(err)
 				suite.Equal(test.want, got)
 			} else {
-				suite.EqualError(err, test.message)
+				suite.Require().EqualError(err, test.message)
+
+				var typeError *utils.ArgumentTypeError
+
+				suite.Require().ErrorAs(err, &typeError)
+				suite.Equal("int64", typeError.Expected)
 				suite.Nil(got)
 			}
 		})
@@ -104,11 +114,12 @@ func (suite *GettersTestSuite) TestAllIntegers() {
 
 func (suite *GettersTestSuite) TestOneStrings() {
 	for _, test := range []struct {
-		name    string
-		values  []any
-		want    string
-		message string
-		empty   bool
+		name      string
+		values    []any
+		want      string
+		message   string
+		empty     bool
+		wantError error
 	}{
 		{
 			name:  "nil input",
@@ -129,14 +140,16 @@ func (suite *GettersTestSuite) TestOneStrings() {
 			values: []any{""},
 		},
 		{
-			name:    "two values",
-			values:  []any{"first", "second"},
-			message: "expected 1 element, got 2",
+			name:      "two values",
+			values:    []any{"first", "second"},
+			message:   "expected 1 element, got 2",
+			wantError: utils.ErrSingleArgumentExpected,
 		},
 		{
-			name:    "three values",
-			values:  []any{"first", "second", "third"},
-			message: "expected 1 element, got 3",
+			name:      "three values",
+			values:    []any{"first", "second", "third"},
+			message:   "expected 1 element, got 3",
+			wantError: utils.ErrSingleArgumentExpected,
 		},
 		{
 			name:    "wrong type",
@@ -156,13 +169,25 @@ func (suite *GettersTestSuite) TestOneStrings() {
 	} {
 		suite.Run(test.name, func() {
 			got, err := utils.One[string](test.values)
-			if test.empty {
-				suite.ErrorIs(err, utils.ErrEmpty)
+
+			switch {
+			case test.empty:
+				suite.Require().ErrorIs(err, utils.ErrEmpty)
 				suite.Empty(got)
-			} else if test.message != "" {
-				suite.EqualError(err, test.message)
+			case test.message != "":
+				suite.Require().EqualError(err, test.message)
+
+				if test.wantError != nil {
+					suite.Require().ErrorIs(err, test.wantError)
+				} else {
+					var typeError *utils.ArgumentTypeError
+
+					suite.Require().ErrorAs(err, &typeError)
+					suite.Equal("string", typeError.Expected)
+				}
+
 				suite.Empty(got)
-			} else {
+			default:
 				suite.Require().NoError(err)
 				suite.Equal(test.want, got)
 			}
@@ -198,7 +223,7 @@ func (suite *GettersTestSuite) TestOneIntegers() {
 				suite.Require().NoError(err)
 				suite.Equal(test.want, got)
 			} else {
-				suite.EqualError(err, test.message)
+				suite.Require().EqualError(err, test.message)
 				suite.Zero(got)
 			}
 		})
@@ -229,17 +254,21 @@ func (suite *GettersTestSuite) TestPointers() {
 	} {
 		suite.Run(test.name, func() {
 			all, allErr := utils.All[*string]([]any{test.value})
+
 			one, oneErr := utils.One[*string]([]any{test.value})
 			if test.message != "" {
-				suite.EqualError(allErr, test.message)
-				suite.EqualError(oneErr, test.message)
+				suite.Require().EqualError(allErr, test.message)
+				suite.Require().EqualError(oneErr, test.message)
 				suite.Nil(all)
 				suite.Nil(one)
+
 				return
 			}
+
 			suite.Require().NoError(allErr)
 			suite.Require().NoError(oneErr)
 			suite.Require().Len(all, 1)
+
 			if test.want == nil {
 				suite.Nil(all[0])
 				suite.Nil(one)
@@ -251,6 +280,51 @@ func (suite *GettersTestSuite) TestPointers() {
 	}
 }
 
+func (suite *GettersTestSuite) TestNewArgumentTypeError() {
+	for _, test := range []struct {
+		name     string
+		expected any
+		actual   any
+		want     utils.ArgumentTypeError
+	}{
+		{
+			name:     "string and integer",
+			expected: "привет",
+			actual:   int64(1),
+			want: utils.ArgumentTypeError{
+				Expected: "string",
+				Actual:   "int64",
+			},
+		},
+		{
+			name:     "typed nil and untyped nil",
+			expected: (*string)(nil),
+			want: utils.ArgumentTypeError{
+				Expected: "*string",
+				Actual:   "<nil>",
+			},
+		},
+		{
+			name:     "typed nil actual value",
+			expected: "",
+			actual:   (*string)(nil),
+			want: utils.ArgumentTypeError{
+				Expected: "string",
+				Actual:   "*string",
+			},
+		},
+	} {
+		suite.Run(test.name, func() {
+			err := utils.NewArgumentTypeError(test.expected, test.actual)
+			suite.Require().NotNil(err)
+			suite.Equal(test.want, *err)
+			suite.Equal("expected "+test.want.Expected+" parameter, got "+test.want.Actual, err.Error())
+		})
+	}
+}
+
 func TestGetters(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, &GettersTestSuite{})
 }

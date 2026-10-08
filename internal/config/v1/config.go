@@ -13,29 +13,35 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// WithValue describes a value type and its validation properties.
 type WithValue struct {
-	Type string
+	Type       string
 	Properties map[string][]any
 }
 
+// Flag describes a boolean command-line flag.
 type Flag struct {
-	Name string
+	Name        string
 	Description string
-	Short string
+	Short       string
 }
 
+// Option describes a command-line option that accepts a validated value.
 type Option struct {
 	Flag
 	WithValue
 }
 
+// Arg describes a required positional argument.
 type Arg struct {
 	WithValue
 
-	Name string
+	Name        string
 	Description string
 }
 
+// VarArg describes a variadic positional group. A nil minimum means no required
+// items, and a nil maximum means unlimited items.
 type VarArg struct {
 	Arg
 
@@ -43,20 +49,23 @@ type VarArg struct {
 	MaxCount *int64
 }
 
+// Config stores interpreter arguments, help text, and command-line declarations.
 type Config struct {
 	Description string
-	Example string
-	Argv []string
-	Flags []Flag
-	Options []Option
-	FirstArgs []Arg
-	LastArgs []Arg
-	VarArgs *VarArg
+	Example     string
+	Argv        []string
+	Flags       []Flag
+	Options     []Option
+	FirstArgs   []Arg
+	LastArgs    []Arg
+	VarArgs     *VarArg
 
-	seenLongNames map[string]bool
+	seenLongNames  map[string]bool
 	seenShortNames map[string]bool
 }
 
+// Configure resolves the interpreter and installs help, flags, validation, and
+// completion callbacks on cmd.
 func (c *Config) Configure(cmd *cli.Command) error {
 	c.configureExample(cmd)
 	log.PrintVal("Example", cmd.Cmd.Example)
@@ -67,11 +76,13 @@ func (c *Config) Configure(cmd *cli.Command) error {
 	if err := c.configureArgv(cmd); err != nil {
 		return err
 	}
+
 	log.PrintVal("Argv", fmt.Sprint(cmd.Argv))
 
 	if err := c.configureUse(cmd); err != nil {
 		return err
 	}
+
 	log.PrintVal("Useline", cmd.Cmd.UseLine())
 
 	if err := c.configureOptions(cmd); err != nil {
@@ -98,14 +109,16 @@ func (c *Config) configureDescription(cmd *cli.Command) {
 	for _, arg := range c.FirstArgs {
 		fmtLen = max(fmtLen, utf8.RuneCountInString(arg.Name))
 	}
+
 	for _, arg := range c.LastArgs {
 		fmtLen = max(fmtLen, utf8.RuneCountInString(arg.Name))
 	}
+
 	if c.VarArgs != nil {
 		fmtLen = max(fmtLen, utf8.RuneCountInString(c.VarArgs.Name))
 	}
 
-	fmtPositionalArgs := fmt.Sprintf("  %%-%ds %%s", fmtLen + 2)
+	fmtPositionalArgs := fmt.Sprintf("  %%-%ds %%s", fmtLen+2)
 
 	for _, arg := range c.FirstArgs {
 		description = append(
@@ -167,43 +180,7 @@ func (c *Config) configureUse(cmd *cli.Command) error {
 	}
 
 	if c.VarArgs != nil {
-		name := strings.ToUpper(c.VarArgs.Name)
-
-		minCount := 0
-		if c.VarArgs.MinCount != nil {
-			minCount = int(*c.VarArgs.MinCount)
-			switch minCount {
-			case 0:
-			case 1:
-				args = append(args, fmt.Sprintf("%s1", name))
-			case 2:
-				args = append(args, fmt.Sprintf("%s1", name))
-				args = append(args, fmt.Sprintf("%s2", name))
-			default:
-				args = append(args, fmt.Sprintf("%s1", name))
-				args = append(args, "...")
-				args = append(args, fmt.Sprintf("%s%d", name, minCount))
-			}
-		}
-
-		if c.VarArgs.MaxCount == nil {
-			args = append(args, fmt.Sprintf("[%s%d", name, minCount + 1))
-			args = append(args, "...]")
-		} else {
-			maxCount := int(*c.VarArgs.MaxCount)
-			switch maxCount - minCount {
-			case 0:
-			case 1:
-				args = append(args, fmt.Sprintf("[%s%d]", name, minCount + 1))
-			case 2:
-				args = append(args, fmt.Sprintf("[%s%d", name, minCount + 1))
-				args = append(args, fmt.Sprintf("%s%d]", name, minCount + 2))
-			default:
-				args = append(args, fmt.Sprintf("[%s%d", name, minCount + 1))
-				args = append(args, "...")
-				args = append(args, fmt.Sprintf("%s%d]", name, maxCount))
-			}
-		}
+		args = append(args, c.VarArgs.usageArgs()...)
 	}
 
 	for _, arg := range c.LastArgs {
@@ -219,6 +196,58 @@ func (c *Config) configureUse(cmd *cli.Command) error {
 	cmd.Cmd.Use = strings.Join(chunks, " ")
 
 	return nil
+}
+
+func (a *VarArg) usageArgs() []string {
+	name := strings.ToUpper(a.Name)
+
+	minCount := 0
+	if a.MinCount != nil {
+		minCount = int(*a.MinCount)
+	}
+
+	args := requiredVarArgUsage(name, minCount)
+
+	return append(args, a.optionalUsageArgs(name, minCount)...)
+}
+
+func requiredVarArgUsage(name string, minCount int) []string {
+	switch minCount {
+	case 0:
+		return nil
+	case 1:
+		return []string{name + "1"}
+	case 2:
+		return []string{name + "1", name + "2"}
+	default:
+		return []string{name + "1", "...", fmt.Sprintf("%s%d", name, minCount)}
+	}
+}
+
+func (a *VarArg) optionalUsageArgs(name string, minCount int) []string {
+	if a.MaxCount == nil {
+		return []string{fmt.Sprintf("[%s%d", name, minCount+1), "...]"}
+	}
+
+	maxCount := int(*a.MaxCount)
+
+	switch maxCount - minCount {
+	case 0:
+		return nil
+	case 1:
+		return []string{fmt.Sprintf("[%s%d]", name, minCount+1)}
+	case 2:
+		return []string{
+			fmt.Sprintf("[%s%d", name, minCount+1),
+			fmt.Sprintf("%s%d]", name, minCount+2),
+		}
+	default:
+		return []string{
+			fmt.Sprintf("[%s%d", name, minCount+1),
+			"...",
+			fmt.Sprintf("%s%d]", name, maxCount),
+		}
+	}
 }
 
 func (c *Config) configureOptions(cmd *cli.Command) error {
@@ -237,6 +266,7 @@ func (c *Config) configureOptions(cmd *cli.Command) error {
 		cmd.Options[idx].Validator = value
 
 		flagSet.VarP(&cmd.Options[idx], opt.Name, opt.Short, opt.Description)
+
 		err = cmd.Cmd.RegisterFlagCompletionFunc(
 			opt.Name,
 			func(
@@ -247,7 +277,6 @@ func (c *Config) configureOptions(cmd *cli.Command) error {
 				return value.Complete(toComplete)
 			},
 		)
-
 		if err != nil {
 			return err
 		}

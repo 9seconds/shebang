@@ -10,9 +10,9 @@ import (
 )
 
 type baseValue[T any] struct {
-	prepare func(string) (T, error)
-	complete func(T) ([]string, cobra.ShellCompDirective)
-	checks map[string]func(T) error
+	prepare       func(string) (T, error)
+	complete      func(T) ([]string, cobra.ShellCompDirective)
+	checks        map[string]func(T) error
 	validatorType string
 }
 

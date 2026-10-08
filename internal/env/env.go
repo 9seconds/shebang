@@ -1,3 +1,4 @@
+// Package env manages shebang environment variables and startup debug state.
 package env
 
 import (
@@ -7,34 +8,38 @@ import (
 	"github.com/9seconds/shebang/internal/log"
 )
 
-const PREFIX = "SHEBANG_"
+// Prefix identifies environment variables owned by shebang.
+const Prefix = "SHEBANG_"
 
-var (
-	debugModeValue string = func() string {
-		value := os.Getenv(PREFIX + "DEBUG")
-		_ = os.Unsetenv(PREFIX + "DEBUG")
-		return value
-	}()
-)
+var debugModeValue = func() string {
+	value := os.Getenv(Prefix + "DEBUG")
+	_ = os.Unsetenv(Prefix + "DEBUG")
 
+	return value
+}()
+
+// Var adds Prefix when absent and converts the resulting name to uppercase.
 func Var(name string) string {
-	if !strings.HasPrefix(name, PREFIX) {
-		name = PREFIX + name
+	if !strings.HasPrefix(name, Prefix) {
+		name = Prefix + name
 	}
 
 	return strings.ToUpper(name)
 }
 
+// IsDebug reports whether SHEBANG_DEBUG was nonempty at process startup.
+// The startup variable is removed from the environment during initialization.
 func IsDebug() bool {
 	return debugModeValue != ""
 }
 
+// Set exports value under the normalized name, exiting if the variable is invalid.
 func Set(name string, value string) {
 	name = Var(name)
 
 	if err := os.Setenv(name, value); err != nil {
-		log.Die("Cannot set environment variable %s to %s: %s", name, value, err)
+		log.Dief("Cannot set environment variable %s to %s: %s", name, value, err)
 	}
 
-	log.Print("Set %s to %s", name, value)
+	log.Printf("Set %s to %s", name, value)
 }

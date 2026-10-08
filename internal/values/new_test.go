@@ -65,7 +65,7 @@ func (suite *NewTestSuite) TestNew() {
 		suite.Run(test.name, func() {
 			value, err := values.New(test.valueType, test.properties)
 			if test.err != nil {
-				suite.ErrorIs(err, test.err)
+				suite.Require().ErrorIs(err, test.err)
 				suite.Nil(value)
 			} else {
 				suite.Require().NoError(err)
@@ -78,5 +78,7 @@ func (suite *NewTestSuite) TestNew() {
 }
 
 func TestNew(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, &NewTestSuite{})
 }

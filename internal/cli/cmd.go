@@ -1,32 +1,31 @@
+// Package cli builds script commands and exports parsed options and flags.
 package cli
 
 import (
 	"github.com/spf13/cobra"
 )
 
+// Command combines CLI parsing with script execution.
 type Command struct {
-	Cmd cobra.Command
+	Cmd        cobra.Command
 	ScriptName string
-	Argv []string
-	Options []Option
-	Flags []Flag
+	Argv       []string
+	Options    []Option
+	Flags      []Flag
 }
 
-func (c *Command) Execute(args []string) error {
-	c.Cmd.SetArgs(args)
-	return c.Cmd.Execute()
-}
-
-func NewCommand(scriptName string, execute func ([]string) error) *Command {
+// NewCommand creates a script command that invokes execute with the interpreter,
+// script path, and positional arguments.
+func NewCommand(scriptName string, execute func(*cobra.Command, []string) error) *Command {
 	cmd := &Command{
 		ScriptName: scriptName,
 		Cmd: cobra.Command{
-			DisableAutoGenTag: true,
+			DisableAutoGenTag:     true,
 			DisableFlagsInUseLine: true,
 			CompletionOptions: cobra.CompletionOptions{
 				DisableDefaultCmd: true,
 				DisableNoDescFlag: true,
-				HiddenDefaultCmd: true,
+				HiddenDefaultCmd:  true,
 			},
 		},
 	}
@@ -39,16 +38,26 @@ func NewCommand(scriptName string, execute func ([]string) error) *Command {
 		for _, opt := range cmd.Options {
 			opt.SetEnv()
 		}
+
 		for _, flag := range cmd.Flags {
 			flag.SetEnv()
 		}
 	}
-	cmd.Cmd.RunE = func(_ *cobra.Command, args []string) error {
-		toExecute := append(cmd.Argv, cmd.ScriptName)
+	cmd.Cmd.RunE = func(command *cobra.Command, args []string) error {
+		toExecute := make([]string, 0, len(cmd.Argv)+1+len(args))
+		toExecute = append(toExecute, cmd.Argv...)
+		toExecute = append(toExecute, cmd.ScriptName)
 		toExecute = append(toExecute, args...)
 
-		return execute(toExecute)
+		return execute(command, toExecute)
 	}
 
 	return cmd
+}
+
+// Execute parses args and runs the configured command.
+func (c *Command) Execute(args []string) error {
+	c.Cmd.SetArgs(args)
+
+	return c.Cmd.Execute()
 }

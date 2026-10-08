@@ -15,6 +15,7 @@ const logProcessCase = "SHEBANG_TEST_LOG_PROCESS_CASE"
 
 type LogTestSuite struct {
 	suite.Suite
+
 	output bytes.Buffer
 }
 
@@ -111,7 +112,7 @@ func (suite *LogTestSuite) TestPrintVal() {
 	}
 }
 
-func (suite *LogTestSuite) TestPrint() {
+func (suite *LogTestSuite) TestPrintf() {
 	for _, test := range []struct {
 		name   string
 		format string
@@ -142,7 +143,7 @@ func (suite *LogTestSuite) TestPrint() {
 	} {
 		suite.Run(test.name, func() {
 			suite.output.Reset()
-			Print(test.format, test.args...)
+			Printf(test.format, test.args...)
 			suite.Equal(test.want, suite.output.String())
 		})
 	}
@@ -164,6 +165,7 @@ func (suite *LogTestSuite) TestConfigure() {
 		suite.Run(test.name, func() {
 			main.SetOutput(&suite.output)
 			Configure(test.debug)
+
 			if test.debug {
 				suite.Same(os.Stderr, main.Writer())
 			} else {
@@ -246,9 +248,12 @@ func (suite *LogTestSuite) TestIterLinesEarlyStop() {
 	} {
 		suite.Run(test.name, func() {
 			calls := 0
+
 			iterLines(test.value)(func(line string) bool {
 				calls++
+
 				suite.Equal(test.want, line)
+
 				return false
 			})
 			suite.Equal(1, calls)
@@ -256,9 +261,10 @@ func (suite *LogTestSuite) TestIterLinesEarlyStop() {
 	}
 }
 
-func (suite *LogTestSuite) TestDie() {
+func (suite *LogTestSuite) TestDief() {
 	executable, executableError := os.Executable()
 	suite.Require().NoError(executableError)
+
 	for _, test := range []struct {
 		name string
 		mode string
@@ -287,17 +293,22 @@ func (suite *LogTestSuite) TestDie() {
 	} {
 		suite.Run(test.name, func() {
 			cmd := exec.Command(executable, "-test.run=^TestLogProcess$")
+
 			for _, entry := range os.Environ() {
 				name, _, _ := strings.Cut(entry, "=")
 				if name != logProcessCase {
 					cmd.Env = append(cmd.Env, entry)
 				}
 			}
+
 			cmd.Env = append(cmd.Env, logProcessCase+"="+test.mode)
+
 			var stderr bytes.Buffer
+
 			cmd.Stderr = &stderr
 			cmd.Stdout = io.Discard
 			processError := cmd.Run()
+
 			var exitError *exec.ExitError
 			suite.Require().ErrorAs(processError, &exitError)
 			suite.Equal(1, exitError.ExitCode())
@@ -306,24 +317,27 @@ func (suite *LogTestSuite) TestDie() {
 	}
 }
 
+//nolint:paralleltest // The subprocess helper verifies logging that terminates the process.
 func TestLogProcess(t *testing.T) {
 	switch os.Getenv(logProcessCase) {
 	case "":
 		t.Skip("subprocess helper")
 	case "formatted":
-		Die("failed %s: %d", "привет", 3)
+		Dief("failed %s: %d", "привет", 3)
 	case "whitespace":
-		Die("failed \t\r\n  ")
+		Dief("failed \t\r\n  ")
 	case "empty":
-		Die("")
+		Dief("")
 	case "multiline":
-		Die("first\nsecond\n\n")
+		Dief("first\nsecond\n\n")
 	default:
 		t.Fatal("unknown subprocess mode")
 	}
-	t.Fatal("Die returned instead of exiting")
+
+	t.Fatal("Dief returned instead of exiting")
 }
 
+//nolint:paralleltest // The suite mutates the shared logger output.
 func TestLog(t *testing.T) {
 	suite.Run(t, &LogTestSuite{})
 }

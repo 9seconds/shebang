@@ -3,24 +3,28 @@ package cli
 import "github.com/9seconds/shebang/internal/env"
 
 const (
-	PREFIX_FLAG_LONG = env.PREFIX + "FL_"
-	PREFIX_FLAG_SHORT = env.PREFIX + "FS_"
+	// PrefixFlagLong prefixes environment variables for long flag names.
+	PrefixFlagLong = env.Prefix + "FL_"
+	// PrefixFlagShort prefixes environment variables for short flag names.
+	PrefixFlagShort = env.Prefix + "FS_"
 )
 
+// Flag stores a boolean flag and its long and short names.
 type Flag struct {
 	Value bool
 	Long  string
 	Short string
 }
 
+// SetEnv exports enabled flags under their long and optional short names.
 func (f *Flag) SetEnv() {
 	if !f.Value {
 		return
 	}
 
-	env.Set(PREFIX_FLAG_LONG + f.Long, "true")
+	env.Set(PrefixFlagLong+f.Long, "true")
 
 	if f.Short != "" {
-		env.Set(PREFIX_FLAG_SHORT + f.Short, "true")
+		env.Set(PrefixFlagShort+f.Short, "true")
 	}
 }

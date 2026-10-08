@@ -7,4 +7,37 @@ concurrency = 4
 tests = true
 
 [linters]
-enable-all = true
+default = "all"
+enable = [
+    "gomodguard_v2",
+]
+disable = [
+    "depguard",
+    "exhaustruct",
+    "exhaustruct_v5",
+    "gochecknoglobals",
+    "gomodguard",
+    "inamedparam",
+    "mnd",
+    "noinlineerr",
+    "testpackage",
+    "wrapcheck",
+    "wsl",
+]
+
+[linters.settings.lll]
+line-length = 100
+
+[[linters.exclusions.rules]]
+path = '_test\.go$'
+linters = [
+    "dupword",
+    "err113",
+    "forcetypeassert",
+    "funlen",
+    "gocognit",
+    "goconst",
+    "gosec",
+    "noctx",
+    "prealloc",
+]

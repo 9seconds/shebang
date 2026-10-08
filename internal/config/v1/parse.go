@@ -15,27 +15,43 @@ import (
 )
 
 const (
+	// MaxVarArgs limits each explicitly configured nonnegative vararg bound.
 	MaxVarArgs = math.MaxUint16
 )
 
 var (
-	ErrUnknownNode         = errors.New("unknown node")
+	// ErrDuplicateLongName indicates a repeated normalized long name.
+	ErrDuplicateLongName = errors.New("duplicate long name")
+	// ErrDuplicateShortName indicates a repeated normalized shorthand.
+	ErrDuplicateShortName = errors.New("duplicate short name")
+	// ErrUnknownNode indicates an unsupported configuration node.
+	ErrUnknownNode = errors.New("unknown node")
+	// ErrOneArgumentExpected indicates multiple vararg declarations.
 	ErrOneArgumentExpected = errors.New("only 1 vararg can be defined")
-	ErrDefineExecute       = errors.New("execute cannot be empty")
-	ErrReservedName        = errors.New("name is reserved")
-	ErrReservedShort       = errors.New("shorthand is reserved")
-	ErrNoValueType         = errors.New("value type is not defined")
+	// ErrDefineExecute indicates an empty interpreter argument list.
+	ErrDefineExecute = errors.New("execute cannot be empty")
+	// ErrReservedName indicates a name reserved for built-in command behavior.
+	ErrReservedName = errors.New("name is reserved")
+	// ErrReservedShort indicates a reserved shorthand.
+	ErrReservedShort = errors.New("shorthand is reserved")
+	// ErrNoValueType indicates an explicitly empty value type.
+	ErrNoValueType = errors.New("value type is not defined")
 
+	// ReName matches nonempty ASCII-alphanumeric declaration names.
 	ReName = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
 
+	// ReservedShorts contains normalized shorthands unavailable to declarations.
 	ReservedShorts = map[string]bool{
 		"h": true,
 	}
+	// ReservedNames contains normalized names unavailable to declarations.
 	ReservedNames = map[string]bool{
 		"help": true,
 	}
 )
 
+// Parse reads KDL configuration, validates declarations, and normalizes names
+// and vararg bounds. The default interpreter is bash.
 func Parse(r io.Reader) (*Config, error) {
 	doc, err := kdl.Parse(r)
 	if err != nil {
@@ -64,7 +80,7 @@ func Parse(r io.Reader) (*Config, error) {
 
 func processConfigNode(conf *Config, node *document.Node) error {
 	switch node.Name.NodeNameString() {
-	case "description":
+	case "description": //nolint:goconst // Keep KDL node names explicit in parser switches.
 		return setSingleArgument(&conf.Description, node)
 	case "example":
 		return setSingleArgument(&conf.Example, node)
@@ -83,6 +99,7 @@ func processConfigNode(conf *Config, node *document.Node) error {
 	return ErrUnknownNode
 }
 
+//nolint:dupl // Preserve distinct option and flag child handlers and error context.
 func processConfigNodeOption(conf *Config, node *document.Node) error {
 	opt := Option{}
 
@@ -91,8 +108,9 @@ func processConfigNodeOption(conf *Config, node *document.Node) error {
 	}
 
 	if _, ok := conf.seenLongNames[opt.Name]; ok {
-		return fmt.Errorf("duplicate long name %s", opt.Name)
+		return fmt.Errorf("%w %s", ErrDuplicateLongName, opt.Name)
 	}
+
 	conf.seenLongNames[opt.Name] = true
 
 	for _, chld := range node.Children {
@@ -104,8 +122,9 @@ func processConfigNodeOption(conf *Config, node *document.Node) error {
 
 	if opt.Short != "" {
 		if _, ok := conf.seenShortNames[opt.Short]; ok {
-			return fmt.Errorf("duplicate short name %s", opt.Short)
+			return fmt.Errorf("%w %s", ErrDuplicateShortName, opt.Short)
 		}
+
 		conf.seenShortNames[opt.Short] = true
 	}
 
@@ -120,13 +139,14 @@ func processOptionNode(opt *Option, node *document.Node) error {
 		return setSingleArgument(&opt.Description, node)
 	case "short":
 		return processShort(&opt.Short, node)
-	case "value":
+	case "value": //nolint:goconst // Keep KDL node names explicit in parser switches.
 		return processWithValue(&opt.WithValue, node)
 	}
 
 	return ErrUnknownNode
 }
 
+//nolint:dupl // Preserve distinct option and flag child handlers and error context.
 func processConfigNodeFlag(conf *Config, node *document.Node) error {
 	flag := Flag{}
 
@@ -135,8 +155,9 @@ func processConfigNodeFlag(conf *Config, node *document.Node) error {
 	}
 
 	if _, ok := conf.seenLongNames[flag.Name]; ok {
-		return fmt.Errorf("duplicate long name %s", flag.Name)
+		return fmt.Errorf("%w %s", ErrDuplicateLongName, flag.Name)
 	}
+
 	conf.seenLongNames[flag.Name] = true
 
 	for _, chld := range node.Children {
@@ -148,8 +169,9 @@ func processConfigNodeFlag(conf *Config, node *document.Node) error {
 
 	if flag.Short != "" {
 		if _, ok := conf.seenShortNames[flag.Short]; ok {
-			return fmt.Errorf("duplicate short name %s", flag.Short)
+			return fmt.Errorf("%w %s", ErrDuplicateShortName, flag.Short)
 		}
+
 		conf.seenShortNames[flag.Short] = true
 	}
 
@@ -221,41 +243,43 @@ func processConfigNodeVarArg(conf *Config, node *document.Node) error {
 		}
 	}
 
-	// Negative bounds have the same meaning as omitted bounds: no required
-	// items for the minimum, and no limit for the maximum. Normalize before
-	// comparing so an unlimited maximum accepts any nonnegative minimum.
-	if arg.MinCount != nil && *arg.MinCount < 0 {
-		arg.MinCount = nil
-	}
-	if arg.MaxCount != nil && *arg.MaxCount < 0 {
-		arg.MaxCount = nil
-	}
-
-	if arg.MinCount != nil && arg.MaxCount != nil && *arg.MinCount > *arg.MaxCount {
-		return fmt.Errorf(
-			"min-count %d is greater than max-count %d",
-			*arg.MinCount,
-			*arg.MaxCount,
-		)
-	}
-
-	if arg.MinCount != nil && *arg.MinCount > MaxVarArgs {
-		return fmt.Errorf(
-			"if you use more than %d max arguments, do not limit them",
-			MaxVarArgs,
-		)
-	}
-
-	if arg.MaxCount != nil && *arg.MaxCount > MaxVarArgs {
-		return fmt.Errorf(
-			"if you use more than %d max arguments, do not limit them",
-			MaxVarArgs,
-		)
+	if err := normalizeVarArgBounds(arg); err != nil {
+		return err
 	}
 
 	conf.VarArgs = arg
 
 	return nil
+}
+
+func normalizeVarArgBounds(arg *VarArg) error {
+	// Negative bounds have the same meaning as omitted bounds: no required
+	// items for the minimum, and no limit for the maximum. Normalize before
+	// comparing so an unlimited maximum accepts any nonnegative minimum.
+	arg.MinCount = normalizeVarArgBound(arg.MinCount)
+	arg.MaxCount = normalizeVarArgBound(arg.MaxCount)
+
+	if arg.MinCount != nil && arg.MaxCount != nil && *arg.MinCount > *arg.MaxCount {
+		return NewVarArgBoundsError(*arg.MinCount, *arg.MaxCount)
+	}
+
+	if arg.MinCount != nil && *arg.MinCount > MaxVarArgs {
+		return NewVarArgLimitError("min-count", *arg.MinCount)
+	}
+
+	if arg.MaxCount != nil && *arg.MaxCount > MaxVarArgs {
+		return NewVarArgLimitError("max-count", *arg.MaxCount)
+	}
+
+	return nil
+}
+
+func normalizeVarArgBound(bound *int64) *int64 {
+	if bound == nil || *bound < 0 {
+		return nil
+	}
+
+	return bound
 }
 
 func processVarArgNode(arg *VarArg, node *document.Node) error {
@@ -319,11 +343,11 @@ func processShort(data *string, node *document.Node) error {
 	*data = strings.ToLower(*data)
 
 	if lv := utf8.RuneCountInString(*data); lv != 1 {
-		return fmt.Errorf("short must contain 1 character, not %d", lv)
+		return NewShortNameLengthError(lv)
 	}
 
 	if !ReName.MatchString(*data) {
-		return fmt.Errorf("must comply %s regexp", ReName.String())
+		return NewShortNamePatternError(ReName.String())
 	}
 
 	if ReservedShorts[*data] {
@@ -363,11 +387,7 @@ func setName(target *string, node *document.Node) error {
 	*target = strings.ToLower(*target)
 
 	if !ReName.MatchString(*target) {
-		return fmt.Errorf(
-			"value %s does not match regex %s",
-			*target,
-			ReName.String(),
-		)
+		return NewNamePatternError(*target, ReName.String())
 	}
 
 	if ReservedNames[*target] {
@@ -381,6 +401,7 @@ func getNodeArguments[T any](node *document.Node) ([]T, error) {
 	return utils.All[T](convertNodeArgsToAny(node))
 }
 
+//nolint:ireturn // Return the caller-selected generic node argument type T.
 func getNodeArgument[T any](node *document.Node) (T, error) {
 	return utils.One[T](convertNodeArgsToAny(node))
 }

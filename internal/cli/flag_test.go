@@ -43,6 +43,7 @@ func (suite *FlagTestSuite) TestSetEnv() {
 		suite.Run(test.name, func() {
 			suite.T().Setenv("SHEBANG_FL_VERBOSE", "old")
 			suite.T().Setenv("SHEBANG_FS_V", "old")
+
 			flag := cli.Flag{
 				Long:  "verbose",
 				Short: test.short,
@@ -55,6 +56,7 @@ func (suite *FlagTestSuite) TestSetEnv() {
 	}
 }
 
+//nolint:paralleltest // The suite mutates process environment variables.
 func TestFlag(t *testing.T) {
 	suite.Run(t, &FlagTestSuite{})
 }

@@ -1,6 +1,8 @@
+// Command shebang runs scripts using command-line interfaces defined in embedded KDL.
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,26 +17,28 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var errUnsupportedShell = errors.New("unsupported shell")
+
 func main() {
 	debugMode := env.IsDebug()
 
 	log.Configure(debugMode)
 
 	if len(os.Args) < 2 {
-		log.Die("usage: shebang <script> [arg...]")
+		log.Dief("usage: shebang <script> [arg...]")
 	}
 
 	scriptPath, err := getScript()
 	if err != nil {
-		log.Die("cannot detect a script %s: %s", os.Args[1], err.Error())
+		log.Dief("cannot detect a script %s: %s", os.Args[1], err.Error())
 	}
+
 	log.PrintVal("Script", scriptPath)
 
 	conf, err := parseConfig(scriptPath)
 	if err != nil {
-		log.Die("cannot read a config for %s: %s", scriptPath, err)
+		log.Dief("cannot read a config for %s: %s", scriptPath, err)
 	}
-
 
 	execFunc := runExecve
 	if debugMode {
@@ -43,29 +47,29 @@ func main() {
 
 	cmd := cli.NewCommand(scriptPath, execFunc)
 	if err := conf.Configure(cmd); err != nil {
-		log.Die("cannot configure command: %s", err)
+		log.Dief("cannot configure command: %s", err)
 	}
 
 	if _, ok := os.LookupEnv(env.Var("COMPLETION")); ok {
 		if err := runCompletion(&cmd.Cmd); err != nil {
-			log.Die("cannot generate shell completions: %s", err)
+			log.Dief("cannot generate shell completions: %s", err)
 		}
 	} else {
 		if err := cmd.Execute(os.Args[2:]); err != nil {
-			log.Die("cannot execute command: %s", err)
+			log.Dief("cannot execute command: %s", err)
 		}
 	}
-
 }
 
+//nolint:ireturn // Preserve the version-independent configuration returned by config.Parse.
 func parseConfig(path string) (config.Config, error) {
-	fp, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // G304: Read the script selected by the user.
 	if err != nil {
 		return nil, fmt.Errorf("cannot open %s: %w", path, err)
 	}
-	defer func() { _ = fp.Close() }()
+	defer func() { _ = file.Close() }()
 
-	return config.Parse(fp)
+	return config.Parse(file)
 }
 
 func getScript() (string, error) {
@@ -77,18 +81,19 @@ func getScript() (string, error) {
 	return exec.LookPath(scriptPath)
 }
 
-func runExecve(args []string) error {
-	return syscall.Exec(args[0], args, os.Environ())
+func runExecve(_ *cobra.Command, args []string) error {
+	// G204: Execute the interpreter resolved from the script configuration.
+	return syscall.Exec(args[0], args, os.Environ()) //nolint:gosec
 }
 
-func runDebug(args []string) error {
-	fmt.Println("Argv:", args)
-	fmt.Println("Environment:")
+func runDebug(cmd *cobra.Command, args []string) error {
+	cmd.Println("Argv:", args)
+	cmd.Println("Environment:")
 
 	for _, v := range os.Environ() {
 		k, _, _ := strings.Cut(v, "=")
-		if strings.HasPrefix(k, env.PREFIX) {
-			fmt.Println(v)
+		if strings.HasPrefix(k, env.Prefix) {
+			cmd.Println(v)
 		}
 	}
 
@@ -112,5 +117,5 @@ func runCompletion(cmd *cobra.Command) error {
 		return cmd.GenPowerShellCompletion(cmd.OutOrStdout())
 	}
 
-	return fmt.Errorf("unsupported shell %s", shell)
+	return fmt.Errorf("%w %s", errUnsupportedShell, shell)
 }

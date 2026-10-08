@@ -27,40 +27,40 @@ func (suite *ReaderTestSuite) TestExtractConfig() {
 		},
 		{
 			name: "no marker",
-			doc: "#!/bin/bash\n# execute \"bash\"\necho hello\n",
+			doc:  "#!/bin/bash\n# execute \"bash\"\necho hello\n",
 		},
 		{
 			name: "marker without version",
-			doc: "#!shebang\n# execute \"bash\"\n",
+			doc:  "#!shebang\n# execute \"bash\"\n",
 		},
 		{
 			name: "marker with invalid version",
-			doc: "#!shebang.one\n# execute \"bash\"\n",
+			doc:  "#!shebang.one\n# execute \"bash\"\n",
 		},
 		{
-			name: "version zero",
-			doc: "#!shebang.0\n",
+			name:    "version zero",
+			doc:     "#!shebang.0\n",
 			version: 0,
 		},
 		{
-			name: "version one",
-			doc: "#!shebang.1\n",
+			name:    "version one",
+			doc:     "#!shebang.1\n",
 			version: 1,
 		},
 		{name: "multiple digit version", doc: "#!shebang.12\n", version: 12},
 		{
-			name: "case insensitive marker",
-			doc: "#!ShEbAnG.1\n",
+			name:    "case insensitive marker",
+			doc:     "#!ShEbAnG.1\n",
 			version: 1,
 		},
 		{
-			name: "marker whitespace",
-			doc: "  #!  shebang.1  \n",
+			name:    "marker whitespace",
+			doc:     "  #!  shebang.1  \n",
 			version: 1,
 		},
 		{
-			name: "marker at eof",
-			doc: "#!shebang.1",
+			name:    "marker at eof",
+			doc:     "#!shebang.1",
 			version: 1,
 		},
 		{
@@ -133,6 +133,7 @@ func (suite *ReaderTestSuite) TestExtractConfig() {
 
 func (suite *ReaderTestSuite) TestReadErrors() {
 	want := errors.New("read failed")
+
 	for _, test := range []struct {
 		name   string
 		prefix string
@@ -141,11 +142,11 @@ func (suite *ReaderTestSuite) TestReadErrors() {
 			name: "before marker",
 		},
 		{
-			name: "after marker",
+			name:   "after marker",
 			prefix: "#!shebang.1\n",
 		},
 		{
-			name: "after config line",
+			name:   "after config line",
 			prefix: "#!shebang.1\n#execute \"bash\"\n",
 		},
 	} {
@@ -153,7 +154,7 @@ func (suite *ReaderTestSuite) TestReadErrors() {
 			input := io.MultiReader(strings.NewReader(test.prefix), iotest.ErrReader(want))
 			version, reader, err := config.NewReader(input)
 
-			suite.ErrorIs(err, want)
+			suite.Require().ErrorIs(err, want)
 			suite.Zero(version)
 			suite.Nil(reader)
 		})
@@ -167,17 +168,17 @@ func (suite *ReaderTestSuite) TestOversizedLines() {
 	}{
 		{
 			name: "before marker",
-			doc: strings.Repeat("x", 128*1024),
+			doc:  strings.Repeat("x", 128*1024),
 		},
 		{
 			name: "config line",
-			doc: "#!shebang.1\n#" + strings.Repeat("x", 128*1024),
+			doc:  "#!shebang.1\n#" + strings.Repeat("x", 128*1024),
 		},
 	} {
 		suite.Run(test.name, func() {
 			version, reader, err := config.NewReader(strings.NewReader(test.doc))
 			suite.Require().Error(err)
-			suite.ErrorContains(err, "token too long")
+			suite.Require().ErrorContains(err, "token too long")
 			suite.Zero(version)
 			suite.Nil(reader)
 		})
@@ -185,5 +186,7 @@ func (suite *ReaderTestSuite) TestOversizedLines() {
 }
 
 func TestReader(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, &ReaderTestSuite{})
 }

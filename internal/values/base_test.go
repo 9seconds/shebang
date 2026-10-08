@@ -44,23 +44,29 @@ func (suite *BaseTestSuite) TestValidate() {
 			value := baseValue[string]{
 				prepare: func(input string) (string, error) {
 					prepareCalls++
+
 					suite.Equal("привет", input)
+
 					return strings.ToUpper(input), test.prepareError
 				},
 				checks: map[string]func(string) error{
 					"check": func(input string) error {
 						checkCalls++
+
 						suite.Equal("ПРИВЕТ", input)
+
 						return test.checkError
 					},
 				},
 			}
+
 			err := value.Validate("привет")
 			if test.want != nil {
-				suite.ErrorIs(err, test.want)
+				suite.Require().ErrorIs(err, test.want)
 			} else {
-				suite.NoError(err)
+				suite.Require().NoError(err)
 			}
+
 			suite.Equal(1, prepareCalls)
 			suite.Equal(test.checksCalled, checkCalls)
 		})
@@ -76,15 +82,17 @@ func (suite *BaseTestSuite) TestAllChecksRun() {
 		checks: map[string]func(string) error{
 			"first": func(string) error {
 				called["first"] = true
+
 				return nil
 			},
 			"second": func(string) error {
 				called["second"] = true
+
 				return nil
 			},
 		},
 	}
-	suite.NoError(value.Validate("привет"))
+	suite.Require().NoError(value.Validate("привет"))
 	suite.Equal(map[string]bool{
 		"first":  true,
 		"second": true,
@@ -116,10 +124,12 @@ func (suite *BaseTestSuite) TestComplete() {
 			value := baseValue[string]{
 				prepare: func(input string) (string, error) {
 					suite.Equal("привет", input)
+
 					return strings.ToUpper(input), test.prepareError
 				},
 				complete: func(input string) ([]string, cobra.ShellCompDirective) {
 					calls++
+
 					return []string{input}, cobra.ShellCompDirectiveNoSpace
 				},
 			}
@@ -132,5 +142,7 @@ func (suite *BaseTestSuite) TestComplete() {
 }
 
 func TestBase(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, &BaseTestSuite{})
 }

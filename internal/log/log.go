@@ -1,3 +1,4 @@
+// Package log provides optional debug output and fatal error reporting.
 package log
 
 import (
@@ -15,27 +16,31 @@ var (
 	err  = log.New(os.Stderr, "", 0)
 )
 
+// Configure enables debug output on stderr when isDebug is true.
 func Configure(isDebug bool) {
 	if isDebug {
 		main.SetOutput(os.Stderr)
 	}
 }
 
-func Die(format string, arg ...any) {
+// Dief prints a formatted message to stderr and exits with status one.
+func Dief(format string, arg ...any) {
 	format = strings.TrimRightFunc(format, unicode.IsSpace) + "\n"
 	err.Fatalf(format, arg...)
 }
 
-func Print(format string, arg ...any) {
+// Printf writes a formatted debug message.
+func Printf(format string, arg ...any) {
 	PrintVal("", fmt.Sprintf(format, arg...))
 }
 
+// PrintVal writes a labeled debug value, indenting continuation lines.
 func PrintVal(reason string, value string) {
 	value = strings.TrimSpace(value)
 
 	reason = strings.TrimSpace(reason)
 	if reason != "" && !strings.HasSuffix(reason, ":") {
-		reason = reason + ": "
+		reason += ": "
 	}
 
 	emptyPrefix := strings.Repeat(" ", len(reason))
@@ -53,6 +58,7 @@ func iterLines(value string) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		if value == "" {
 			yield("")
+
 			return
 		}
 

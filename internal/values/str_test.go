@@ -127,6 +127,7 @@ func (suite *StrTestSuite) TestValidate() {
 		suite.Run(test.name, func() {
 			value, err := values.NewStr(test.properties)
 			suite.Require().NoError(err)
+
 			err = value.Validate(test.input)
 			if test.message == "" {
 				suite.NoError(err)
@@ -187,7 +188,8 @@ func (suite *StrTestSuite) TestPropertyArguments() {
 					})
 					suite.Require().Error(err)
 					suite.Nil(value)
-					suite.ErrorContains(err, "cannot add validator "+property.name+":")
+					suite.Require().ErrorContains(err, "cannot add validator "+property.name+":")
+
 					if test.want != nil {
 						suite.ErrorIs(err, test.want)
 					} else {
@@ -237,11 +239,13 @@ func (suite *StrTestSuite) TestInvalidProperties() {
 			})
 			suite.Require().Error(err)
 			suite.Nil(value)
+
 			if test.want != nil {
-				suite.ErrorIs(err, test.want)
+				suite.Require().ErrorIs(err, test.want)
 			} else {
-				suite.ErrorContains(err, test.message)
+				suite.Require().ErrorContains(err, test.message)
 			}
+
 			if test.property == "re" {
 				var syntaxError *syntax.Error
 				suite.ErrorAs(err, &syntaxError)
@@ -258,6 +262,7 @@ func (suite *StrTestSuite) TestStringAndCompletion() {
 	})
 	suite.Require().NoError(err)
 	suite.Equal("str(checks=max-length:6, min-length:1, re:^привет$)", value.String())
+
 	for _, input := range []string{"", "привет", "other"} {
 		suite.Run(input, func() {
 			completions, directive := value.Complete(input)
@@ -268,5 +273,7 @@ func (suite *StrTestSuite) TestStringAndCompletion() {
 }
 
 func TestStr(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, &StrTestSuite{})
 }

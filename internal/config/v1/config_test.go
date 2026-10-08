@@ -16,6 +16,7 @@ import (
 
 type ConfigTestSuite struct {
 	suite.Suite
+
 	runner string
 }
 
@@ -55,10 +56,8 @@ func (suite *ConfigTestSuite) TestHelpText() {
 					},
 				},
 				VarArgs: &v1.VarArg{
-					Arg: v1.Arg{
-						Name:        "items",
-						Description: "Input items",
-					},
+					Name:        "items",
+					Description: "Input items",
 				},
 				LastArgs: []v1.Arg{
 					{
@@ -67,7 +66,8 @@ func (suite *ConfigTestSuite) TestHelpText() {
 					},
 				},
 			},
-			want: "A script\n\nPositional arguments:\n  SOURCE   Source file\n  ITEMS    Input items\n  DEST     Destination",
+			want: "A script\n\nPositional arguments:\n" +
+				"  SOURCE   Source file\n  ITEMS    Input items\n  DEST     Destination",
 		},
 		{
 			name: "unicode alignment uses runes",
@@ -232,7 +232,8 @@ func (suite *ConfigTestSuite) TestNormalizedVarArgBounds() {
 			cmd := cli.NewCommand("script", nil)
 			suite.Require().NoError(conf.Configure(cmd))
 			suite.Equal(test.use, cmd.Cmd.Use)
-			suite.NoError(cmd.Cmd.Args(&cmd.Cmd, test.valid))
+			suite.Require().NoError(cmd.Cmd.Args(&cmd.Cmd, test.valid))
+
 			if test.message != "" {
 				suite.EqualError(cmd.Cmd.Args(&cmd.Cmd, test.invalid), test.message)
 			}
@@ -346,9 +347,11 @@ func (suite *ConfigTestSuite) TestOptionsAndFlags() {
 			Long: "quiet",
 		},
 	}, cmd.Flags)
-	suite.Error(cmd.Cmd.Flags().Set("output", "invalid"))
+	suite.Require().Error(cmd.Cmd.Flags().Set("output", "invalid"))
 	suite.Nil(cmd.Options[0].Value)
-	suite.Require().NoError(cmd.Cmd.ParseFlags([]string{"-o", "привет", "--plain", "text", "-v", "--quiet"}))
+	suite.Require().NoError(cmd.Cmd.ParseFlags([]string{
+		"-o", "привет", "--plain", "text", "-v", "--quiet",
+	}))
 	suite.Equal(new("привет"), cmd.Options[0].Value)
 	suite.Equal(new("text"), cmd.Options[1].Value)
 	suite.True(cmd.Flags[0].Value)
@@ -358,6 +361,7 @@ func (suite *ConfigTestSuite) TestOptionsAndFlags() {
 		suite.Run(name+" completion", func() {
 			complete, ok := cmd.Cmd.GetFlagCompletionFunc(name)
 			suite.Require().True(ok)
+
 			completions, directive := complete(&cmd.Cmd, nil, "привет")
 			suite.Nil(completions)
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
@@ -391,7 +395,8 @@ func (suite *ConfigTestSuite) TestPositionalCallbacks() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			conf, err := v1.Parse(strings.NewReader("arg \"word\" { value \"str\" { re \"^привет$\"; }; }\n"))
+			doc := "arg \"word\" { value \"str\" { re \"^привет$\"; }; }\n"
+			conf, err := v1.Parse(strings.NewReader(doc))
 			suite.Require().NoError(err)
 
 			conf.Argv = []string{suite.runner}
@@ -403,9 +408,9 @@ func (suite *ConfigTestSuite) TestPositionalCallbacks() {
 			err = cmd.Cmd.Args(&cmd.Cmd, test.args)
 
 			if test.message == "" {
-				suite.NoError(err)
+				suite.Require().NoError(err)
 			} else {
-				suite.ErrorContains(err, test.message)
+				suite.Require().ErrorContains(err, test.message)
 			}
 
 			completions, directive := cmd.Cmd.ValidArgsFunction(&cmd.Cmd, test.args, "привет")
@@ -451,20 +456,24 @@ func (suite *ConfigTestSuite) TestConfigureErrors() {
 		suite.Run(test.name, func() {
 			conf, err := v1.Parse(strings.NewReader(test.doc))
 			suite.Require().NoError(err)
+
 			conf.Argv = []string{suite.runner}
 			if test.runner != "" {
 				suite.T().Setenv("PATH", suite.T().TempDir())
+
 				conf.Argv = []string{test.runner}
 			}
+
 			cmd := cli.NewCommand("script", nil)
 			err = conf.Configure(cmd)
 			suite.Require().Error(err)
-			suite.ErrorContains(err, test.message)
+			suite.Require().ErrorContains(err, test.message)
 			suite.ErrorIs(err, test.want)
 		})
 	}
 }
 
+//nolint:paralleltest // The suite mutates process environment variables.
 func TestConfig(t *testing.T) {
 	suite.Run(t, &ConfigTestSuite{})
 }

@@ -12,6 +12,29 @@ type valueStr struct {
 	baseValue[string]
 }
 
+// NewStr constructs a string validator with rune-length and regular-expression
+// checks described by properties.
+//
+//nolint:ireturn // String validators expose the shared Value interface.
+func NewStr(properties map[string][]any) (Value, error) {
+	val := &valueStr{
+		validatorType: "str",
+		complete:      noopComplete,
+		checks:        make(map[string]func(string) error),
+		prepare: func(v string) (string, error) {
+			return v, nil
+		},
+	}
+
+	for k, v := range properties {
+		if err := val.addCheck(k, v); err != nil {
+			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
+		}
+	}
+
+	return val, nil
+}
+
 func (v *valueStr) addCheck(name string, value []any) error {
 	switch name {
 	case "min-length":
@@ -32,7 +55,7 @@ func (v *valueStr) addMinLength(properties []any) error {
 	}
 
 	if length < 0 {
-		return fmt.Errorf("length must be positive, not %d", length)
+		return NewNegativeLengthError(length)
 	}
 
 	intLength := int(length)
@@ -40,8 +63,9 @@ func (v *valueStr) addMinLength(properties []any) error {
 
 	v.checks[name] = func(value string) error {
 		if lv := utf8.RuneCountInString(value); lv < intLength {
-			return fmt.Errorf("minimum length must be at least %d, got %d", intLength, lv)
+			return NewLengthConstraintError(LengthConstraintMinimum, intLength, lv)
 		}
+
 		return nil
 	}
 
@@ -55,7 +79,7 @@ func (v *valueStr) addMaxLength(properties []any) error {
 	}
 
 	if length < 0 {
-		return fmt.Errorf("length must be positive, not %d", length)
+		return NewNegativeLengthError(length)
 	}
 
 	intLength := int(length)
@@ -63,8 +87,9 @@ func (v *valueStr) addMaxLength(properties []any) error {
 
 	v.checks[name] = func(value string) error {
 		if lv := utf8.RuneCountInString(value); lv > intLength {
-			return fmt.Errorf("minimum length must be at most %d, got %d", intLength, lv)
+			return NewLengthConstraintError(LengthConstraintMaximum, intLength, lv)
 		}
+
 		return nil
 	}
 
@@ -77,38 +102,20 @@ func (v *valueStr) addRe(properties []any) error {
 		return err
 	}
 
-	re, err := regexp.Compile(strExpr)
+	expression, err := regexp.Compile(strExpr)
 	if err != nil {
 		return fmt.Errorf("incorrect regular expression %s: %w", strExpr, err)
 	}
 
-	name := fmt.Sprintf("re:%s", strExpr)
+	name := "re:" + strExpr
 
 	v.checks[name] = func(value string) error {
-		if !re.MatchString(value) {
-			return fmt.Errorf("%s does not match %s", value, strExpr)
+		if !expression.MatchString(value) {
+			return NewRegexMismatchError(value, strExpr)
 		}
+
 		return nil
 	}
 
 	return nil
-}
-
-func NewStr(properties map[string][]any) (*valueStr, error) {
-	val := &valueStr{
-		validatorType: "str",
-		complete: noopComplete,
-		checks: make(map[string]func(string) error),
-		prepare: func(v string) (string, error) {
-			return v, nil
-		},
-	}
-
-	for k, v := range properties {
-		if err := val.addCheck(k, v); err != nil {
-			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
-		}
-	}
-
-	return val, nil
 }

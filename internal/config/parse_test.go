@@ -52,7 +52,10 @@ func (suite *ParseTestSuite) TestParse() {
 		},
 		{
 			name: "version zero uses v1 parser",
-			doc:  "#!shebang.0\n# execute \"sh\" \"-eu\"\n# description \"привет\"\n# example \"script source\"\n",
+			doc: "#!shebang.0\n" +
+				"# execute \"sh\" \"-eu\"\n" +
+				"# description \"привет\"\n" +
+				"# example \"script source\"\n",
 			want: v1.Config{
 				Argv:        []string{"sh", "-eu"},
 				Description: "привет",
@@ -61,7 +64,10 @@ func (suite *ParseTestSuite) TestParse() {
 		},
 		{
 			name: "version one uses v1 parser",
-			doc:  "#!shebang.1\n# execute \"sh\" \"-eu\"\n# description \"привет\"\n# example \"script source\"\n",
+			doc: "#!shebang.1\n" +
+				"# execute \"sh\" \"-eu\"\n" +
+				"# description \"привет\"\n" +
+				"# example \"script source\"\n",
 			want: v1.Config{
 				Argv:        []string{"sh", "-eu"},
 				Description: "привет",
@@ -98,13 +104,9 @@ echo "$@"
 				},
 				Options: []v1.Option{
 					{
-						Flag: v1.Flag{
-							Name: "output",
-						},
-						WithValue: v1.WithValue{
-							Type:       "str",
-							Properties: map[string][]any{},
-						},
+						Name:       "output",
+						Type:       "str",
+						Properties: map[string][]any{},
 					},
 				},
 				FirstArgs: []v1.Arg{
@@ -113,9 +115,7 @@ echo "$@"
 					},
 				},
 				VarArgs: &v1.VarArg{
-					Arg: v1.Arg{
-						Name: "items",
-					},
+					Name: "items",
 				},
 				LastArgs: []v1.Arg{
 					{
@@ -155,16 +155,19 @@ func (suite *ParseTestSuite) TestErrors() {
 			name:    "unsupported version",
 			doc:     "#!shebang.2\n",
 			message: "unknown config version 2",
+			want:    config.ErrUnknownConfigVersion,
 		},
 		{
 			name:    "multiple digit version",
 			doc:     "#!shebang.12\n",
 			message: "unknown config version 12",
+			want:    config.ErrUnknownConfigVersion,
 		},
 		{
 			name:    "version checked before KDL parsing",
 			doc:     "#!shebang.2\n# option \"unfinished\" {\n",
 			message: "unknown config version 2",
+			want:    config.ErrUnknownConfigVersion,
 		},
 		{
 			name:    "version zero invalid KDL",
@@ -205,11 +208,11 @@ func (suite *ParseTestSuite) TestErrors() {
 			suite.Nil(conf)
 
 			if test.message != "" {
-				suite.ErrorContains(err, test.message)
+				suite.Require().ErrorContains(err, test.message)
 			}
 
 			if test.want != nil {
-				suite.ErrorIs(err, test.want)
+				suite.Require().ErrorIs(err, test.want)
 			}
 		})
 	}
@@ -242,12 +245,14 @@ func (suite *ParseTestSuite) TestReadErrors() {
 			input := io.MultiReader(strings.NewReader(test.prefix), iotest.ErrReader(want))
 			conf, err := config.Parse(input)
 
-			suite.ErrorIs(err, want)
+			suite.Require().ErrorIs(err, want)
 			suite.Nil(conf)
 		})
 	}
 }
 
 func TestParse(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, &ParseTestSuite{})
 }

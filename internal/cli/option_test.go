@@ -67,16 +67,19 @@ func (suite *OptionTestSuite) TestSet() {
 		suite.Run(test.name, func() {
 			validator, err := values.NewStr(test.properties)
 			suite.Require().NoError(err)
+
 			option := cli.Option{
 				Value:     test.initial,
 				Validator: validator,
 			}
+
 			err = option.Set(test.value)
 			if test.message == "" {
-				suite.NoError(err)
+				suite.Require().NoError(err)
 			} else {
-				suite.EqualError(err, test.message)
+				suite.Require().EqualError(err, test.message)
 			}
+
 			suite.Equal(test.want, option.Value)
 		})
 	}
@@ -103,6 +106,7 @@ func (suite *OptionTestSuite) TestMetadata() {
 		suite.Run(test.name, func() {
 			validator, err := values.NewStr(nil)
 			suite.Require().NoError(err)
+
 			option := cli.Option{
 				Long:      "output",
 				Short:     test.short,
@@ -153,6 +157,7 @@ func (suite *OptionTestSuite) TestSetEnv() {
 		suite.Run(test.name, func() {
 			suite.T().Setenv("SHEBANG_OL_OUTPUT", "old")
 			suite.T().Setenv("SHEBANG_OS_O", "old")
+
 			option := cli.Option{
 				Long:  "output",
 				Short: test.short,
@@ -165,6 +170,7 @@ func (suite *OptionTestSuite) TestSetEnv() {
 	}
 }
 
+//nolint:paralleltest // The suite mutates process environment variables.
 func TestOption(t *testing.T) {
 	suite.Run(t, &OptionTestSuite{})
 }

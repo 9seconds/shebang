@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,17 +57,18 @@ func (suite *MainTestSuite) TestParseConfig() {
 			conf, err := parseConfig(path)
 
 			if test.message != "" {
-				suite.ErrorContains(err, test.message)
+				suite.Require().ErrorContains(err, test.message)
 				suite.Nil(conf)
 
 				if test.missing {
-					suite.ErrorIs(err, os.ErrNotExist)
+					suite.Require().ErrorIs(err, os.ErrNotExist)
 				}
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().IsType(&v1.Config{}, conf)
 
-				parsed := conf.(*v1.Config)
+				parsed, ok := conf.(*v1.Config)
+				suite.Require().True(ok)
 				suite.Equal([]string{"bash"}, parsed.Argv)
 
 				if test.name == "embedded configuration" {
@@ -126,10 +126,10 @@ func (suite *MainTestSuite) TestGetScript() {
 
 			got, err := getScript()
 			if test.missing || test.mode&0o111 == 0 {
-				suite.Error(err)
+				suite.Require().Error(err)
 				suite.Empty(got)
 			} else {
-				suite.NoError(err)
+				suite.Require().NoError(err)
 				suite.Equal(path, got)
 			}
 		})
@@ -189,10 +189,13 @@ func (suite *MainTestSuite) TestRunCompletion() {
 		suite.Run(test.name, func() {
 			suite.T().Setenv("SHEBANG_COMPLETION", test.shell)
 			suite.T().Setenv("SHELL", test.fallback)
+
 			cmd := &cobra.Command{
 				Use: "script",
 			}
+
 			var output bytes.Buffer
+
 			cmd.SetOut(&output)
 			suite.Require().NoError(runCompletion(cmd))
 			suite.Contains(output.String(), test.marker)
@@ -243,12 +246,17 @@ func (suite *MainTestSuite) TestUnsupportedCompletionShells() {
 		suite.Run(test.name, func() {
 			suite.T().Setenv("SHEBANG_COMPLETION", test.shell)
 			suite.T().Setenv("SHELL", test.fallback)
+
 			cmd := &cobra.Command{
 				Use: "script",
 			}
+
 			var output bytes.Buffer
+
 			cmd.SetOut(&output)
-			suite.EqualError(runCompletion(cmd), test.want)
+			err := runCompletion(cmd)
+			suite.Require().ErrorIs(err, errUnsupportedShell)
+			suite.Require().EqualError(err, test.want)
 			suite.Empty(output.String())
 		})
 	}
@@ -256,9 +264,11 @@ func (suite *MainTestSuite) TestUnsupportedCompletionShells() {
 
 func (suite *MainTestSuite) TestCompletionWriterErrors() {
 	want := errors.New("write failed")
+
 	for _, shell := range []string{"bash", "zsh", "fish", "pwsh"} {
 		suite.Run(shell, func() {
 			suite.T().Setenv("SHEBANG_COMPLETION", shell)
+
 			cmd := &cobra.Command{
 				Use: "script",
 			}
@@ -271,45 +281,41 @@ func (suite *MainTestSuite) TestCompletionWriterErrors() {
 func (suite *MainTestSuite) TestRunDebug() {
 	suite.T().Setenv("SHEBANG_TEST_VALUE", "привет=world")
 	suite.T().Setenv("OTHER_TEST_VALUE", "do not print")
-	fp, err := os.CreateTemp(suite.T().TempDir(), "stdout")
-	suite.Require().NoError(err)
-	previous := os.Stdout
-	os.Stdout = fp
-	defer func() {
-		os.Stdout = previous
-		_ = fp.Close()
-	}()
-	suite.NoError(runDebug([]string{"runner", "script", "привет"}))
-	_, err = fp.Seek(0, io.SeekStart)
-	suite.Require().NoError(err)
-	output, err := io.ReadAll(fp)
-	suite.Require().NoError(err)
-	suite.Contains(string(output), "Argv: [runner script привет]\nEnvironment:\n")
-	suite.Contains(string(output), "SHEBANG_TEST_VALUE=привет=world\n")
-	suite.NotContains(string(output), "OTHER_TEST_VALUE")
+
+	var output bytes.Buffer
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&output)
+	suite.Require().NoError(runDebug(cmd, []string{"runner", "script", "привет"}))
+	suite.Contains(output.String(), "Argv: [runner script привет]\nEnvironment:\n")
+	suite.Contains(output.String(), "SHEBANG_TEST_VALUE=привет=world\n")
+	suite.NotContains(output.String(), "OTHER_TEST_VALUE")
 }
 
 func (suite *MainTestSuite) TestRunExecveError() {
 	path := filepath.Join(suite.T().TempDir(), "missing")
-	suite.ErrorIs(runExecve([]string{path}), os.ErrNotExist)
+	suite.Require().ErrorIs(runExecve(&cobra.Command{}, []string{path}), os.ErrNotExist)
+}
+
+type mainTestCase struct {
+	name       string
+	doc        string
+	args       []string
+	environ    []string
+	noScript   bool
+	missing    bool
+	exit       int
+	stdout     string
+	stderr     string
+	completion bool
+	debug      bool
 }
 
 func (suite *MainTestSuite) TestMain() {
-	sh, err := exec.LookPath("sh")
+	shellPath, err := exec.LookPath("sh")
 	suite.Require().NoError(err)
-	for _, test := range []struct {
-		name       string
-		doc        string
-		args       []string
-		environ    []string
-		noScript   bool
-		missing    bool
-		exit       int
-		stdout     string
-		stderr     string
-		completion bool
-		debug      bool
-	}{
+
+	for _, test := range []mainTestCase{
 		{
 			name:     "usage without script",
 			noScript: true,
@@ -341,8 +347,11 @@ func (suite *MainTestSuite) TestMain() {
 			stderr: "cannot execute command:",
 		},
 		{
-			name:    "exec preserves arguments and environment",
-			doc:     "# option \"output\" { short \"o\"; }\n# flag \"verbose\" { short \"v\"; }\n# arg \"word\"\n\nprintf '%s|%s|%s|%s' \"$1\" \"$SHEBANG_OL_OUTPUT\" \"$SHEBANG_FL_VERBOSE\" \"$SHEBANG_TEST_INHERITED\"\n",
+			name: "exec preserves arguments and environment",
+			doc: "# option \"output\" { short \"o\"; }\n" +
+				"# flag \"verbose\" { short \"v\"; }\n# arg \"word\"\n\n" +
+				"printf '%s|%s|%s|%s' \"$1\" \"$SHEBANG_OL_OUTPUT\" " +
+				"\"$SHEBANG_FL_VERBOSE\" \"$SHEBANG_TEST_INHERITED\"\n",
 			args:    []string{"-o", "привет", "-v", "word"},
 			environ: []string{"SHEBANG_TEST_INHERITED=привет"},
 			stdout:  "word|привет|true|привет",
@@ -387,55 +396,93 @@ func (suite *MainTestSuite) TestMain() {
 	} {
 		suite.Run(test.name, func() {
 			path := filepath.Join(suite.T().TempDir(), "script")
+
 			if !test.missing && !test.noScript {
-				doc := "#!shebang.1\n# execute \"" + sh + "\"\n" + test.doc
+				doc := "#!shebang.1\n# execute \"" + shellPath + "\"\n" + test.doc
 				suite.Require().NoError(os.WriteFile(path, []byte(doc), 0o700))
 			}
+
 			args := []string{path}
 			if test.noScript {
 				args = []string{}
 			}
+
 			args = append(args, test.args...)
+
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
+
 			executable, err := os.Executable()
 			suite.Require().NoError(err)
-			cmd := exec.CommandContext(ctx, executable, append([]string{"-test.run=^TestMainProcess$", "--"}, args...)...)
+
+			processArgs := append([]string{"-test.run=^TestMainProcess$", "--"}, args...)
+			cmd := exec.CommandContext(ctx, executable, processArgs...)
+
 			for _, entry := range os.Environ() {
 				if !strings.HasPrefix(entry, "SHEBANG_") && !strings.HasPrefix(entry, "SHELL=") {
 					cmd.Env = append(cmd.Env, entry)
 				}
 			}
+
 			cmd.Env = append(cmd.Env, mainProcessMode+"=1")
 			cmd.Env = append(cmd.Env, test.environ...)
+
 			var stdout, stderr bytes.Buffer
+
 			cmd.Stdout = &stdout
 			cmd.Stderr = &stderr
 			err = cmd.Run()
+
 			suite.Require().NoError(ctx.Err(), "subprocess timed out")
-			if test.exit == 0 {
-				suite.Require().NoError(err, stderr.String())
-			} else {
-				var exitError *exec.ExitError
-				suite.Require().ErrorAs(err, &exitError)
-				suite.Equal(test.exit, exitError.ExitCode(), stderr.String())
-			}
-			if test.stdout != "" {
-				suite.Contains(stdout.String(), test.stdout)
-			}
-			if test.stderr != "" {
-				suite.Contains(stderr.String(), test.stderr)
-			}
-			if test.completion {
-				suite.Contains(stdout.String(), "bash completion")
-			}
-			if test.debug {
-				suite.Contains(stdout.String(), "Argv: ["+sh+" "+path+" привет]")
-				suite.NotContains(stdout.String(), "SHEBANG_DEBUG=")
-			}
-			suite.NotContains(stdout.String(), "SCRIPT RAN")
+
+			suite.checkMainResult(
+				test,
+				err,
+				stdout.String(),
+				stderr.String(),
+				shellPath,
+				path,
+			)
 		})
 	}
+}
+
+func (suite *MainTestSuite) checkMainResult(
+	test mainTestCase,
+	err error,
+	stdout, stderr string,
+	shellPath, path string,
+) {
+	suite.T().Helper()
+
+	if test.exit == 0 {
+		suite.Require().NoError(err, stderr)
+	} else {
+		var exitError *exec.ExitError
+
+		suite.Require().ErrorAs(err, &exitError)
+		suite.Equal(test.exit, exitError.ExitCode(), stderr)
+	}
+
+	if test.stdout != "" {
+		suite.Contains(stdout, test.stdout)
+	}
+
+	if test.stderr != "" {
+		suite.Contains(stderr, test.stderr)
+	}
+
+	if test.completion {
+		suite.Contains(stdout, "bash completion")
+	}
+
+	if test.debug {
+		suite.Contains(stderr, "Argv: ["+shellPath+" "+path+" привет]")
+		suite.NotContains(stderr, "SHEBANG_DEBUG=")
+	}
+
+	suite.NotContains(stdout, "SCRIPT RAN")
+	suite.NotContains(stderr, "SCRIPT RAN")
 }
 
 type mainErrorWriter struct {
@@ -446,20 +493,25 @@ func (w mainErrorWriter) Write([]byte) (int, error) {
 	return 0, w.err
 }
 
+//nolint:paralleltest // Subprocess helper invokes main, which uses process-global state.
 func TestMainProcess(t *testing.T) {
 	if os.Getenv(mainProcessMode) != "1" {
 		t.Skip("subprocess helper")
 	}
+
 	for idx, arg := range os.Args {
 		if arg == "--" {
 			os.Args = append([]string{"shebang"}, os.Args[idx+1:]...)
+
 			main()
 			os.Exit(0)
 		}
 	}
+
 	os.Exit(97)
 }
 
+//nolint:paralleltest // The suite mutates environment variables and os.Args.
 func TestMainSuite(t *testing.T) {
 	suite.Run(t, &MainTestSuite{})
 }

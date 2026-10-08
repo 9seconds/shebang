@@ -216,11 +216,9 @@ func (suite *ArgsTestSuite) TestValidationErrorWrapping() {
 			name: "variadic",
 			validators: argValidators{
 				varArg: &varArgValidator{
-					argValidator: argValidator{
-						name: "ITEMS",
-						validator: &argsTestValue{
-							err: want,
-						},
+					name: "ITEMS",
+					validator: &argsTestValue{
+						err: want,
 					},
 					maxCount: -1,
 				},
@@ -231,7 +229,7 @@ func (suite *ArgsTestSuite) TestValidationErrorWrapping() {
 	} {
 		suite.Run(test.name, func() {
 			err := test.validators.Validate(test.args)
-			suite.ErrorIs(err, want)
+			suite.Require().ErrorIs(err, want)
 			suite.ErrorContains(err, test.message)
 		})
 	}
@@ -417,8 +415,9 @@ func (suite *ArgsTestSuite) TestNewArgValidators() {
 			max:    -1,
 		},
 		{
-			name:   "required items follow leading arguments",
-			doc:    "arg \"source\"\nvararg \"items\" {\nmin-count 2\nmax-count 4\n}\narg \"dest\"\narg \"end\"\n",
+			name: "required items follow leading arguments",
+			doc: "arg \"source\"\nvararg \"items\" {\nmin-count 2\nmax-count 4\n}\n" +
+				"arg \"dest\"\narg \"end\"\n",
 			first:  []string{"SOURCE", "ITEMS1", "ITEMS2"},
 			last:   []string{"DEST", "END"},
 			vararg: "ITEMS",
@@ -518,8 +517,8 @@ func (suite *ArgsTestSuite) TestNewArgValidatorsErrors() {
 
 			validators, err := newArgValidators(conf)
 			suite.Require().Error(err)
-			suite.ErrorContains(err, test.message)
-			suite.ErrorIs(err, test.want)
+			suite.Require().ErrorContains(err, test.message)
+			suite.Require().ErrorIs(err, test.want)
 			suite.Nil(validators)
 		})
 	}
@@ -537,6 +536,7 @@ func (v *argsTestValue) Validate(string) error {
 
 func (v *argsTestValue) Complete(prefix string) ([]cobra.Completion, cobra.ShellCompDirective) {
 	*v.calls = append(*v.calls, v.name)
+
 	return []cobra.Completion{v.name + ":" + prefix}, cobra.ShellCompDirectiveNoSpace
 }
 
@@ -545,5 +545,7 @@ func (v *argsTestValue) String() string {
 }
 
 func TestArgs(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, &ArgsTestSuite{})
 }

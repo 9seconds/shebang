@@ -73,39 +73,59 @@ func (suite *CommandTestSuite) TestExecute() {
 	} {
 		suite.Run(test.name, func() {
 			suite.T().Setenv("SHEBANG_TEST_INHERITED", "привет")
+
 			calls := 0
-			cmd := cli.NewCommand("/scripts/script", func(argv []string) error {
+			cmd := cli.NewCommand("/scripts/script", func(_ *cobra.Command, argv []string) error {
 				calls++
+
 				suite.Equal(test.want, argv)
+
 				return test.err
 			})
 			cmd.Argv = test.argv
 			cmd.Cmd.SetOut(io.Discard)
 			cmd.Cmd.SetErr(io.Discard)
+
 			err := cmd.Execute(test.args)
 			if test.err == nil {
-				suite.NoError(err)
+				suite.Require().NoError(err)
 			} else {
-				suite.ErrorIs(err, test.err)
+				suite.Require().ErrorIs(err, test.err)
 			}
+
 			suite.Equal(1, calls)
 		})
 	}
 }
 
 func (suite *CommandTestSuite) TestExecuteExportsEnvironment() {
-	for _, key := range []string{"SHEBANG_OL_OUTPUT", "SHEBANG_OS_O", "SHEBANG_FL_VERBOSE", "SHEBANG_FS_V"} {
+	for _, key := range []string{
+		"SHEBANG_OL_OUTPUT",
+		"SHEBANG_OS_O",
+		"SHEBANG_FL_VERBOSE",
+		"SHEBANG_FS_V",
+	} {
 		suite.T().Setenv(key, "old")
 	}
+
 	validator, err := values.NewStr(nil)
 	suite.Require().NoError(err)
+
 	called := false
-	cmd := cli.NewCommand("script", func(argv []string) error {
+	cmd := cli.NewCommand("script", func(_ *cobra.Command, argv []string) error {
 		called = true
+
 		suite.Equal([]string{"runner", "script", "source"}, argv)
-		for _, entry := range []string{"SHEBANG_OL_OUTPUT=привет", "SHEBANG_OS_O=привет", "SHEBANG_FL_VERBOSE=true", "SHEBANG_FS_V=true"} {
+
+		for _, entry := range []string{
+			"SHEBANG_OL_OUTPUT=привет",
+			"SHEBANG_OS_O=привет",
+			"SHEBANG_FL_VERBOSE=true",
+			"SHEBANG_FS_V=true",
+		} {
 			suite.Contains(os.Environ(), entry)
 		}
+
 		return nil
 	})
 	cmd.Argv = []string{"runner"}
@@ -130,6 +150,7 @@ func (suite *CommandTestSuite) TestExecuteExportsEnvironment() {
 
 func (suite *CommandTestSuite) TestRejectedArgumentsDoNotExecute() {
 	want := errors.New("arguments rejected")
+
 	for _, test := range []struct {
 		name     string
 		args     []string
@@ -147,30 +168,36 @@ func (suite *CommandTestSuite) TestRejectedArgumentsDoNotExecute() {
 	} {
 		suite.Run(test.name, func() {
 			calls := 0
-			cmd := cli.NewCommand("script", func([]string) error {
+			cmd := cli.NewCommand("script", func(*cobra.Command, []string) error {
 				calls++
+
 				return nil
 			})
 			cmd.Argv = []string{"runner"}
 			cmd.Cmd.SetOut(io.Discard)
 			cmd.Cmd.SetErr(io.Discard)
+
 			if test.validate {
 				cmd.Cmd.Args = func(*cobra.Command, []string) error {
 					return want
 				}
 			}
+
 			err := cmd.Execute(test.args)
 			suite.Require().Error(err)
+
 			if test.validate {
-				suite.ErrorIs(err, want)
+				suite.Require().ErrorIs(err, want)
 			} else {
 				suite.Contains(strings.ToLower(err.Error()), "unknown flag")
 			}
+
 			suite.Zero(calls)
 		})
 	}
 }
 
+//nolint:paralleltest // The suite mutates process environment variables.
 func TestCommand(t *testing.T) {
 	suite.Run(t, &CommandTestSuite{})
 }

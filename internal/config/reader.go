@@ -13,6 +13,9 @@ var (
 	regexpConfigLine  = regexp.MustCompile(`^\s*#(.*?)$`)
 )
 
+// NewReader extracts the version and consecutive configuration comment lines
+// following a shebang marker. Without a marker, it returns version zero and an
+// empty buffer.
 func NewReader(r io.Reader) (int, *bytes.Buffer, error) {
 	scanner := bufio.NewScanner(r)
 	buf := &bytes.Buffer{}
@@ -25,6 +28,7 @@ func NewReader(r io.Reader) (int, *bytes.Buffer, error) {
 		}
 
 		version, _ = strconv.Atoi(string(matches[1]))
+
 		break
 	}
 

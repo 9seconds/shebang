@@ -215,6 +215,7 @@ func (suite *EnvTestSuite) TestSetErrors() {
 	} {
 		suite.Run(test.name, func() {
 			output, err := suite.process(test.mode).CombinedOutput()
+
 			var exitError *exec.ExitError
 
 			suite.Require().ErrorAs(err, &exitError)
@@ -231,6 +232,7 @@ func (suite *EnvTestSuite) process(mode string) *exec.Cmd {
 	suite.Require().NoError(err)
 
 	cmd := exec.Command(executable, "-test.run=^TestEnvProcess$")
+
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")
 		if name != "SHEBANG_DEBUG" && name != processMode && name != processDebug {
@@ -243,30 +245,14 @@ func (suite *EnvTestSuite) process(mode string) *exec.Cmd {
 	return cmd
 }
 
+//nolint:paralleltest // The subprocess helper mutates process environment variables.
 func TestEnvProcess(t *testing.T) {
 	switch os.Getenv(processMode) {
 	case "":
 		t.Skip("subprocess helper")
 
 	case "debug":
-		want := os.Getenv(processDebug) == "true"
-		if got := env.IsDebug(); got != want {
-			t.Fatalf("IsDebug() = %t, want %t", got, want)
-		}
-
-		if _, ok := os.LookupEnv("SHEBANG_DEBUG"); ok {
-			t.Fatal("SHEBANG_DEBUG was not removed during initialization")
-		}
-
-		t.Setenv("SHEBANG_DEBUG", "")
-		if got := env.IsDebug(); got != want {
-			t.Fatal("clearing SHEBANG_DEBUG changed the cached debug state")
-		}
-
-		t.Setenv("SHEBANG_DEBUG", "1")
-		if got := env.IsDebug(); got != want {
-			t.Fatal("setting SHEBANG_DEBUG changed the cached debug state")
-		}
+		checkDebugState(t)
 
 	case "equals":
 		env.Set("bad=name", "value")
@@ -282,6 +268,32 @@ func TestEnvProcess(t *testing.T) {
 	}
 }
 
+func checkDebugState(t *testing.T) {
+	t.Helper()
+
+	want := os.Getenv(processDebug) == "true"
+	if got := env.IsDebug(); got != want {
+		t.Fatalf("IsDebug() = %t, want %t", got, want)
+	}
+
+	if _, ok := os.LookupEnv("SHEBANG_DEBUG"); ok {
+		t.Fatal("SHEBANG_DEBUG was not removed during initialization")
+	}
+
+	t.Setenv("SHEBANG_DEBUG", "")
+
+	if got := env.IsDebug(); got != want {
+		t.Fatal("clearing SHEBANG_DEBUG changed the cached debug state")
+	}
+
+	t.Setenv("SHEBANG_DEBUG", "1")
+
+	if got := env.IsDebug(); got != want {
+		t.Fatal("setting SHEBANG_DEBUG changed the cached debug state")
+	}
+}
+
+//nolint:paralleltest // The suite mutates process environment variables.
 func TestEnv(t *testing.T) {
 	suite.Run(t, &EnvTestSuite{})
 }

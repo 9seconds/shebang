@@ -47,8 +47,10 @@ func (suite *ParseTestSuite) TestMetadata() {
 			argv: []string{"bash", "-eu", "-o", "pipefail"},
 		},
 		{
-			name:        "last scalar wins",
-			doc:         "description \"old\"\ndescription \"new\"\nexample \"old\"\nexample \"new\"\nexecute \"bash\" \"-x\"\nexecute \"sh\"\n",
+			name: "last scalar wins",
+			doc: "description \"old\"\ndescription \"new\"\n" +
+				"example \"old\"\nexample \"new\"\n" +
+				"execute \"bash\" \"-x\"\nexecute \"sh\"\n",
 			description: "new",
 			example:     "new",
 			argv:        []string{"sh"},
@@ -99,9 +101,7 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 			doc:  "option \"output\"\nflag \"verbose\"\n",
 			options: []v1.Option{
 				{
-					Flag: v1.Flag{
-						Name: "output",
-					},
+					Name: "output",
 				},
 			},
 			flags: []v1.Flag{
@@ -126,16 +126,12 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 			`,
 			options: []v1.Option{
 				{
-					Flag: v1.Flag{
-						Name:        "output",
-						Description: "Output file",
-						Short:       "o",
-					},
-					WithValue: v1.WithValue{
-						Type: "str",
-						Properties: map[string][]any{
-							"min-length": {int64(1)},
-						},
+					Name:        "output",
+					Description: "Output file",
+					Short:       "o",
+					Type:        "str",
+					Properties: map[string][]any{
+						"min-length": {int64(1)},
 					},
 				},
 			},
@@ -152,15 +148,11 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 			doc:  "flag \"z\" { short \"z\"; }\noption \"b\" { short \"b\"; }\nflag \"c\"\noption \"a\"\n",
 			options: []v1.Option{
 				{
-					Flag: v1.Flag{
-						Name:  "b",
-						Short: "b",
-					},
+					Name:  "b",
+					Short: "b",
 				},
 				{
-					Flag: v1.Flag{
-						Name: "a",
-					},
+					Name: "a",
 				},
 			},
 			flags: []v1.Flag{
@@ -190,11 +182,9 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 			`,
 			options: []v1.Option{
 				{
-					Flag: v1.Flag{
-						Name:        "output",
-						Description: "new",
-						Short:       "o",
-					},
+					Name:        "output",
+					Description: "new",
+					Short:       "o",
 				},
 			},
 			flags: []v1.Flag{
@@ -256,9 +246,7 @@ func (suite *ParseTestSuite) TestPositionalArguments() {
 				},
 			},
 			vararg: &v1.VarArg{
-				Arg: v1.Arg{
-					Name: "items",
-				},
+				Name: "items",
 			},
 		},
 		{
@@ -275,11 +263,9 @@ func (suite *ParseTestSuite) TestPositionalArguments() {
 				{
 					Name:        "source",
 					Description: "Source file",
-					WithValue: v1.WithValue{
-						Type: "str",
-						Properties: map[string][]any{
-							"re": {".*"},
-						},
+					Type:        "str",
+					Properties: map[string][]any{
+						"re": {".*"},
 					},
 				},
 			},
@@ -298,9 +284,7 @@ func (suite *ParseTestSuite) TestPositionalArguments() {
 				},
 			},
 			vararg: &v1.VarArg{
-				Arg: v1.Arg{
-					Name: "item",
-				},
+				Name: "item",
 			},
 		},
 	} {
@@ -391,9 +375,7 @@ func (suite *ParseTestSuite) TestVarArgCounts() {
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 			suite.Equal(&v1.VarArg{
-				Arg: v1.Arg{
-					Name: "items",
-				},
+				Name:     "items",
 				MinCount: test.min,
 				MaxCount: test.max,
 			}, conf.VarArgs)
@@ -408,6 +390,8 @@ func (suite *ParseTestSuite) TestVarArgBoundsLimit() {
 		min     *int64
 		max     *int64
 		message string
+		bound   string
+		count   int64
 	}{
 		{
 			name: "below limit",
@@ -427,16 +411,22 @@ func (suite *ParseTestSuite) TestVarArgBoundsLimit() {
 		},
 		{
 			name:    "above limit with unlimited maximum",
+			bound:   "min-count",
+			count:   v1.MaxVarArgs + 1,
 			doc:     fmt.Sprintf("min-count %d\nmax-count -1\n", v1.MaxVarArgs+1),
 			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
 		},
 		{
 			name:    "above limit with finite maximum",
+			bound:   "min-count",
+			count:   v1.MaxVarArgs + 1,
 			doc:     fmt.Sprintf("min-count %d\nmax-count %d\n", v1.MaxVarArgs+1, v1.MaxVarArgs+2),
 			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
 		},
 		{
 			name:    "largest int64 minimum",
+			bound:   "min-count",
+			count:   math.MaxInt64,
 			doc:     fmt.Sprintf("min-count %d\n", int64(math.MaxInt64)),
 			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
 		},
@@ -452,16 +442,22 @@ func (suite *ParseTestSuite) TestVarArgBoundsLimit() {
 		},
 		{
 			name:    "maximum above limit without minimum",
+			bound:   "max-count",
+			count:   v1.MaxVarArgs + 1,
 			doc:     fmt.Sprintf("max-count %d\n", v1.MaxVarArgs+1),
 			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
 		},
 		{
 			name:    "maximum above limit with valid minimum",
+			bound:   "max-count",
+			count:   v1.MaxVarArgs + 1,
 			doc:     fmt.Sprintf("min-count 1\nmax-count %d\n", v1.MaxVarArgs+1),
 			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
 		},
 		{
 			name:    "largest int64 maximum",
+			bound:   "max-count",
+			count:   math.MaxInt64,
 			doc:     fmt.Sprintf("max-count %d\n", int64(math.MaxInt64)),
 			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
 		},
@@ -472,6 +468,8 @@ func (suite *ParseTestSuite) TestVarArgBoundsLimit() {
 		},
 		{
 			name:    "negative minimum does not bypass maximum limit",
+			bound:   "max-count",
+			count:   v1.MaxVarArgs + 1,
 			doc:     fmt.Sprintf("min-count -1\nmax-count %d\n", v1.MaxVarArgs+1),
 			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
 		},
@@ -480,11 +478,20 @@ func (suite *ParseTestSuite) TestVarArgBoundsLimit() {
 			conf, err := v1.Parse(strings.NewReader("vararg \"items\" {\n" + test.doc + "}\n"))
 			if test.message != "" {
 				suite.Require().Error(err)
-				suite.ErrorContains(err, "cannot process node vararg:")
-				suite.ErrorContains(err, test.message)
+				suite.Require().ErrorContains(err, "cannot process node vararg:")
+				suite.Require().ErrorContains(err, test.message)
 				suite.Nil(conf)
+
+				var limitError *v1.VarArgLimitError
+
+				suite.Require().ErrorAs(err, &limitError)
+				suite.Equal(test.bound, limitError.Bound)
+				suite.Equal(test.count, limitError.Count)
+				suite.Equal(*v1.NewVarArgLimitError(test.bound, test.count), *limitError)
+
 				return
 			}
+
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 			suite.Require().NotNil(conf.VarArgs)
@@ -562,6 +569,7 @@ func (suite *ParseTestSuite) TestValues() {
 					conf, err := v1.Parse(strings.NewReader(doc))
 					suite.Require().NoError(err)
 					suite.Require().NotNil(conf)
+
 					switch node {
 					case "option":
 						suite.Require().Len(conf.Options, 1)
@@ -610,8 +618,8 @@ func (suite *ParseTestSuite) TestEmptyValueType() {
 					doc := node + " \"item\" {\n" + test.doc + "}\n"
 					conf, err := v1.Parse(strings.NewReader(doc))
 					suite.Require().Error(err)
-					suite.ErrorContains(err, "cannot process node "+node+":")
-					suite.ErrorIs(err, v1.ErrNoValueType)
+					suite.Require().ErrorContains(err, "cannot process node "+node+":")
+					suite.Require().ErrorIs(err, v1.ErrNoValueType)
 					suite.Nil(conf)
 				})
 			}
@@ -692,9 +700,11 @@ func (suite *ParseTestSuite) TestErrors() {
 			conf, err := v1.Parse(strings.NewReader(test.doc))
 			suite.Require().Error(err)
 			suite.Nil(conf)
+
 			if test.message != "" {
-				suite.ErrorContains(err, test.message)
+				suite.Require().ErrorContains(err, test.message)
 			}
+
 			if test.want != nil {
 				suite.ErrorIs(err, test.want)
 			}
@@ -711,25 +721,29 @@ func (suite *ParseTestSuite) TestDuplicateNames() {
 					first   string
 					second  string
 					message string
+					want    error
 				}{
 					{
 						name:    "long",
 						first:   "\"item\"\n",
 						second:  "\"item\"\n",
 						message: "duplicate long name item",
+						want:    v1.ErrDuplicateLongName,
 					},
 					{
 						name:    "short",
 						first:   "\"first\" { short \"i\"; }\n",
 						second:  "\"second\" { short \"i\"; }\n",
 						message: "duplicate short name i",
+						want:    v1.ErrDuplicateShortName,
 					},
 				} {
 					suite.Run(test.name, func() {
 						doc := first + " " + test.first + second + " " + test.second
 						conf, err := v1.Parse(strings.NewReader(doc))
 						suite.Require().Error(err)
-						suite.ErrorContains(err, test.message)
+						suite.Require().ErrorContains(err, test.message)
+						suite.Require().ErrorIs(err, test.want)
 						suite.Nil(conf)
 					})
 				}
@@ -747,37 +761,43 @@ func (suite *ParseTestSuite) TestCaseInsensitiveDuplicateNames() {
 					first   string
 					second  string
 					message string
+					want    error
 				}{
 					{
 						name:    "uppercase long name first",
 						first:   "\"OUTPUT\"\n",
 						second:  "\"output\"\n",
 						message: "duplicate long name output",
+						want:    v1.ErrDuplicateLongName,
 					},
 					{
 						name:    "mixed case long name second",
 						first:   "\"output\"\n",
 						second:  "\"OuTpUt\"\n",
 						message: "duplicate long name output",
+						want:    v1.ErrDuplicateLongName,
 					},
 					{
 						name:    "uppercase short name first",
 						first:   "\"first\" { short \"O\"; }\n",
 						second:  "\"second\" { short \"o\"; }\n",
 						message: "duplicate short name o",
+						want:    v1.ErrDuplicateShortName,
 					},
 					{
 						name:    "uppercase short name second",
 						first:   "\"first\" { short \"o\"; }\n",
 						second:  "\"second\" { short \"O\"; }\n",
 						message: "duplicate short name o",
+						want:    v1.ErrDuplicateShortName,
 					},
 				} {
 					suite.Run(test.name, func() {
 						doc := first + " " + test.first + second + " " + test.second
 						conf, err := v1.Parse(strings.NewReader(doc))
 						suite.Require().Error(err)
-						suite.ErrorContains(err, test.message)
+						suite.Require().ErrorContains(err, test.message)
+						suite.Require().ErrorIs(err, test.want)
 						suite.Nil(conf)
 					})
 				}
@@ -822,11 +842,11 @@ func (suite *ParseTestSuite) TestReservedNames() {
 					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
 					if test.reserved {
 						suite.Require().Error(err)
-						suite.ErrorIs(err, v1.ErrReservedName)
-						suite.ErrorContains(err, "cannot process node "+node+": cannot set a name:")
+						suite.Require().ErrorIs(err, v1.ErrReservedName)
+						suite.Require().ErrorContains(err, "cannot process node "+node+": cannot set a name:")
 						suite.Nil(conf)
 					} else {
-						suite.NoError(err)
+						suite.Require().NoError(err)
 						suite.NotNil(conf)
 					}
 				})
@@ -860,14 +880,15 @@ func (suite *ParseTestSuite) TestReservedShorts() {
 			} {
 				suite.Run(test.name, func() {
 					doc := fmt.Sprintf("%s \"item\" { short %q; }\n", node, test.value)
+
 					conf, err := v1.Parse(strings.NewReader(doc))
 					if test.reserved {
 						suite.Require().Error(err)
-						suite.ErrorIs(err, v1.ErrReservedShort)
-						suite.ErrorContains(err, "cannot process "+node+" short:")
+						suite.Require().ErrorIs(err, v1.ErrReservedShort)
+						suite.Require().ErrorContains(err, "cannot process "+node+" short:")
 						suite.Nil(conf)
 					} else {
-						suite.NoError(err)
+						suite.Require().NoError(err)
 						suite.NotNil(conf)
 					}
 				})
@@ -882,6 +903,7 @@ func (suite *ParseTestSuite) TestShortNameNormalization() {
 			conf, err := v1.Parse(strings.NewReader(node + " \"OuTpUt\" { short \"O\"; }\n"))
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
+
 			if node == "option" {
 				suite.Require().Len(conf.Options, 1)
 				suite.Equal("output", conf.Options[0].Name)
@@ -1044,9 +1066,11 @@ func (suite *ParseTestSuite) TestInvalidScalarArguments() {
 					conf, err := v1.Parse(strings.NewReader(doc))
 					suite.Require().Error(err)
 					suite.Nil(conf)
+
 					if test.message != "" {
-						suite.ErrorContains(err, test.message)
+						suite.Require().ErrorContains(err, test.message)
 					}
+
 					if test.want != nil {
 						suite.ErrorIs(err, test.want)
 					}
@@ -1098,9 +1122,17 @@ func (suite *ParseTestSuite) TestInvalidNames() {
 				suite.Run(test.name, func() {
 					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
 					suite.Require().Error(err)
-					suite.ErrorContains(err, "cannot set a name:")
-					suite.ErrorContains(err, "does not match regex")
+					suite.Require().ErrorContains(err, "cannot set a name:")
+					suite.Require().ErrorContains(err, "does not match regex")
 					suite.Nil(conf)
+
+					var patternError *v1.NamePatternError
+
+					suite.Require().ErrorAs(err, &patternError)
+					suite.Equal(strings.ToLower(test.value), patternError.Value)
+					suite.Equal(v1.ReName.String(), patternError.Pattern)
+					constructed := v1.NewNamePatternError(patternError.Value, patternError.Pattern)
+					suite.Equal(*constructed, *patternError)
 				})
 			}
 		})
@@ -1134,8 +1166,8 @@ func (suite *ParseTestSuite) TestNameControlCharacters() {
 				suite.Run(test.name, func() {
 					conf, err := v1.Parse(strings.NewReader(node + " " + test.value + "\n"))
 					suite.Require().Error(err)
-					suite.ErrorContains(err, "cannot set a name:")
-					suite.ErrorContains(err, "does not match regex")
+					suite.Require().ErrorContains(err, "cannot set a name:")
+					suite.Require().ErrorContains(err, "does not match regex")
 					suite.Nil(conf)
 				})
 			}
@@ -1167,6 +1199,7 @@ func (suite *ParseTestSuite) TestValidNames() {
 					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
 					suite.Require().NoError(err)
 					suite.Require().NotNil(conf)
+
 					switch node {
 					case "option":
 						suite.Require().Len(conf.Options, 1)
@@ -1213,8 +1246,19 @@ func (suite *ParseTestSuite) TestInvalidShorts() {
 					doc := fmt.Sprintf("%s \"item\" { short %q; }\n", node, test.value)
 					conf, err := v1.Parse(strings.NewReader(doc))
 					suite.Require().Error(err)
-					suite.ErrorContains(err, fmt.Sprintf("short must contain 1 character, not %d", test.count))
+					suite.Require().ErrorContains(err,
+						fmt.Sprintf("short must contain 1 character, not %d", test.count))
 					suite.Nil(conf)
+
+					var lengthError *v1.ShortNameLengthError
+
+					suite.Require().ErrorAs(err, &lengthError)
+					suite.Equal(test.count, lengthError.Count)
+
+					constructed := v1.NewShortNameLengthError(test.count)
+					suite.Require().NotNil(constructed)
+					suite.Equal(*constructed, *lengthError)
+					suite.Equal(constructed.Error(), lengthError.Error())
 				})
 			}
 		})
@@ -1267,16 +1311,28 @@ func (suite *ParseTestSuite) TestShortNameCharacters() {
 			} {
 				suite.Run(test.name, func() {
 					doc := fmt.Sprintf("%s \"item\" { short %q; }\n", node, test.value)
+
 					conf, err := v1.Parse(strings.NewReader(doc))
 					if !test.valid {
 						suite.Require().Error(err)
-						suite.ErrorContains(err, "cannot process "+node+" short:")
-						suite.ErrorContains(err, "must comply "+v1.ReName.String()+" regexp")
+						suite.Require().ErrorContains(err, "cannot process "+node+" short:")
+						suite.Require().ErrorContains(err, "must comply "+v1.ReName.String()+" regexp")
 						suite.Nil(conf)
+
+						var patternError *v1.ShortNamePatternError
+
+						suite.Require().ErrorAs(err, &patternError)
+						suite.Equal(v1.ReName.String(), patternError.Pattern)
+						constructed := v1.NewShortNamePatternError(v1.ReName.String())
+						suite.Equal(*constructed, *patternError)
+						suite.Equal(constructed.Error(), patternError.Error())
+
 						return
 					}
+
 					suite.Require().NoError(err)
 					suite.Require().NotNil(conf)
+
 					if node == "option" {
 						suite.Require().Len(conf.Options, 1)
 						suite.Equal(strings.ToLower(test.value), conf.Options[0].Short)
@@ -1320,5 +1376,7 @@ func (suite *ParseTestSuite) TestReaders() {
 }
 
 func TestParse(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, &ParseTestSuite{})
 }

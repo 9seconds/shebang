@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -10,10 +11,17 @@ import (
 	"github.com/9seconds/shebang/internal/log"
 )
 
+// ErrUnknownConfigVersion indicates an unsupported configuration version.
+var ErrUnknownConfigVersion = errors.New("unknown config version")
+
+// Config configures a script command from parsed configuration.
 type Config interface {
 	Configure(*cli.Command) error
 }
 
+// Parse extracts embedded configuration from r and parses its detected version.
+//
+//nolint:ireturn // Configuration versions share the Config interface.
 func Parse(r io.Reader) (Config, error) {
 	version, reader, err := NewReader(r)
 	if err != nil {
@@ -28,5 +36,5 @@ func Parse(r io.Reader) (Config, error) {
 		return v1.Parse(reader)
 	}
 
-	return nil, fmt.Errorf("unknown config version %d", version)
+	return nil, fmt.Errorf("%w %d", ErrUnknownConfigVersion, version)
 }
