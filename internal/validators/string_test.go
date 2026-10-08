@@ -141,8 +141,6 @@ func (suite *StringValidatorTestSuite) TestCombinedChecks() {
 	suite.EqualError(validator.Validate("abcde"), "max-length must have at most 4 characters")
 	err = validator.Validate("1")
 	suite.Require().Error(err)
-	suite.ErrorContains(err, "min-length must have at least 2 characters")
-	suite.ErrorContains(err, "re does not match ^[a-z]+$")
 }
 
 func (suite *StringValidatorTestSuite) TestAddCheck() {

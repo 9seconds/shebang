@@ -3,12 +3,15 @@ package config
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/9seconds/shebang/internal/cli"
 	v1 "github.com/9seconds/shebang/internal/config/v1"
+	"github.com/9seconds/shebang/internal/log"
 )
 
 type Config interface {
-	ExecArgv() []string
+	Configure(*cli.Command) error
 }
 
 func Parse(r io.Reader) (Config, error) {
@@ -16,6 +19,9 @@ func Parse(r io.Reader) (Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	log.PrintVal("Detected config version", strconv.Itoa(version))
+	log.PrintVal("Config", reader.String())
 
 	switch version {
 	case 0, 1:

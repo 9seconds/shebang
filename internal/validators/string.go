@@ -10,7 +10,7 @@ type stringValidator struct {
 	baseValidator[string]
 }
 
-func (s *stringValidator) AddCheck(name string, arg any) error {
+func (s *stringValidator) addCheck(name string, arg any) error {
 	switch name {
 	case "min-length":
 		return s.addMinLength(name, arg)
@@ -82,11 +82,13 @@ func (s *stringValidator) addRegexp(name string, arg any) error {
 	return nil
 }
 
-func NewStringValidator(properties map[string]any) (Validator, error) {
-	rv := &stringValidator{}
+func newStringValidator(properties map[string]any) (Validator, error) {
+	rv := &stringValidator{
+		validatorType: "str",
+	}
 
 	for k, v := range properties {
-		if err := rv.AddCheck(k, v); err != nil {
+		if err := rv.addCheck(k, v); err != nil {
 			return nil, err
 		}
 	}
