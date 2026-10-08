@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/9seconds/shebang/internal/utils"
@@ -251,7 +252,7 @@ func processWithValue(data *WithValue, node *document.Node) error {
 	}
 
 	if valueType == "" {
-		return errors.New("please define a value type")
+		return ErrNoValueType
 	}
 
 	data.Type = valueType
@@ -275,6 +276,8 @@ func processShort(data *string, node *document.Node) error {
 	if err := setSingleArgument(data, node); err != nil {
 		return err
 	}
+
+	*data = strings.ToLower(*data)
 
 	if lv := utf8.RuneCountInString(*data); lv != 1 {
 		return fmt.Errorf("short must contain 1 character, not %d", lv)
@@ -313,6 +316,8 @@ func setName(target *string, node *document.Node) error {
 	if err := setSingleArgument(target, node); err != nil {
 		return err
 	}
+
+	*target = strings.ToLower(*target)
 
 	if !ReName.MatchString(*target) {
 		return fmt.Errorf(

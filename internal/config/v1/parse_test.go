@@ -625,6 +625,73 @@ func (suite *ParseTestSuite) TestDuplicateNames() {
 	}
 }
 
+func (suite *ParseTestSuite) TestCaseInsensitiveDuplicateNames() {
+	for _, first := range []string{"option", "flag"} {
+		for _, second := range []string{"option", "flag"} {
+			suite.Run(first+" then "+second, func() {
+				for _, test := range []struct {
+					name    string
+					first   string
+					second  string
+					message string
+				}{
+					{
+						name:    "uppercase long name first",
+						first:   "\"OUTPUT\"\n",
+						second:  "\"output\"\n",
+						message: "duplicate long name output",
+					},
+					{
+						name:    "mixed case long name second",
+						first:   "\"output\"\n",
+						second:  "\"OuTpUt\"\n",
+						message: "duplicate long name output",
+					},
+					{
+						name:    "uppercase short name first",
+						first:   "\"first\" { short \"O\"; }\n",
+						second:  "\"second\" { short \"o\"; }\n",
+						message: "duplicate short name o",
+					},
+					{
+						name:    "uppercase short name second",
+						first:   "\"first\" { short \"o\"; }\n",
+						second:  "\"second\" { short \"O\"; }\n",
+						message: "duplicate short name o",
+					},
+				} {
+					suite.Run(test.name, func() {
+						doc := first + " " + test.first + second + " " + test.second
+						conf, err := v1.Parse(strings.NewReader(doc))
+						suite.Require().Error(err)
+						suite.ErrorContains(err, test.message)
+						suite.Nil(conf)
+					})
+				}
+			})
+		}
+	}
+}
+
+func (suite *ParseTestSuite) TestShortNameNormalization() {
+	for _, node := range []string{"option", "flag"} {
+		suite.Run(node, func() {
+			conf, err := v1.Parse(strings.NewReader(node + " \"OuTpUt\" { short \"O\"; }\n"))
+			suite.Require().NoError(err)
+			suite.Require().NotNil(conf)
+			if node == "option" {
+				suite.Require().Len(conf.Options, 1)
+				suite.Equal("output", conf.Options[0].Name)
+				suite.Equal("o", conf.Options[0].Short)
+			} else {
+				suite.Require().Len(conf.Flags, 1)
+				suite.Equal("output", conf.Flags[0].Name)
+				suite.Equal("o", conf.Flags[0].Short)
+			}
+		})
+	}
+}
+
 func (suite *ParseTestSuite) TestInvalidScalarArguments() {
 	for _, node := range []struct {
 		name     string
@@ -900,16 +967,16 @@ func (suite *ParseTestSuite) TestValidNames() {
 					switch node {
 					case "option":
 						suite.Require().Len(conf.Options, 1)
-						suite.Equal(test.value, conf.Options[0].Name)
+						suite.Equal(strings.ToLower(test.value), conf.Options[0].Name)
 					case "flag":
 						suite.Require().Len(conf.Flags, 1)
-						suite.Equal(test.value, conf.Flags[0].Name)
+						suite.Equal(strings.ToLower(test.value), conf.Flags[0].Name)
 					case "arg":
 						suite.Require().Len(conf.FirstArgs, 1)
-						suite.Equal(test.value, conf.FirstArgs[0].Name)
+						suite.Equal(strings.ToLower(test.value), conf.FirstArgs[0].Name)
 					case "vararg":
 						suite.Require().NotNil(conf.VarArgs)
-						suite.Equal(test.value, conf.VarArgs.Name)
+						suite.Equal(strings.ToLower(test.value), conf.VarArgs.Name)
 					}
 				})
 			}
@@ -1009,10 +1076,10 @@ func (suite *ParseTestSuite) TestShortNameCharacters() {
 					suite.Require().NotNil(conf)
 					if node == "option" {
 						suite.Require().Len(conf.Options, 1)
-						suite.Equal(test.value, conf.Options[0].Short)
+						suite.Equal(strings.ToLower(test.value), conf.Options[0].Short)
 					} else {
 						suite.Require().Len(conf.Flags, 1)
-						suite.Equal(test.value, conf.Flags[0].Short)
+						suite.Equal(strings.ToLower(test.value), conf.Flags[0].Short)
 					}
 				})
 			}
