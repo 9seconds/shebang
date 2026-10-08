@@ -54,24 +54,20 @@ func (suite *ParseTestSuite) TestParse() {
 			name: "version zero uses v1 parser",
 			doc: "#!shebang.0\n" +
 				"# execute \"sh\" \"-eu\"\n" +
-				"# description \"привет\"\n" +
-				"# example \"script source\"\n",
+				"# description \"привет\"\n",
 			want: v1.Config{
 				Argv:        []string{"sh", "-eu"},
 				Description: "привет",
-				Example:     "script source",
 			},
 		},
 		{
 			name: "version one uses v1 parser",
 			doc: "#!shebang.1\n" +
 				"# execute \"sh\" \"-eu\"\n" +
-				"# description \"привет\"\n" +
-				"# example \"script source\"\n",
+				"# description \"привет\"\n",
 			want: v1.Config{
 				Argv:        []string{"sh", "-eu"},
 				Description: "привет",
-				Example:     "script source",
 			},
 		},
 		{
@@ -134,7 +130,6 @@ echo "$@"
 			suite.Require().NotNil(parsed)
 			suite.Equal(test.want.Argv, parsed.Argv)
 			suite.Equal(test.want.Description, parsed.Description)
-			suite.Equal(test.want.Example, parsed.Example)
 			suite.Equal(test.want.Flags, parsed.Flags)
 			suite.Equal(test.want.Options, parsed.Options)
 			suite.Equal(test.want.FirstArgs, parsed.FirstArgs)

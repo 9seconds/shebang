@@ -13,9 +13,6 @@ execute "bash"
 // Command description for help output. Default: "".
 description ""
 
-// Usage example for help output. Default: "".
-example ""
-
 // Named option (--name) that takes a value; shares its name namespace with
 // flags.
 // Default: no options are declared; the name is required when declaring one.

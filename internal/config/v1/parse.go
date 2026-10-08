@@ -84,8 +84,6 @@ func processConfigNode(conf *Config, node *document.Node) error {
 	switch node.Name.NodeNameString() {
 	case "description": //nolint:goconst // Keep KDL node names explicit in parser switches.
 		return setSingleArgument(&conf.Description, node)
-	case "example":
-		return setSingleArgument(&conf.Example, node)
 	case "execute":
 		return processConfigNodeExecute(conf, node)
 	case "option":

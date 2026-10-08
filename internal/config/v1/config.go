@@ -52,7 +52,6 @@ type VarArg struct {
 // Config stores interpreter arguments, help text, and command-line declarations.
 type Config struct {
 	Description string
-	Example     string
 	Argv        []string
 	Flags       []Flag
 	Options     []Option
@@ -67,9 +66,6 @@ type Config struct {
 // Configure resolves the interpreter and installs help, flags, validation, and
 // completion callbacks on cmd.
 func (c *Config) Configure(cmd *cli.Command) error {
-	c.configureExample(cmd)
-	log.PrintVal("Example", cmd.Cmd.Example)
-
 	c.configureDescription(cmd)
 	log.PrintVal("Description", cmd.Cmd.Long)
 
@@ -96,10 +92,6 @@ func (c *Config) Configure(cmd *cli.Command) error {
 	c.configureFlags(cmd)
 
 	return nil
-}
-
-func (c *Config) configureExample(cmd *cli.Command) {
-	cmd.Cmd.Example = c.Example
 }
 
 func (c *Config) configureDescription(cmd *cli.Command) {

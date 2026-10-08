@@ -40,7 +40,6 @@ func (suite *ConfigTestSuite) TestHelpText() {
 			name: "description without arguments preserves whitespace",
 			conf: v1.Config{
 				Description: "  привет\n  ",
-				Example:     "script source dest",
 			},
 			want: "  привет\n  ",
 		},
@@ -48,7 +47,6 @@ func (suite *ConfigTestSuite) TestHelpText() {
 			name: "positional descriptions in declaration order",
 			conf: v1.Config{
 				Description: "A script",
-				Example:     "script source item dest",
 				FirstArgs: []v1.Arg{
 					{
 						Name:        "source",
@@ -95,7 +93,6 @@ func (suite *ConfigTestSuite) TestHelpText() {
 
 			suite.Require().NoError(conf.Configure(cmd))
 			suite.Equal(test.want, cmd.Cmd.Long)
-			suite.Equal(test.conf.Example, cmd.Cmd.Example)
 		})
 	}
 }

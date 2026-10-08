@@ -22,7 +22,6 @@ func (suite *ParseTestSuite) TestMetadata() {
 		name        string
 		doc         string
 		description string
-		example     string
 		argv        []string
 	}{
 		{
@@ -35,10 +34,9 @@ func (suite *ParseTestSuite) TestMetadata() {
 			argv: []string{"bash"},
 		},
 		{
-			name:        "description and example",
-			doc:         "description \"A script\"\nexample \"script source dest\"\n",
+			name:        "description",
+			doc:         "description \"A script\"\n",
 			description: "A script",
-			example:     "script source dest",
 			argv:        []string{"bash"},
 		},
 		{
@@ -49,22 +47,19 @@ func (suite *ParseTestSuite) TestMetadata() {
 		{
 			name: "last scalar wins",
 			doc: "description \"old\"\ndescription \"new\"\n" +
-				"example \"old\"\nexample \"new\"\n" +
 				"execute \"bash\" \"-x\"\nexecute \"sh\"\n",
 			description: "new",
-			example:     "new",
 			argv:        []string{"sh"},
 		},
 		{
 			name: "empty metadata",
-			doc:  "description \"\"\nexample \"\"\n",
+			doc:  "description \"\"\n",
 			argv: []string{"bash"},
 		},
 		{
 			name:        "unicode metadata",
-			doc:         "description \"привет\"\nexample \"привет\"\n",
+			doc:         "description \"привет\"\n",
 			description: "привет",
-			example:     "привет",
 			argv:        []string{"bash"},
 		},
 		{
@@ -78,7 +73,6 @@ func (suite *ParseTestSuite) TestMetadata() {
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 			suite.Equal(test.description, conf.Description)
-			suite.Equal(test.example, conf.Example)
 			suite.Equal(test.argv, conf.Argv)
 			suite.Nil(conf.Options)
 			suite.Nil(conf.Flags)
@@ -646,6 +640,12 @@ func (suite *ParseTestSuite) TestErrors() {
 			want:    v1.ErrUnknownNode,
 		},
 		{
+			name:    "removed example node",
+			doc:     "example \"script source dest\"\n",
+			message: "cannot process node example:",
+			want:    v1.ErrUnknownNode,
+		},
+		{
 			name: "empty execute",
 			doc:  "execute\n",
 			want: v1.ErrDefineExecute,
@@ -928,12 +928,6 @@ func (suite *ParseTestSuite) TestInvalidScalarArguments() {
 		{
 			name:     "description",
 			prefix:   "description",
-			value:    "\"text\"",
-			typeName: "string",
-		},
-		{
-			name:     "example",
-			prefix:   "example",
 			value:    "\"text\"",
 			typeName: "string",
 		},
