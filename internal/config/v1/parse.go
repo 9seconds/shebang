@@ -17,7 +17,7 @@ func Parse(r io.Reader) (*Config, error) {
 	}
 
 	conf := &Config{
-		options: map[string]configOption{},
+		options: map[string]*configOption{},
 	}
 
 	for _, node := range doc.Nodes {
@@ -101,7 +101,7 @@ func parseConfigNodeDescription(conf *Config, node *document.Node) error {
 }
 
 func parseConfigNodeOption(conf *Config, node *document.Node) error {
-	option := configOption{
+	option := &configOption{
 		minCount: -1,
 		maxCount: int(^uint(0) >> 1),
 	}
@@ -132,7 +132,7 @@ func parseConfigNodeOption(conf *Config, node *document.Node) error {
 }
 
 func parseConfigNodeArgument(conf *Config, node *document.Node) error {
-	arg := configArgument{}
+	arg := &configArgument{}
 
 	if err := parseConfigItem(&arg.configItem, node); err != nil {
 		return fmt.Errorf("cannot parse argument: %w", err)

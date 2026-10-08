@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/9seconds/shebang/internal/env"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,7 @@ type Command struct {
 
 	Argv    []string
 	Options []*Option
+	Flags   []*Flag
 }
 
 func (c *Command) Execute(args []string) error {
@@ -34,6 +36,12 @@ func NewCommand(scriptName string, execute ExecFunc) *Command {
 				return fmt.Errorf("invalid option %s: %w", opt.Name, err)
 			}
 			opt.SetEnv()
+		}
+
+		for _, flag := range cmd.Flags {
+			if flag.Value {
+				env.Set(flag.Name, flag.String())
+			}
 		}
 
 		return nil

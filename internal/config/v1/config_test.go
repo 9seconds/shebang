@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,10 +31,11 @@ func (suite *ConfigTestSuite) TestValueParameterLists() {
 					multiple 1 "two" #true 1.5
 				}
 			}`)
-			item := conf.argument.configItem
-
+			var item configItem
 			if strings.HasPrefix(node, "option") {
 				item = conf.options["name"].configItem
+			} else {
+				item = conf.argument.configItem
 			}
 
 			suite.Equal("str", item.valueType)
@@ -139,7 +141,7 @@ func (suite *ConfigTestSuite) TestConfigureOptions() {
 	suite.Require().NoError(conf.Configure(cmd))
 	suite.Len(cmd.Options, 2)
 
-	flag := cmd.Flags().Lookup("name")
+	flag := cmd.Command.Flags().Lookup("name")
 	suite.Require().NotNil(flag)
 	suite.Equal("n", flag.Shorthand)
 	suite.Equal("A name", flag.Usage)
@@ -157,7 +159,7 @@ func (suite *ConfigTestSuite) TestConfigureOptions() {
 		"max-length must have at most 4 characters")
 	suite.EqualError(option.Validator.Validate("12"), "re does not match ^[a-z]+$")
 
-	other := cmd.Flags().Lookup("other")
+	other := cmd.Command.Flags().Lookup("other")
 	suite.Require().NotNil(other)
 	suite.Empty(other.Shorthand)
 
@@ -193,7 +195,133 @@ func (suite *ConfigTestSuite) TestConfigureInvalidValidator() {
 			conf := suite.parse("execute \"/bin/sh\"\noption \"name\" { " + test.value + "; }")
 			err := conf.Configure(&cli.Command{})
 
-			suite.EqualError(err, "cannot initialize validator for name: "+test.want)
+			suite.EqualError(err, "cannot configure option name: cannot initialize validator: "+test.want)
+		})
+	}
+}
+
+func (suite *ConfigTestSuite) TestConfigureFlags() {
+	conf := suite.parse(`execute "/bin/sh"
+		option "verbose" short="v" { description "Verbose output"; }
+		option "quiet"
+		option "name" { value "str"; }
+	`)
+	cmd := &cli.Command{}
+	suite.Require().NoError(conf.Configure(cmd))
+	suite.Len(cmd.Flags, 2)
+	suite.Len(cmd.Options, 1)
+	for _, flag := range cmd.Flags {
+		suite.False(flag.Value)
+		registered := cmd.Command.Flags().Lookup(flag.Name)
+		suite.Require().NotNil(registered)
+		suite.Equal("bool", registered.Value.Type())
+		suite.Equal("false", registered.DefValue)
+		suite.Equal("true", registered.NoOptDefVal)
+		if flag.Name == "verbose" {
+			suite.Equal("v", registered.Shorthand)
+			suite.Equal("Verbose output", registered.Usage)
+		} else {
+			suite.Equal("quiet", flag.Name)
+			suite.Empty(registered.Shorthand)
+		}
+	}
+	suite.Require().NoError(cmd.Command.Flags().Parse([]string{"-v", "--quiet"}))
+	for _, flag := range cmd.Flags {
+		suite.True(flag.Value)
+	}
+}
+
+func (suite *ConfigTestSuite) TestExecuteFlags() {
+	for _, test := range []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{name: "omitted"},
+		{name: "long", args: []string{"--verbose"}, want: true},
+		{name: "short", args: []string{"-v"}, want: true},
+		{name: "explicit true", args: []string{"--verbose=true"}, want: true},
+		{name: "explicit false", args: []string{"--verbose=false"}},
+		{name: "last value wins", args: []string{"-v", "--verbose=false"}},
+	} {
+		suite.Run(test.name, func() {
+			const key = "SHEBANG_VERBOSE"
+			suite.T().Setenv(key, "previous")
+			suite.Require().NoError(os.Unsetenv(key))
+			conf := suite.parse(`execute "/bin/sh"
+				option "verbose" short="v"
+				option "name" { value "str"; }
+			`)
+			suite.T().Setenv("SHEBANG_NAME", "previous")
+			called := false
+			cmd := cli.NewCommand("script.sh", func(path string, args, environ []string) error {
+				called = true
+				suite.Equal("/bin/sh", path)
+				suite.Equal([]string{"/bin/sh", "script.sh", "position"}, args)
+				if test.want {
+					suite.Contains(environ, key+"=true")
+				} else {
+					for _, entry := range environ {
+						suite.False(strings.HasPrefix(entry, key+"="))
+					}
+				}
+				suite.Contains(environ, "SHEBANG_NAME=alice")
+				return nil
+			})
+			suite.Require().NoError(conf.Configure(cmd))
+			args := append([]string(nil), test.args...)
+			args = append(args, "--name", "alice", "position")
+			suite.Require().NoError(cmd.Execute(args))
+			suite.True(called)
+			suite.Equal(test.want, cmd.Flags[0].Value)
+			value, exists := os.LookupEnv(key)
+			suite.Equal(test.want, exists)
+			if test.want {
+				suite.Equal("true", value)
+			}
+		})
+	}
+}
+
+func (suite *ConfigTestSuite) TestFalseFlagPreservesEnvironment() {
+	suite.T().Setenv("SHEBANG_VERBOSE", "existing")
+	conf := suite.parse("execute \"/bin/sh\"\noption \"verbose\"")
+	called := false
+	cmd := cli.NewCommand("script.sh", func(_ string, _ []string, environ []string) error {
+		called = true
+		suite.Contains(environ, "SHEBANG_VERBOSE=existing")
+		return nil
+	})
+	suite.Require().NoError(conf.Configure(cmd))
+	suite.Require().NoError(cmd.Execute([]string{"--verbose=false"}))
+	suite.True(called)
+	suite.Equal("existing", os.Getenv("SHEBANG_VERBOSE"))
+}
+
+func (suite *ConfigTestSuite) TestFlagsDoNotExecuteOnHelpOrInvalidValue() {
+	for _, args := range [][]string{{"--help"}, {"--verbose=invalid"}} {
+		suite.Run(strings.Join(args, " "), func() {
+			suite.T().Setenv("SHEBANG_VERBOSE", "existing")
+			conf := suite.parse("execute \"/bin/sh\"\noption \"verbose\"")
+			called := false
+			cmd := cli.NewCommand("script.sh", func(_ string, _, _ []string) error {
+				called = true
+				return nil
+			})
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			suite.Require().NoError(conf.Configure(cmd))
+			err := cmd.Execute(args)
+			if args[0] == "--help" {
+				suite.NoError(err)
+				suite.Contains(output.String(), "--verbose")
+			} else {
+				suite.Require().Error(err)
+				suite.ErrorContains(err, "invalid")
+			}
+			suite.False(called)
+			suite.Equal("existing", os.Getenv("SHEBANG_VERBOSE"))
 		})
 	}
 }

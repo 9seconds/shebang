@@ -30,8 +30,8 @@ type configArgument struct {
 }
 
 type Config struct {
-	options     map[string]configOption
-	argument    configArgument
+	options     map[string]*configOption
+	argument    *configArgument
 	execute     []string
 	description string
 	example     string
@@ -58,31 +58,49 @@ func (c *Config) Configure(cmd *cli.Command) error {
 	log.PrintVal("Argv", strings.Join(cmd.Argv, " "))
 
 	cmd.Options = []*cli.Option{}
-	flagSet := cmd.Flags()
+	cmd.Flags = []*cli.Flag{}
 
 	for name, opt := range c.options {
-		vld, err := validators.New(opt.valueType, opt.valueParams)
-		if err != nil {
-			return fmt.Errorf("cannot initialize validator for %s: %w", name, err)
+		if opt.valueType == "" {
+			configureFlag(name, cmd, opt)
+			continue
 		}
 
-		option := &cli.Option{
-			Name:       name,
-			OptionType: opt.valueType,
-			MinCount:   opt.minCount,
-			MaxCount:   opt.maxCount,
-			Validator:  vld,
+		if err := configureOption(name, cmd, opt); err != nil {
+			return fmt.Errorf("cannot configure option %s: %w", name, err)
 		}
-		cmd.Options = append(cmd.Options, option)
-
-		if opt.short == "" {
-			flagSet.Var(option, name, opt.description)
-		} else {
-			flagSet.VarP(option, name, opt.short, opt.description)
-		}
-
-		log.PrintVal("Option", option.Repr())
 	}
+
+	return nil
+}
+
+func configureFlag(name string, cmd *cli.Command, opt *configOption) {
+	flag := &cli.Flag{
+		Name: name,
+	}
+	cmd.Flags = append(cmd.Flags, flag)
+	cmd.Command.Flags().BoolVarP(&flag.Value, name, opt.short, false, opt.description)
+
+	log.PrintVal("Flag", name)
+}
+
+func configureOption(name string, cmd *cli.Command, opt *configOption) error {
+	vld, err := validators.New(opt.valueType, opt.valueParams)
+	if err != nil {
+		return fmt.Errorf("cannot initialize validator: %w", err)
+	}
+
+	option := &cli.Option{
+		Name:       name,
+		OptionType: opt.valueType,
+		MinCount:   opt.minCount,
+		MaxCount:   opt.maxCount,
+		Validator:  vld,
+	}
+	cmd.Options = append(cmd.Options, option)
+	cmd.Command.Flags().VarP(option, name, opt.short, opt.description)
+
+	log.PrintVal("Option", option.Repr())
 
 	return nil
 }
