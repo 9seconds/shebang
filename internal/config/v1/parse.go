@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -11,6 +12,10 @@ import (
 	"github.com/9seconds/shebang/internal/utils"
 	kdl "github.com/njreid/gokdl2"
 	"github.com/njreid/gokdl2/document"
+)
+
+const (
+	MaxVarArgs = math.MaxUint16
 )
 
 var (
@@ -231,6 +236,20 @@ func processConfigNodeVarArg(conf *Config, node *document.Node) error {
 			"min-count %d is greater than max-count %d",
 			*arg.MinCount,
 			*arg.MaxCount,
+		)
+	}
+
+	if arg.MinCount != nil && *arg.MinCount > MaxVarArgs {
+		return fmt.Errorf(
+			"if you use more than %d max arguments, do not limit them",
+			MaxVarArgs,
+		)
+	}
+
+	if arg.MaxCount != nil && *arg.MaxCount > MaxVarArgs {
+		return fmt.Errorf(
+			"if you use more than %d max arguments, do not limit them",
+			MaxVarArgs,
 		)
 	}
 

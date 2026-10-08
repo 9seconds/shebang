@@ -3,6 +3,7 @@ package v1_test
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -352,8 +353,7 @@ func (suite *ParseTestSuite) TestVarArgCounts() {
 		},
 		{
 			name: "int64 bounds",
-			doc:  "min-count -9223372036854775808\nmax-count 9223372036854775807\n",
-			max:  new(int64(9223372036854775807)),
+			doc:  fmt.Sprintf("min-count %d\nmax-count %d\n", int64(math.MinInt64), int64(math.MinInt64)),
 		},
 		{
 			name: "required items with unlimited maximum",
@@ -397,6 +397,99 @@ func (suite *ParseTestSuite) TestVarArgCounts() {
 				MinCount: test.min,
 				MaxCount: test.max,
 			}, conf.VarArgs)
+		})
+	}
+}
+
+func (suite *ParseTestSuite) TestVarArgBoundsLimit() {
+	for _, test := range []struct {
+		name    string
+		doc     string
+		min     *int64
+		max     *int64
+		message string
+	}{
+		{
+			name: "below limit",
+			doc:  fmt.Sprintf("min-count %d\n", v1.MaxVarArgs-1),
+			min:  new(int64(v1.MaxVarArgs - 1)),
+		},
+		{
+			name: "at limit",
+			doc:  fmt.Sprintf("min-count %d\n", v1.MaxVarArgs),
+			min:  new(int64(v1.MaxVarArgs)),
+		},
+		{
+			name: "equal bounds at limit",
+			doc:  fmt.Sprintf("min-count %d\nmax-count %d\n", v1.MaxVarArgs, v1.MaxVarArgs),
+			min:  new(int64(v1.MaxVarArgs)),
+			max:  new(int64(v1.MaxVarArgs)),
+		},
+		{
+			name:    "above limit with unlimited maximum",
+			doc:     fmt.Sprintf("min-count %d\nmax-count -1\n", v1.MaxVarArgs+1),
+			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
+		},
+		{
+			name:    "above limit with finite maximum",
+			doc:     fmt.Sprintf("min-count %d\nmax-count %d\n", v1.MaxVarArgs+1, v1.MaxVarArgs+2),
+			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
+		},
+		{
+			name:    "largest int64 minimum",
+			doc:     fmt.Sprintf("min-count %d\n", int64(math.MaxInt64)),
+			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
+		},
+		{
+			name: "maximum below limit without minimum",
+			doc:  fmt.Sprintf("max-count %d\n", v1.MaxVarArgs-1),
+			max:  new(int64(v1.MaxVarArgs - 1)),
+		},
+		{
+			name: "maximum at limit without minimum",
+			doc:  fmt.Sprintf("max-count %d\n", v1.MaxVarArgs),
+			max:  new(int64(v1.MaxVarArgs)),
+		},
+		{
+			name:    "maximum above limit without minimum",
+			doc:     fmt.Sprintf("max-count %d\n", v1.MaxVarArgs+1),
+			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
+		},
+		{
+			name:    "maximum above limit with valid minimum",
+			doc:     fmt.Sprintf("min-count 1\nmax-count %d\n", v1.MaxVarArgs+1),
+			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
+		},
+		{
+			name:    "largest int64 maximum",
+			doc:     fmt.Sprintf("max-count %d\n", int64(math.MaxInt64)),
+			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
+		},
+		{
+			name: "unlimited maximum with minimum at limit",
+			doc:  fmt.Sprintf("min-count %d\nmax-count -1\n", v1.MaxVarArgs),
+			min:  new(int64(v1.MaxVarArgs)),
+		},
+		{
+			name:    "negative minimum does not bypass maximum limit",
+			doc:     fmt.Sprintf("min-count -1\nmax-count %d\n", v1.MaxVarArgs+1),
+			message: fmt.Sprintf("if you use more than %d max arguments, do not limit them", v1.MaxVarArgs),
+		},
+	} {
+		suite.Run(test.name, func() {
+			conf, err := v1.Parse(strings.NewReader("vararg \"items\" {\n" + test.doc + "}\n"))
+			if test.message != "" {
+				suite.Require().Error(err)
+				suite.ErrorContains(err, "cannot process node vararg:")
+				suite.ErrorContains(err, test.message)
+				suite.Nil(conf)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().NotNil(conf)
+			suite.Require().NotNil(conf.VarArgs)
+			suite.Equal(test.min, conf.VarArgs.MinCount)
+			suite.Equal(test.max, conf.VarArgs.MaxCount)
 		})
 	}
 }
