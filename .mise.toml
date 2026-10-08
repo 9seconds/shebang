@@ -8,7 +8,7 @@ go = "latest"
 description = "Build a binary"
 run = "go build -o shebang"
 sources = ["**/*.go", "go.mod", "go.sum"]
-outputs = ["mtg"]
+outputs = ["shebang"]
 
 [tasks.lint]
 description = "Run a static analysis"
