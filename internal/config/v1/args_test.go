@@ -296,6 +296,23 @@ func (suite *ArgsTestSuite) TestComplete() {
 			doc:  "vararg \"items\" { max-count 0; }\n",
 		},
 		{
+			name:     "negative maximum is unlimited after required items",
+			doc:      "vararg \"items\" {\nmin-count 1\nmax-count -1\n}\n",
+			args:     []string{"one", "two", "three"},
+			selected: "ITEMS",
+		},
+		{
+			name:     "negative minimum with finite capacity",
+			doc:      "vararg \"items\" {\nmin-count -1\nmax-count 2\n}\n",
+			args:     []string{"one"},
+			selected: "ITEMS",
+		},
+		{
+			name: "normalized finite capacity reached",
+			doc:  "vararg \"items\" {\nmin-count -1\nmax-count 2\n}\n",
+			args: []string{"one", "two"},
+		},
+		{
 			name:     "first trailing argument preferred",
 			doc:      "arg \"first\"\nvararg \"items\"\narg \"dest\"\narg \"end\"\n",
 			args:     []string{"one"},

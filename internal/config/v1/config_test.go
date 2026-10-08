@@ -185,6 +185,61 @@ func (suite *ConfigTestSuite) TestUse() {
 	}
 }
 
+func (suite *ConfigTestSuite) TestNormalizedVarArgBounds() {
+	for _, test := range []struct {
+		name    string
+		bounds  string
+		use     string
+		valid   []string
+		invalid []string
+		message string
+	}{
+		{
+			name:   "negative bounds mean unlimited",
+			bounds: "min-count -1\nmax-count -3\n",
+			use:    "script [--] [ITEMS1 ...]",
+			valid:  []string{},
+		},
+		{
+			name:    "required items with unlimited maximum",
+			bounds:  "min-count 2\nmax-count -1\n",
+			use:     "script [--] ITEMS1 ITEMS2 [ITEMS3 ...]",
+			valid:   []string{"привет", "привет", "привет"},
+			invalid: []string{"привет"},
+			message: "there must be at least 2 arguments, got 1",
+		},
+		{
+			name:    "negative minimum with finite maximum",
+			bounds:  "min-count -3\nmax-count 2\n",
+			use:     "script [--] [ITEMS1 ITEMS2]",
+			valid:   []string{},
+			invalid: []string{"привет", "привет", "привет"},
+			message: "there must be at most 2 variadic arguments, got 3",
+		},
+		{
+			name:    "negative minimum with zero maximum",
+			bounds:  "min-count -3\nmax-count 0\n",
+			use:     "script",
+			valid:   []string{},
+			invalid: []string{"привет"},
+			message: "there must be at most 0 variadic arguments, got 1",
+		},
+	} {
+		suite.Run(test.name, func() {
+			conf, err := v1.Parse(strings.NewReader("vararg \"items\" {\n" + test.bounds + "}\n"))
+			suite.Require().NoError(err)
+			conf.Argv = []string{suite.runner}
+			cmd := cli.NewCommand("script", nil)
+			suite.Require().NoError(conf.Configure(cmd))
+			suite.Equal(test.use, cmd.Cmd.Use)
+			suite.NoError(cmd.Cmd.Args(&cmd.Cmd, test.valid))
+			if test.message != "" {
+				suite.EqualError(cmd.Cmd.Args(&cmd.Cmd, test.invalid), test.message)
+			}
+		})
+	}
+}
+
 func (suite *ConfigTestSuite) TestInterpreter() {
 	for _, test := range []struct {
 		name string

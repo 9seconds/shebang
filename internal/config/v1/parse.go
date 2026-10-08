@@ -216,6 +216,16 @@ func processConfigNodeVarArg(conf *Config, node *document.Node) error {
 		}
 	}
 
+	// Negative bounds have the same meaning as omitted bounds: no required
+	// items for the minimum, and no limit for the maximum. Normalize before
+	// comparing so an unlimited maximum accepts any nonnegative minimum.
+	if arg.MinCount != nil && *arg.MinCount < 0 {
+		arg.MinCount = nil
+	}
+	if arg.MaxCount != nil && *arg.MaxCount < 0 {
+		arg.MaxCount = nil
+	}
+
 	if arg.MinCount != nil && arg.MaxCount != nil && *arg.MinCount > *arg.MaxCount {
 		return fmt.Errorf(
 			"min-count %d is greater than max-count %d",

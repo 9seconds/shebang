@@ -349,14 +349,34 @@ func (suite *ParseTestSuite) TestVarArgCounts() {
 		{
 			name: "negative bounds",
 			doc:  "min-count -3\nmax-count -1\n",
-			min:  new(int64(-3)),
-			max:  new(int64(-1)),
 		},
 		{
 			name: "int64 bounds",
 			doc:  "min-count -9223372036854775808\nmax-count 9223372036854775807\n",
-			min:  new(int64(-9223372036854775808)),
 			max:  new(int64(9223372036854775807)),
+		},
+		{
+			name: "required items with unlimited maximum",
+			doc:  "min-count 2\nmax-count -1\n",
+			min:  new(int64(2)),
+		},
+		{
+			name: "negative minimum with finite maximum",
+			doc:  "min-count -3\nmax-count 2\n",
+			max:  new(int64(2)),
+		},
+		{
+			name: "negative minimum with zero maximum",
+			doc:  "min-count -3\nmax-count 0\n",
+			max:  new(int64(0)),
+		},
+		{
+			name: "reversed negative bounds are unlimited",
+			doc:  "min-count -1\nmax-count -3\n",
+		},
+		{
+			name: "last negative bounds clear limits",
+			doc:  "min-count 3\nmax-count 2\nmin-count -1\nmax-count -1\n",
 		},
 		{
 			name: "last count wins",

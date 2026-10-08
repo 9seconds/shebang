@@ -53,12 +53,12 @@ vararg "items" {
     // Default if omitted: type "" (unset), no properties.
     value "str"
 
-    // Minimum item count (int64). Default: -1 (no minimum count restriction).
-    // Must not exceed max-count; the parser accepts negative counts.
+    // Minimum item count (int64). Omitted or negative: no required items.
+    // Must not exceed a finite max-count.
     min-count -1
 
-    // Maximum item count (int64). Default: 9223372036854775807 (max int64).
-    // Must not be less than min-count.
+    // Maximum item count (int64). Omitted or negative: unlimited.
+    // A finite maximum must not be less than a nonnegative min-count.
     max-count 9223372036854775807
 }
 

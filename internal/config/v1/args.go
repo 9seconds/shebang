@@ -187,7 +187,7 @@ func newArgValidators(c *Config) (*argValidators, error) {
 
 		minCount := 0
 		if c.VarArgs.MinCount != nil {
-			minCount = max(0, int(*c.VarArgs.MinCount))
+			minCount = int(*c.VarArgs.MinCount)
 		}
 
 		maxCount := -1
