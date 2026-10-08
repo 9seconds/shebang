@@ -25,8 +25,14 @@ func (suite *GetOneTestSuite) TestInt64() {
 		{name: "int is not int64", values: []any{42}, err: "expected int64 parameter, but got int"},
 		{name: "string", values: []any{"42"}, err: "expected int64 parameter, but got string"},
 		{name: "nil value", values: []any{nil}, err: "expected int64 parameter, but got <nil>"},
-		{name: "multiple values", values: []any{int64(1), int64(2)}, err: "expected 1 parameter of int64 but got 2"},
-		{name: "count checked before type", values: []any{"a", "b", "c"}, err: "expected 1 parameter of int64 but got 3"},
+		{
+			name: "multiple values", values: []any{int64(1), int64(2)},
+			err: "expected 1 parameter of int64 but got 2",
+		},
+		{
+			name: "count checked before type", values: []any{"a", "b", "c"},
+			err: "expected 1 parameter of int64 but got 3",
+		},
 	} {
 		suite.Run(test.name, func() {
 			value, err := getOne[int64](test.values)
@@ -53,7 +59,10 @@ func (suite *GetOneTestSuite) TestString() {
 		{name: "value preserved", values: []any{" привет \n"}, want: " привет \n"},
 		{name: "integer", values: []any{int64(42)}, err: "expected string parameter, but got int64"},
 		{name: "nil value", values: []any{nil}, err: "expected string parameter, but got <nil>"},
-		{name: "multiple values", values: []any{"a", "b"}, err: "expected 1 parameter of string but got 2"},
+		{
+			name: "multiple values", values: []any{"a", "b"},
+			err: "expected 1 parameter of string but got 2",
+		},
 	} {
 		suite.Run(test.name, func() {
 			value, err := getOne[string](test.values)

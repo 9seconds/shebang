@@ -14,8 +14,8 @@ type (
 type Command struct {
 	cobra.Command
 
-	Argv []string
-	Options   []*Option
+	Argv    []string
+	Options []*Option
 }
 
 func (c *Command) Execute(args []string) error {

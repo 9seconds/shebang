@@ -61,7 +61,9 @@ func (suite *StringValidatorTestSuite) TestLengthBoundaries() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			validator, err := validators.New("str", map[string][]any{test.check: {test.limit}})
+			validator, err := validators.New("str", map[string][]any{
+				test.check: {test.limit},
+			})
 			suite.Require().NoError(err)
 			err = validator.Validate(test.value)
 			if test.want == "" {
@@ -91,7 +93,9 @@ func (suite *StringValidatorTestSuite) TestRegexp() {
 		{name: "unicode expression", check: "re", expr: "^привет$", value: "привет"},
 	} {
 		suite.Run(test.name, func() {
-			validator, err := validators.New("str", map[string][]any{test.check: {test.expr}})
+			validator, err := validators.New("str", map[string][]any{
+				test.check: {test.expr},
+			})
 			suite.Require().NoError(err)
 			err = validator.Validate(test.value)
 			if test.want == "" {
@@ -144,7 +148,10 @@ func (suite *StringValidatorTestSuite) TestInvalidChecks() {
 			want: "expected int64 parameter, but got bool",
 		},
 		{name: "maximum null", check: "max-length", want: "expected int64 parameter, but got <nil>"},
-		{name: "regexp integer", check: "re", arg: int64(1), want: "expected string parameter, but got int64"},
+		{
+			name: "regexp integer", check: "re", arg: int64(1),
+			want: "expected string parameter, but got int64",
+		},
 		{name: "regexp boolean", check: "re", arg: true, want: "expected string parameter, but got bool"},
 		{name: "regexp null", check: "re", want: "expected string parameter, but got <nil>"},
 		{name: "invalid regexp", check: "re", arg: "[", want: "re is invalid regexp:"},
@@ -152,7 +159,9 @@ func (suite *StringValidatorTestSuite) TestInvalidChecks() {
 		{name: "unknown check", check: "unknown", arg: int64(1), want: "unknown validator unknown"},
 	} {
 		suite.Run(test.name, func() {
-			validator, err := validators.New("str", map[string][]any{test.check: {test.arg}})
+			validator, err := validators.New("str", map[string][]any{
+				test.check: {test.arg},
+			})
 			suite.Require().Error(err)
 			suite.Nil(validator)
 			suite.ErrorContains(err, test.want)

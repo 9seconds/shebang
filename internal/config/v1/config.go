@@ -67,11 +67,11 @@ func (c *Config) Configure(cmd *cli.Command) error {
 		}
 
 		option := &cli.Option{
-			Name: name,
+			Name:       name,
 			OptionType: opt.valueType,
-			MinCount: opt.minCount,
-			MaxCount: opt.maxCount,
-			Validator: vld,
+			MinCount:   opt.minCount,
+			MaxCount:   opt.maxCount,
+			Validator:  vld,
 		}
 		cmd.Options = append(cmd.Options, option)
 

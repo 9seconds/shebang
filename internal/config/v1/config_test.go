@@ -81,7 +81,10 @@ func (suite *ConfigTestSuite) TestConfigureCommand() {
 	}{
 		{name: "default", want: []string{envPath, "-S bash"}},
 		{name: "empty execute", doc: "execute", want: []string{envPath, "-S bash"}},
-		{name: "relative execute", doc: `execute "python3" "-u"`, want: []string{envPath, "-S python3 -u"}},
+		{
+			name: "relative execute", doc: `execute "python3" "-u"`,
+			want: []string{envPath, "-S python3 -u"},
+		},
 		{name: "absolute execute", doc: `execute "/bin/sh" "-e"`, want: []string{"/bin/sh", "-e"}},
 	} {
 		suite.Run(test.name, func() {
@@ -150,7 +153,8 @@ func (suite *ConfigTestSuite) TestConfigureOptions() {
 	suite.Equal(2, option.MaxCount)
 	suite.NoError(option.Validator.Validate("abc"))
 	suite.EqualError(option.Validator.Validate("a"), "min-length must have at least 2 characters")
-	suite.EqualError(option.Validator.Validate("abcde"), "max-length must have at most 4 characters")
+	suite.EqualError(option.Validator.Validate("abcde"),
+		"max-length must have at most 4 characters")
 	suite.EqualError(option.Validator.Validate("12"), "re does not match ^[a-z]+$")
 
 	other := cmd.Flags().Lookup("other")
@@ -170,9 +174,18 @@ func (suite *ConfigTestSuite) TestConfigureInvalidValidator() {
 		value string
 		want  string
 	}{
-		{name: "missing parameter", value: `value "str" { min-length; }`, want: "1 value of int64 must be defined"},
-		{name: "extra parameter", value: `value "str" { min-length 0 1; }`, want: "expected 1 parameter of int64 but got 2"},
-		{name: "wrong parameter type", value: `value "str" { min-length "1"; }`, want: "expected int64 parameter, but got string"},
+		{
+			name: "missing parameter", value: `value "str" { min-length; }`,
+			want: "1 value of int64 must be defined",
+		},
+		{
+			name: "extra parameter", value: `value "str" { min-length 0 1; }`,
+			want: "expected 1 parameter of int64 but got 2",
+		},
+		{
+			name: "wrong parameter type", value: `value "str" { min-length "1"; }`,
+			want: "expected int64 parameter, but got string",
+		},
 		{name: "unknown type", value: `value "unknown"`, want: "unknown validator type unknown"},
 		{name: "unknown check", value: `value "str" { unknown 1; }`, want: "unknown validator unknown"},
 	} {

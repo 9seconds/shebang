@@ -9,7 +9,7 @@ import (
 )
 
 type Option struct {
-	values     []string
+	values []string
 
 	OptionType string
 	Name       string
