@@ -108,11 +108,9 @@ func runCompletion(cmd *cobra.Command) error {
 		return cmd.GenZshCompletion(cmd.OutOrStdout())
 	case "fish":
 		return cmd.GenFishCompletion(cmd.OutOrStdout(), true)
-	case "power", "powershell":
+	case "pwsh":
 		return cmd.GenPowerShellCompletion(cmd.OutOrStdout())
 	}
 
-	log.Die("unsupported shell %s", shell)
-
-	return nil
+	return fmt.Errorf("unsupported shell %s", shell)
 }

@@ -159,13 +159,13 @@ func (suite *MainTestSuite) TestRunCompletion() {
 			marker: "fish completion",
 		},
 		{
-			name:   "powershell",
-			shell:  "powershell",
+			name:   "pwsh",
+			shell:  "pwsh",
 			marker: "Register-ArgumentCompleter",
 		},
 		{
-			name:   "power alias",
-			shell:  "power",
+			name:   "pwsh path",
+			shell:  "/usr/bin/pwsh",
 			marker: "Register-ArgumentCompleter",
 		},
 		{
@@ -173,6 +173,12 @@ func (suite *MainTestSuite) TestRunCompletion() {
 			shell:    "auto",
 			fallback: "/bin/zsh",
 			marker:   "#compdef script",
+		},
+		{
+			name:     "auto detects pwsh",
+			shell:    "auto",
+			fallback: "/usr/bin/pwsh",
+			marker:   "Register-ArgumentCompleter",
 		},
 		{
 			name:     "empty uses shell environment",
@@ -195,9 +201,62 @@ func (suite *MainTestSuite) TestRunCompletion() {
 	}
 }
 
+func (suite *MainTestSuite) TestUnsupportedCompletionShells() {
+	for _, test := range []struct {
+		name     string
+		shell    string
+		fallback string
+		want     string
+	}{
+		{
+			name:     "unsupported explicit shell does not use fallback",
+			shell:    "unsupported",
+			fallback: "/bin/bash",
+			want:     "unsupported shell unsupported",
+		},
+		{
+			name:     "unsupported automatically detected shell",
+			shell:    "auto",
+			fallback: "/bin/unsupported",
+			want:     "unsupported shell /bin/unsupported",
+		},
+		{
+			name:  "auto without shell",
+			shell: "auto",
+			want:  "unsupported shell ",
+		},
+		{
+			name: "empty completion without shell",
+			want: "unsupported shell ",
+		},
+		{
+			name:  "removed power alias",
+			shell: "power",
+			want:  "unsupported shell power",
+		},
+		{
+			name:  "removed powershell alias",
+			shell: "powershell",
+			want:  "unsupported shell powershell",
+		},
+	} {
+		suite.Run(test.name, func() {
+			suite.T().Setenv("SHEBANG_COMPLETION", test.shell)
+			suite.T().Setenv("SHELL", test.fallback)
+			cmd := &cobra.Command{
+				Use: "script",
+			}
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			suite.EqualError(runCompletion(cmd), test.want)
+			suite.Empty(output.String())
+		})
+	}
+}
+
 func (suite *MainTestSuite) TestCompletionWriterErrors() {
 	want := errors.New("write failed")
-	for _, shell := range []string{"bash", "zsh", "fish", "powershell"} {
+	for _, shell := range []string{"bash", "zsh", "fish", "pwsh"} {
 		suite.Run(shell, func() {
 			suite.T().Setenv("SHEBANG_COMPLETION", shell)
 			cmd := &cobra.Command{
@@ -317,7 +376,7 @@ func (suite *MainTestSuite) TestMain() {
 			name:    "unsupported completion shell",
 			environ: []string{"SHEBANG_COMPLETION=unsupported"},
 			exit:    1,
-			stderr:  "unsupported shell unsupported",
+			stderr:  "cannot generate shell completions: unsupported shell unsupported",
 		},
 		{
 			name:   "help does not execute script",
