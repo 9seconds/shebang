@@ -11,7 +11,7 @@ import (
 
 type baseValue[T any] struct {
 	prepare       func(string) (T, error)
-	complete      func(T) ([]string, cobra.ShellCompDirective)
+	complete      func(string) ([]string, cobra.ShellCompDirective)
 	checks        map[string]func(T) error
 	validatorType string
 }
@@ -40,14 +40,9 @@ func (b *baseValue[T]) String() string {
 }
 
 func (b *baseValue[T]) Complete(value string) ([]cobra.Completion, cobra.ShellCompDirective) {
-	prepared, err := b.prepare(value)
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	return b.complete(prepared)
+	return b.complete(value)
 }
 
-func noopComplete[T any](_ T) ([]cobra.Completion, cobra.ShellCompDirective) {
+func noopComplete(_ string) ([]cobra.Completion, cobra.ShellCompDirective) {
 	return nil, cobra.ShellCompDirectiveNoFileComp
 }

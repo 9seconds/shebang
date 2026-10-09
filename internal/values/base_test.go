@@ -108,13 +108,15 @@ func (suite *BaseTestSuite) TestComplete() {
 		calls        int
 	}{
 		{
-			name:         "preparation error skips completion",
+			name:         "completion ignores preparation errors",
 			prepareError: errors.New("cannot prepare"),
-			directive:    cobra.ShellCompDirectiveNoFileComp,
+			want:         []cobra.Completion{"привет"},
+			directive:    cobra.ShellCompDirectiveNoSpace,
+			calls:        1,
 		},
 		{
-			name:      "prepared value forwarded",
-			want:      []cobra.Completion{"ПРИВЕТ"},
+			name:      "raw partial value forwarded",
+			want:      []cobra.Completion{"привет"},
 			directive: cobra.ShellCompDirectiveNoSpace,
 			calls:     1,
 		},
@@ -123,6 +125,7 @@ func (suite *BaseTestSuite) TestComplete() {
 			calls := 0
 			value := baseValue[string]{
 				prepare: func(input string) (string, error) {
+					suite.Fail("completion must not prepare partial input")
 					suite.Equal("привет", input)
 
 					return strings.ToUpper(input), test.prepareError

@@ -513,6 +513,26 @@ printf 'SCRIPT RAN'
 			stderr: "float must be finite",
 		},
 		{
+			name: "IP validation preserves original spelling",
+			doc: `# option "address" { value "ip" { type "v6-only"; }; }
+# arg "peer" { value "ip" { private #true; }; }
+
+printf '%s|%s' "$SHEBANG_OL_ADDRESS" "$1"
+`,
+			args:   []string{"--address", "2001:DB8:0:0:0:0:0:1", "10.1.2.3"},
+			stdout: "2001:DB8:0:0:0:0:0:1|10.1.2.3",
+		},
+		{
+			name: "IP subnet rejection prevents execution",
+			doc: `# arg "peer" { value "ip" { subnets "192.0.2.0/24"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"198.51.100.1"},
+			exit:   1,
+			stderr: "does not belong to any configured subnet",
+		},
+		{
 			name: "interpreter exit status preserved",
 			doc: `
 exit 7

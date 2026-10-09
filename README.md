@@ -1012,3 +1012,75 @@ This definition accepts `--ratio 0`, `--ratio 1.0`, and `-r 5e-1`.
 `--ratio -0.1` and `--ratio 1.1` fail the bounds; `--ratio NaN` is rejected
 even though comparisons with NaN would otherwise bypass those bounds. The
 script reads the original value from `SHEBANG_OL_RATIO` or `SHEBANG_OS_R`.
+
+### `ip` value
+
+`ip` accepts literal IPv4 and IPv6 addresses.
+Examples include `192.0.2.1`, `2001:db8::1`, and `::ffff:192.0.2.1`.
+IPv6 zone identifiers, such as `fe80::1%eth0`, are also accepted. IPv6 address
+syntax is described in [RFC 4291, section 2.2](https://www.rfc-editor.org/rfc/rfc4291#section-2.2).
+
+| Subvalidator          | Example definition          | Passes         | Fails          | Description |
+| --------------------- | --------------------------- | -------------- | -------------- | ----------- |
+| `type`                | `type "v4"`                 | `192.0.2.1`    | `2001:db8::1`  | Restricts the address family. |
+| `subnets`             | `subnets "192.0.2.0/24"`     | `192.0.2.42`   | `198.51.100.1` | Requires membership in at least one supplied CIDR prefix. |
+| `global-unicast`      | `global-unicast #true`      | `192.0.2.1`    | `127.0.0.1`    | Requires global-unicast classification. |
+| `iflocal-multicast`   | `iflocal-multicast #true`   | `ff01::1`      | `ff02::1`      | Requires IPv6 interface-local multicast scope. |
+| `linklocal-unicast`   | `linklocal-unicast #true`   | `fe80::1`      | `2001:db8::1`  | Requires a link-local unicast address. |
+| `linklocal-multicast` | `linklocal-multicast #true` | `224.0.0.1`    | `239.1.1.1`    | Requires link-local multicast scope. |
+| `loopback`            | `loopback #true`            | `::1`          | `2001:db8::1`  | Requires a loopback address. |
+| `multicast`           | `multicast #true`           | `ff02::1`      | `2001:db8::1`  | Requires a multicast address. |
+| `private`             | `private #true`             | `10.1.2.3`     | `192.0.2.1`    | Requires RFC 1918 IPv4 or RFC 4193 IPv6 private addressing. |
+| `unspecified`         | `unspecified #true`         | `0.0.0.0`      | `192.0.2.1`    | Requires an unspecified address (`0.0.0.0` or `::`). |
+
+Each classifier takes exactly one KDL boolean. Use `#false` to exclude that
+classification, `#true` - to include, or omit the child to impose no
+restriction.
+
+`global-unicast` is an address classification, not a public-address or
+reachability check: private addresses can also be global unicast.
+
+The `type` subvalidator accepts one of these strings:
+
+| Type         | Accepted addresses |
+| ------------ | ------------------ |
+| `v4`         | IPv4 only. |
+| `v6`         | IPv6, including IPv4-mapped IPv6. |
+| `v4-in-v6`   | IPv4-mapped IPv6 only, such as `::ffff:192.0.2.1`. |
+| `v6-only`    | IPv6 excluding IPv4-mapped IPv6. |
+
+`subnets` takes one or more quoted CIDR prefixes. The prefixes are alternatives,
+so an address needs to match only one. Host bits are masked: `192.0.2.19/24`
+represents `192.0.2.0/24`. If `subnets` is omitted, there is no subnet restriction;
+an explicitly empty subnet list is rejected.
+
+> [!IMPORTANT]
+> IPv4 and IPv4-mapped IPv6 are not automatically converted into one another
+> for subnet matching. `::ffff:192.0.2.1` does not match `192.0.2.0/24`; use a
+> mapped prefix such as `::ffff:192.0.2.0/120` instead. Scoped IPv6 addresses
+> containing a zone identifier do not match CIDR prefixes.
+
+Completion suggests the base addresses of configured subnets, in compressed
+and expanded forms where applicable. Suggestions are filtered by the remaining
+constraints and the text already typed, deduplicated, and sorted. It does not
+enumerate all addresses in a subnet. Without subnets, it provides no address
+suggestions and disables file completion.
+
+#### Example
+
+```kdl
+option "peer" {
+  description "Private IPv4 peer in an approved network"
+  short "p"
+  value "ip" {
+    type "v4"
+    private #true
+    loopback #false
+    subnets "10.0.0.0/8" "192.168.0.0/16"
+  }
+}
+```
+
+This accepts `--peer 10.1.2.3` and `-p 192.168.1.10`. `172.16.1.10` is private
+but fails the subnet restriction; `2001:db8::1` fails the family restriction.
+The script reads the original value from `SHEBANG_OL_PEER` or `SHEBANG_OS_P`.
