@@ -1,6 +1,13 @@
 package values
 
-import "fmt"
+import (
+	"fmt"
+)
+
+// Number includes the numeric representations supported by value validators.
+type Number interface {
+	~float64 | ~int64
+}
 
 // NegativeLengthError describes a negative string-length constraint.
 type NegativeLengthError struct {
@@ -74,40 +81,43 @@ func (e *RegexMismatchError) Error() string {
 	return fmt.Sprintf("%s does not match %s", e.Value, e.Pattern)
 }
 
-// IntConstraintKind identifies the integer bound that failed.
-type IntConstraintKind int
+// NumConstraintKind identifies the inclusive numeric bound that failed.
+type NumConstraintKind int
 
 const (
-	// IntConstraintMin indicates an integer below its inclusive minimum.
-	IntConstraintMin IntConstraintKind = iota
-	// IntConstraintMax indicates an integer above its inclusive maximum.
-	IntConstraintMax
+	// NumConstraintMin indicates a value below its minimum.
+	NumConstraintMin NumConstraintKind = iota
+	// NumConstraintMax indicates a value above its maximum.
+	NumConstraintMax
 )
 
-// IntConstraintError describes a violation of an inclusive integer bound.
-type IntConstraintError struct {
-	Kind     IntConstraintKind
-	Expected int64
-	Actual   int64
+// NumConstraintError describes a violation of an inclusive numeric bound.
+type NumConstraintError[T Number] struct {
+	Kind     NumConstraintKind
+	Expected T
+	Actual   T
 }
 
-// NewIntConstraintError constructs an error for an integer bound violation.
-func NewIntConstraintError(kind IntConstraintKind, expected, actual int64) *IntConstraintError {
-	return &IntConstraintError{
+// NewNumConstraintError constructs an error for a numeric bound violation.
+func NewNumConstraintError[T Number](
+	kind NumConstraintKind,
+	expected, actual T,
+) *NumConstraintError[T] {
+	return &NumConstraintError[T]{
 		Kind:     kind,
 		Expected: expected,
 		Actual:   actual,
 	}
 }
 
-// Error describes the failed integer bound and the supplied value.
-func (e *IntConstraintError) Error() string {
+// Error describes the failed numeric bound and the supplied value.
+func (e *NumConstraintError[T]) Error() string {
 	switch e.Kind {
-	case IntConstraintMin:
-		return fmt.Sprintf("number must be at least %d, got %d", e.Expected, e.Actual)
-	case IntConstraintMax:
-		return fmt.Sprintf("number must be at most %d, got %d", e.Expected, e.Actual)
+	case NumConstraintMin:
+		return fmt.Sprintf("number must be at least %v, got %v", e.Expected, e.Actual)
+	case NumConstraintMax:
+		return fmt.Sprintf("number must be at most %v, got %v", e.Expected, e.Actual)
 	}
 
-	return fmt.Sprintf("expected %d, got %d", e.Expected, e.Actual)
+	return fmt.Sprintf("expected %v, got %v", e.Expected, e.Actual)
 }

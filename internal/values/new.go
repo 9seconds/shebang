@@ -32,6 +32,8 @@ func New(valueType string, properties map[string][]any) (Value, error) {
 		return NewStr(properties)
 	case "int":
 		return NewInt(properties)
+	case "float":
+		return NewFloat(properties)
 	}
 
 	return nil, ErrUnknownValueType

@@ -986,3 +986,29 @@ This definition accepts `--retries 0`, `--retries 10`, and `-r +03`.
 `--retries 11` and `--retries -1` fail the bounds, while `--retries 1.5`
 fails integer parsing. The script reads the original value from
 `SHEBANG_OL_RETRIES` or `SHEBANG_OS_R`.
+
+### `float` value
+
+`float` accepts numbers float numbers in [IEEE
+754](https://en.wikipedia.org/wiki/IEEE_754) notation: this is a general way
+of specifying such numbers almost everywhere.
+
+It is very similar to `int`, even the meaning of subvalidators is the same.
+
+#### Example
+
+```kdl
+option "ratio" {
+  description "Sampling ratio, from 0.0 to 1.0"
+  short "r"
+  value "float" {
+    min 0.0
+    max 1.0
+  }
+}
+```
+
+This definition accepts `--ratio 0`, `--ratio 1.0`, and `-r 5e-1`.
+`--ratio -0.1` and `--ratio 1.1` fail the bounds; `--ratio NaN` is rejected
+even though comparisons with NaN would otherwise bypass those bounds. The
+script reads the original value from `SHEBANG_OL_RATIO` or `SHEBANG_OS_R`.

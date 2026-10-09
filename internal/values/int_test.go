@@ -113,7 +113,7 @@ func (suite *IntTestSuite) TestBounds() {
 		property string
 		bound    int64
 		input    string
-		want     *values.IntConstraintError
+		want     *values.NumConstraintError[int64]
 		message  string
 	}{
 		{
@@ -133,7 +133,7 @@ func (suite *IntTestSuite) TestBounds() {
 			property: "min",
 			bound:    -2,
 			input:    "-3",
-			want:     values.NewIntConstraintError(values.IntConstraintMin, -2, -3),
+			want:     values.NewNumConstraintError(values.NumConstraintMin, int64(-2), int64(-3)),
 			message:  "number must be at least -2, got -3",
 		},
 		{
@@ -153,7 +153,7 @@ func (suite *IntTestSuite) TestBounds() {
 			property: "max",
 			bound:    -2,
 			input:    "-1",
-			want:     values.NewIntConstraintError(values.IntConstraintMax, -2, -1),
+			want:     values.NewNumConstraintError(values.NumConstraintMax, int64(-2), int64(-1)),
 			message:  "number must be at most -2, got -1",
 		},
 		{
@@ -189,7 +189,7 @@ func (suite *IntTestSuite) TestBounds() {
 
 			suite.Require().EqualError(err, test.message)
 
-			var constraintError *values.IntConstraintError
+			var constraintError *values.NumConstraintError[int64]
 
 			suite.Require().ErrorAs(err, &constraintError)
 			suite.Equal(*test.want, *constraintError)

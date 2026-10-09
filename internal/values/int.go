@@ -54,7 +54,7 @@ func (v *valueInt) addMin(properties []any) error {
 
 	v.checks[name] = func(value int64) error {
 		if value < limit {
-			return NewIntConstraintError(IntConstraintMin, limit, value)
+			return NewNumConstraintError(NumConstraintMin, limit, value)
 		}
 
 		return nil
@@ -73,7 +73,7 @@ func (v *valueInt) addMax(properties []any) error {
 
 	v.checks[name] = func(value int64) error {
 		if value > limit {
-			return NewIntConstraintError(IntConstraintMax, limit, value)
+			return NewNumConstraintError(NumConstraintMax, limit, value)
 		}
 
 		return nil

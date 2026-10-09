@@ -491,6 +491,28 @@ printf 'SCRIPT RAN'
 			stderr: "number must be at least 1, got 0",
 		},
 		{
+			name: "float validation preserves original values",
+			doc: `# option "ratio" { value "float" { min 0.0; max 1.0; }; }
+# arg "offset" { value "float"; }
+# vararg "samples" { value "float"; min-count 1; }
+# arg "scale" { value "float"; }
+
+printf '%s|%s|%s|%s' "$SHEBANG_OL_RATIO" "$1" "$2" "$3"
+`,
+			args:   []string{"--ratio", "+05e-1", "--", "-1.25", ".5", "2.00"},
+			stdout: "+05e-1|-1.25|.5|2.00",
+		},
+		{
+			name: "NaN cannot bypass float bounds",
+			doc: `# option "ratio" { value "float" { min 0.0; max 1.0; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"--ratio", "NaN"},
+			exit:   1,
+			stderr: "float must be finite",
+		},
+		{
 			name: "interpreter exit status preserved",
 			doc: `
 exit 7
