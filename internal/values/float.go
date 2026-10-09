@@ -23,7 +23,7 @@ func NewFloat(properties map[string][]any) (Value, error) {
 	val := &valueFloat{
 		validatorType: "float",
 		complete:      noopComplete,
-		checks:        make(map[string]func(float64) error),
+		checks:        make(map[string]func(float64) error, len(properties)),
 		prepare: func(v string) (float64, error) {
 			value, err := strconv.ParseFloat(v, 64)
 			if err != nil {

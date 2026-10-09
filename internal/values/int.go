@@ -18,7 +18,7 @@ func NewInt(properties map[string][]any) (Value, error) {
 	val := &valueInt{
 		validatorType: "int",
 		complete:      noopComplete,
-		checks:        make(map[string]func(int64) error),
+		checks:        make(map[string]func(int64) error, len(properties)),
 		prepare: func(v string) (int64, error) {
 			return strconv.ParseInt(v, 10, 64)
 		},

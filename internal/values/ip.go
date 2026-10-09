@@ -42,7 +42,7 @@ type valueIP struct {
 func NewIP(properties map[string][]any) (Value, error) {
 	val := &valueIP{
 		validatorType: "ip",
-		checks:        make(map[string]func(netip.Addr) error),
+		checks:        make(map[string]func(netip.Addr) error, len(properties)),
 		classifiers:   make(map[string]bool, len(ipClassifiers)),
 		prepare:       netip.ParseAddr,
 	}
