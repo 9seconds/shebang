@@ -1084,3 +1084,38 @@ option "peer" {
 This accepts `--peer 10.1.2.3` and `-p 192.168.1.10`. `172.16.1.10` is private
 but fails the subnet restriction; `2001:db8::1` fails the family restriction.
 The script reads the original value from `SHEBANG_OL_PEER` or `SHEBANG_OS_P`.
+
+### `port` value
+
+`port` accepts unsigned decimal port numbers from 0 through 65,535.
+
+The range classifications follow
+[RFC 6335, section 6](https://www.rfc-editor.org/rfc/rfc6335#section-6):
+
+| Subvalidator | Example definition | Passes             | Fails              | Description |
+| ------------ | ------------------ | ------------------ | ------------------ | ----------- |
+| `well-known` | `well-known #true` | `"0"`, `"80"`       | `"1024"`, `"8080"`   | System (well-known) ports: 0–1,023. |
+| `registered` | `registered #true` | `"1024"`, `"8080"`  | `"80"`, `"49152"`    | User (registered) ports: 1,024–49,151. |
+| `ephemeral`  | `ephemeral #true`  | `"49152"`, `"65535"` | `"80"`, `"49151"`   | Dynamic/private ports: 49,152–65,535. |
+
+Each subvalidator takes exactly one KDL boolean. `#true` requires membership
+in the range; `#false` excludes it. Omit a subvalidator to impose no restriction
+on that range. All configured constraints must pass. For example, combining
+`well-known #false` and `ephemeral #false` allows only registered-range ports.
+Requiring two distinct ranges with `#true` accepts no value.
+
+#### Example
+
+```kdl
+option "port" {
+  description "Listening port in the registered range"
+  short "p"
+  value "port" {
+    registered #true
+  }
+}
+```
+
+This accepts `--port 8080` and `-p 08080`. `--port 80` fails the range
+constraint, and `--port 65536` fails parsing. The script reads the original
+value from `SHEBANG_OL_PORT` or `SHEBANG_OS_P`.

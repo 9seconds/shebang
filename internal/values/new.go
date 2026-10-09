@@ -36,6 +36,8 @@ func New(valueType string, properties map[string][]any) (Value, error) {
 		return NewFloat(properties)
 	case "ip":
 		return NewIP(properties)
+	case "port":
+		return NewPort(properties)
 	}
 
 	return nil, ErrUnknownValueType

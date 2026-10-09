@@ -374,11 +374,8 @@ type mainTestCase struct {
 	readme     bool
 }
 
-func (suite *MainTestSuite) TestMain() {
-	shellPath, err := exec.LookPath("sh")
-	suite.Require().NoError(err)
-
-	for _, test := range []mainTestCase{
+func mainTestCases() []mainTestCase {
+	return []mainTestCase{
 		{
 			name:     "README without script",
 			noScript: true,
@@ -533,6 +530,26 @@ printf 'SCRIPT RAN'
 			stderr: "does not belong to any configured subnet",
 		},
 		{
+			name: "port validation preserves original spelling",
+			doc: `# option "port" { value "port" { registered #true; }; }
+# arg "peer-port" { value "port"; }
+
+printf '%s|%s' "$SHEBANG_OL_PORT" "$1"
+`,
+			args:   []string{"--port", "08080", "00080"},
+			stdout: "08080|00080",
+		},
+		{
+			name: "port range rejection prevents execution",
+			doc: `# option "port" { value "port" { well-known #false; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"--port", "80"},
+			exit:   1,
+			stderr: "port 80 is well-known",
+		},
+		{
 			name: "interpreter exit status preserved",
 			doc: `
 exit 7
@@ -583,7 +600,14 @@ printf 'SCRIPT RAN'
 			args:   []string{"--help"},
 			stdout: "привет",
 		},
-	} {
+	}
+}
+
+func (suite *MainTestSuite) TestMain() {
+	shellPath, err := exec.LookPath("sh")
+	suite.Require().NoError(err)
+
+	for _, test := range mainTestCases() {
 		suite.Run(test.name, func() {
 			path := filepath.Join(suite.T().TempDir(), "script")
 
