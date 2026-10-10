@@ -94,13 +94,13 @@ func (suite *OptionTestSuite) TestMetadata() {
 	}{
 		{
 			name: "without short name",
-			want: "output  (value=str(checks=))",
+			want: "output  (value=str(subvalidators=))",
 		},
 		{
 			name:      "with short name",
 			short:     "o",
 			valueType: "str",
-			want:      "output o (value=str(checks=))",
+			want:      "output o (value=str(subvalidators=))",
 		},
 	} {
 		suite.Run(test.name, func() {

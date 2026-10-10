@@ -22,19 +22,19 @@ func (suite *NewTestSuite) TestNew() {
 	}{
 		{
 			name: "default type",
-			want: "str(checks=)",
+			want: "str(subvalidators=)",
 		},
 		{
 			name: "default ignores properties",
 			properties: map[string][]any{
 				"unknown": {true},
 			},
-			want: "str(checks=)",
+			want: "str(subvalidators=)",
 		},
 		{
 			name:      "string type",
 			valueType: "str",
-			want:      "str(checks=)",
+			want:      "str(subvalidators=)",
 		},
 		{
 			name:      "string properties forwarded",
@@ -42,7 +42,7 @@ func (suite *NewTestSuite) TestNew() {
 			properties: map[string][]any{
 				"min-length": {int64(2)},
 			},
-			want: "str(checks=min-length:2)",
+			want: "str(subvalidators=min-length:2)",
 		},
 		{
 			name:      "unknown type",

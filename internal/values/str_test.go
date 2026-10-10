@@ -261,7 +261,7 @@ func (suite *StrTestSuite) TestStringAndCompletion() {
 		"max-length": {int64(6)},
 	})
 	suite.Require().NoError(err)
-	suite.Equal("str(checks=max-length:6, min-length:1, re:^привет$)", value.String())
+	suite.Equal("str(subvalidators=max-length:6, min-length:1, re:^привет$)", value.String())
 
 	for _, input := range []string{"", "привет", "other"} {
 		suite.Run(input, func() {

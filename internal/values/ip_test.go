@@ -79,7 +79,7 @@ func (suite *IPTestSuite) TestParsing() {
 		suite.Run(test.name, func() {
 			value, err := values.New("ip", nil)
 			suite.Require().NoError(err)
-			suite.Equal("ip(checks=classifiers)", value.String())
+			suite.Equal("ip(subvalidators=classifiers)", value.String())
 
 			err = value.Validate(test.input)
 			if test.valid {
@@ -123,7 +123,7 @@ func (suite *IPTestSuite) TestTypes() {
 				"type": {test.name},
 			})
 			suite.Require().NoError(err)
-			suite.Equal("ip(checks=classifiers, type:"+test.name+")", value.String())
+			suite.Equal("ip(subvalidators=classifiers, type:"+test.name+")", value.String())
 
 			for _, address := range test.accepted {
 				suite.Require().NoError(value.Validate(address))
@@ -401,7 +401,7 @@ func (suite *IPTestSuite) TestCombinedConstraints() {
 		"subnets":  {"10.0.0.0/8", "192.168.0.0/16"},
 	})
 	suite.Require().NoError(err)
-	suite.Equal("ip(checks=classifiers, subnets:10.0.0.0/8,192.168.0.0/16, type:v4)",
+	suite.Equal("ip(subvalidators=classifiers, subnets:10.0.0.0/8,192.168.0.0/16, type:v4)",
 		value.String())
 	suite.Require().NoError(value.Validate("10.1.2.3"))
 	suite.Require().NoError(value.Validate("192.168.1.10"))
@@ -430,7 +430,7 @@ func (suite *IPTestSuite) TestEveryClassifierIsChecked() {
 	suite.Require().NoError(err)
 	suite.Require().NoError(value.Validate("10.1.2.3"))
 
-	// Repeat to exercise map iteration orders with both matching and failing checks.
+	// Repeat to exercise map iteration orders with matching and failing subvalidators.
 	for _, address := range []string{"192.0.2.1", "127.0.0.1", "239.1.1.1"} {
 		suite.Run(address, func() {
 			for range 32 {

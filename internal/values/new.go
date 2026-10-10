@@ -13,7 +13,7 @@ var (
 	ErrUnknownProperty = errors.New("unknown property")
 )
 
-// Value validates input, provides shell completions, and describes its checks.
+// Value validates input, provides shell completions, and describes its subvalidators.
 type Value interface {
 	Validate(string) error
 	Complete(string) ([]cobra.Completion, cobra.ShellCompDirective)

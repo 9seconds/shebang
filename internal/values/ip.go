@@ -41,19 +41,19 @@ type valueIP struct {
 func NewIP(properties map[string][]any) (Value, error) {
 	val := &valueIP{
 		validatorType: "ip",
-		checks:        make(map[string]func(netip.Addr) error, len(properties)),
+		subvalidators: make(map[string]func(netip.Addr) error, len(properties)),
 		classifiers:   make(map[string]bool, len(ipClassifiers)),
 		prepare:       netip.ParseAddr,
 	}
 	val.complete = val.completeAddresses
 
 	for name, arguments := range properties {
-		if err := val.addCheck(name, arguments); err != nil {
+		if err := val.addSubvalidator(name, arguments); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", name, err)
 		}
 	}
 
-	val.checks["classifiers"] = func(addr netip.Addr) error {
+	val.subvalidators["classifiers"] = func(addr netip.Addr) error {
 		for name, expected := range val.classifiers {
 			if ipClassifiers[name](addr) != expected {
 				return NewIPClassifierError(addr, name, expected)
@@ -66,7 +66,7 @@ func NewIP(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valueIP) addCheck(name string, arguments []any) error {
+func (v *valueIP) addSubvalidator(name string, arguments []any) error {
 	switch name {
 	case "subnets":
 		return v.addSubnets(arguments)
@@ -111,7 +111,7 @@ func (v *valueIP) addSubnets(arguments []any) error {
 
 	name := "subnets:" + strings.Join(strPrefixes, ",")
 
-	v.checks[name] = func(addr netip.Addr) error {
+	v.subvalidators[name] = func(addr netip.Addr) error {
 		for _, prefix := range v.prefixes {
 			if prefix.Contains(addr) {
 				return nil
@@ -130,13 +130,13 @@ func (v *valueIP) addType(arguments []any) error {
 		return err
 	}
 
-	check, ok := ipTypes[name]
+	subvalidator, ok := ipTypes[name]
 	if !ok {
 		return NewIPTypeError(netip.Addr{}, name)
 	}
 
-	v.checks["type:"+name] = func(addr netip.Addr) error {
-		if !check(addr) {
+	v.subvalidators["type:"+name] = func(addr netip.Addr) error {
+		if !subvalidator(addr) {
 			return NewIPTypeError(addr, name)
 		}
 
@@ -150,8 +150,8 @@ func (v *valueIP) completeAddresses(input string) ([]cobra.Completion, cobra.She
 	addresses := make([]string, 0, 2*len(v.prefixes))
 
 	isOk := func(addr netip.Addr) bool {
-		for _, check := range v.checks {
-			if err := check(addr); err != nil {
+		for _, subvalidator := range v.subvalidators {
+			if err := subvalidator(addr); err != nil {
 				return false
 			}
 		}

@@ -16,31 +16,31 @@ type BaseTestSuite struct {
 func (suite *BaseTestSuite) TestValidate() {
 	want := errors.New("invalid value")
 	for _, test := range []struct {
-		name         string
-		prepareError error
-		checkError   error
-		want         error
-		checksCalled int
+		name                string
+		prepareError        error
+		subvalidatorError   error
+		want                error
+		subvalidatorsCalled int
 	}{
 		{
-			name:         "preparation error skips checks",
+			name:         "preparation error skips subvalidators",
 			prepareError: want,
 			want:         want,
 		},
 		{
-			name:         "check error propagated",
-			checkError:   want,
-			want:         want,
-			checksCalled: 1,
+			name:                "subvalidator error propagated",
+			subvalidatorError:   want,
+			want:                want,
+			subvalidatorsCalled: 1,
 		},
 		{
-			name:         "prepared value passes checks",
-			checksCalled: 1,
+			name:                "prepared value passes subvalidators",
+			subvalidatorsCalled: 1,
 		},
 	} {
 		suite.Run(test.name, func() {
 			prepareCalls := 0
-			checkCalls := 0
+			subvalidatorCalls := 0
 			value := baseValue[string]{
 				prepare: func(input string) (string, error) {
 					prepareCalls++
@@ -49,13 +49,13 @@ func (suite *BaseTestSuite) TestValidate() {
 
 					return strings.ToUpper(input), test.prepareError
 				},
-				checks: map[string]func(string) error{
-					"check": func(input string) error {
-						checkCalls++
+				subvalidators: map[string]func(string) error{
+					"subvalidator": func(input string) error {
+						subvalidatorCalls++
 
 						suite.Equal("ПРИВЕТ", input)
 
-						return test.checkError
+						return test.subvalidatorError
 					},
 				},
 			}
@@ -68,18 +68,18 @@ func (suite *BaseTestSuite) TestValidate() {
 			}
 
 			suite.Equal(1, prepareCalls)
-			suite.Equal(test.checksCalled, checkCalls)
+			suite.Equal(test.subvalidatorsCalled, subvalidatorCalls)
 		})
 	}
 }
 
-func (suite *BaseTestSuite) TestAllChecksRun() {
+func (suite *BaseTestSuite) TestAllSubvalidatorsRun() {
 	called := make(map[string]bool)
 	value := baseValue[string]{
 		prepare: func(input string) (string, error) {
 			return input, nil
 		},
-		checks: map[string]func(string) error{
+		subvalidators: map[string]func(string) error{
 			"first": func(string) error {
 				called["first"] = true
 
@@ -101,13 +101,13 @@ func (suite *BaseTestSuite) TestAllChecksRun() {
 
 func (suite *BaseTestSuite) TestComplete() {
 	for _, test := range []struct {
-		name         string
-		prepareError error
-		checkError   error
-		candidates   []string
-		want         []cobra.Completion
-		directive    cobra.ShellCompDirective
-		calls        int
+		name              string
+		prepareError      error
+		subvalidatorError error
+		candidates        []string
+		want              []cobra.Completion
+		directive         cobra.ShellCompDirective
+		calls             int
 	}{
 		{
 			name:         "preparation failure falls back to completion",
@@ -123,12 +123,12 @@ func (suite *BaseTestSuite) TestComplete() {
 			directive: cobra.ShellCompDirectiveNoFileComp,
 		},
 		{
-			name:       "constraint failure falls back with raw input",
-			checkError: errors.New("constraint failed"),
-			candidates: []string{"привет"},
-			want:       []cobra.Completion{"привет"},
-			directive:  cobra.ShellCompDirectiveNoSpace,
-			calls:      1,
+			name:              "constraint failure falls back with raw input",
+			subvalidatorError: errors.New("constraint failed"),
+			candidates:        []string{"привет"},
+			want:              []cobra.Completion{"привет"},
+			directive:         cobra.ShellCompDirectiveNoSpace,
+			calls:             1,
 		},
 		{
 			name:         "sort and deduplicate callback candidates",
@@ -150,11 +150,11 @@ func (suite *BaseTestSuite) TestComplete() {
 
 					return strings.ToUpper(input), test.prepareError
 				},
-				checks: map[string]func(string) error{
+				subvalidators: map[string]func(string) error{
 					"constraint": func(input string) error {
 						suite.Equal("ПРИВЕТ", input)
 
-						return test.checkError
+						return test.subvalidatorError
 					},
 				},
 				complete: func(input string) ([]string, cobra.ShellCompDirective) {

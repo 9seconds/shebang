@@ -13,21 +13,21 @@ type valueStr struct {
 }
 
 // NewStr constructs a string validator with rune-length and regular-expression
-// checks described by properties.
+// subvalidators described by properties.
 //
 //nolint:ireturn // String validators expose the shared Value interface.
 func NewStr(properties map[string][]any) (Value, error) {
 	val := &valueStr{
 		validatorType: "str",
 		complete:      noopComplete,
-		checks:        make(map[string]func(string) error),
+		subvalidators: make(map[string]func(string) error),
 		prepare: func(v string) (string, error) {
 			return v, nil
 		},
 	}
 
 	for k, v := range properties {
-		if err := val.addCheck(k, v); err != nil {
+		if err := val.addSubvalidator(k, v); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
 		}
 	}
@@ -35,7 +35,7 @@ func NewStr(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valueStr) addCheck(name string, value []any) error {
+func (v *valueStr) addSubvalidator(name string, value []any) error {
 	switch name {
 	case "min-length":
 		return v.addMinLength(value)
@@ -61,7 +61,7 @@ func (v *valueStr) addMinLength(properties []any) error {
 	intLength := int(length)
 	name := fmt.Sprintf("min-length:%d", intLength)
 
-	v.checks[name] = func(value string) error {
+	v.subvalidators[name] = func(value string) error {
 		if lv := utf8.RuneCountInString(value); lv < intLength {
 			return NewLengthConstraintError(LengthConstraintMinimum, intLength, lv)
 		}
@@ -85,7 +85,7 @@ func (v *valueStr) addMaxLength(properties []any) error {
 	intLength := int(length)
 	name := fmt.Sprintf("max-length:%d", intLength)
 
-	v.checks[name] = func(value string) error {
+	v.subvalidators[name] = func(value string) error {
 		if lv := utf8.RuneCountInString(value); lv > intLength {
 			return NewLengthConstraintError(LengthConstraintMaximum, intLength, lv)
 		}
@@ -109,7 +109,7 @@ func (v *valueStr) addRe(properties []any) error {
 
 	name := "re:" + strExpr
 
-	v.checks[name] = func(value string) error {
+	v.subvalidators[name] = func(value string) error {
 		if !expression.MatchString(value) {
 			return NewRegexMismatchError(value, strExpr)
 		}

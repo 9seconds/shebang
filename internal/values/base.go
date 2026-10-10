@@ -12,7 +12,7 @@ import (
 type baseValue[T any] struct {
 	prepare       func(string) (T, error)
 	complete      func(string) ([]string, cobra.ShellCompDirective)
-	checks        map[string]func(T) error
+	subvalidators map[string]func(T) error
 	validatorType string
 }
 
@@ -22,8 +22,8 @@ func (b *baseValue[T]) Validate(value string) error {
 		return err
 	}
 
-	for _, check := range b.checks {
-		if err := check(prepared); err != nil {
+	for _, subvalidator := range b.subvalidators {
+		if err := subvalidator(prepared); err != nil {
 			return err
 		}
 	}
@@ -33,9 +33,9 @@ func (b *baseValue[T]) Validate(value string) error {
 
 func (b *baseValue[T]) String() string {
 	return fmt.Sprintf(
-		"%s(checks=%s)",
+		"%s(subvalidators=%s)",
 		b.validatorType,
-		strings.Join(slices.Sorted(maps.Keys(b.checks)), ", "),
+		strings.Join(slices.Sorted(maps.Keys(b.subvalidators)), ", "),
 	)
 }
 

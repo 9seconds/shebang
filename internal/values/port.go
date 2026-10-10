@@ -27,7 +27,7 @@ func NewPort(properties map[string][]any) (Value, error) {
 	val := &valuePort{
 		validatorType: "port",
 		complete:      noopComplete,
-		checks:        make(map[string]func(uint16) error, len(properties)),
+		subvalidators: make(map[string]func(uint16) error, len(properties)),
 		prepare: func(input string) (uint16, error) {
 			port, err := strconv.ParseUint(input, 10, 16)
 			if err != nil {
@@ -39,7 +39,7 @@ func NewPort(properties map[string][]any) (Value, error) {
 	}
 
 	for k, v := range properties {
-		if err := val.addCheck(k, v); err != nil {
+		if err := val.addSubvalidator(k, v); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
 		}
 	}
@@ -47,7 +47,7 @@ func NewPort(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valuePort) addCheck(name string, value []any) error {
+func (v *valuePort) addSubvalidator(name string, value []any) error {
 	val, err := utils.One[bool](value)
 	if err != nil {
 		return err
@@ -55,21 +55,21 @@ func (v *valuePort) addCheck(name string, value []any) error {
 
 	switch name {
 	case "well-known":
-		v.addRangeCheck(
+		v.addRangeSubvalidator(
 			"well-known",
 			0,
 			portSystemLast,
 			val,
 		)
 	case "registered":
-		v.addRangeCheck(
+		v.addRangeSubvalidator(
 			"registered",
 			portSystemLast+1,
 			portRegisteredLast,
 			val,
 		)
 	case "ephemeral":
-		v.addRangeCheck(
+		v.addRangeSubvalidator(
 			"ephemeral",
 			portRegisteredLast+1,
 			math.MaxUint16,
@@ -82,8 +82,8 @@ func (v *valuePort) addCheck(name string, value []any) error {
 	return nil
 }
 
-func (v *valuePort) addRangeCheck(name string, first, last uint16, expected bool) {
-	v.checks[name] = func(port uint16) error {
+func (v *valuePort) addRangeSubvalidator(name string, first, last uint16, expected bool) {
+	v.subvalidators[name] = func(port uint16) error {
 		if expected == (first <= port && port <= last) {
 			return nil
 		}

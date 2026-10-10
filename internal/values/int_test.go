@@ -262,7 +262,7 @@ func (suite *IntTestSuite) TestCombinedBoundsAndCompletion() {
 				"max": {bound},
 			})
 			suite.Require().NoError(err)
-			suite.Equal(fmt.Sprintf("int(checks=max:%d, min:%d)", bound, bound), value.String())
+			suite.Equal(fmt.Sprintf("int(subvalidators=max:%d, min:%d)", bound, bound), value.String())
 			suite.Require().NoError(value.Validate(strconv.FormatInt(bound, 10)))
 			suite.Require().Error(value.Validate(strconv.FormatInt(bound-1, 10)))
 			suite.Require().Error(value.Validate(strconv.FormatInt(bound+1, 10)))

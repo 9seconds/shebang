@@ -85,7 +85,7 @@ func (suite *PortTestSuite) TestParsing() {
 		suite.Run(test.name, func() {
 			value, err := values.New("port", nil)
 			suite.Require().NoError(err)
-			suite.Equal("port(checks=)", value.String())
+			suite.Equal("port(subvalidators=)", value.String())
 
 			err = value.Validate(test.input)
 			if test.want == nil {
@@ -135,7 +135,7 @@ func (suite *PortTestSuite) TestRanges() {
 					test.name: {expected},
 				})
 				suite.Require().NoError(err)
-				suite.Equal("port(checks="+test.category+")", value.String())
+				suite.Equal("port(subvalidators="+test.category+")", value.String())
 
 				for _, port := range []uint16{0, 1023, 1024, 49151, 49152, math.MaxUint16} {
 					err := value.Validate(strconv.FormatUint(uint64(port), 10))

@@ -23,7 +23,7 @@ func NewFloat(properties map[string][]any) (Value, error) {
 	val := &valueFloat{
 		validatorType: "float",
 		complete:      noopComplete,
-		checks:        make(map[string]func(float64) error, len(properties)),
+		subvalidators: make(map[string]func(float64) error, len(properties)),
 		prepare: func(v string) (float64, error) {
 			value, err := strconv.ParseFloat(v, 64)
 			if err != nil {
@@ -39,7 +39,7 @@ func NewFloat(properties map[string][]any) (Value, error) {
 	}
 
 	for k, v := range properties {
-		if err := val.addCheck(k, v); err != nil {
+		if err := val.addSubvalidator(k, v); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
 		}
 	}
@@ -47,7 +47,7 @@ func NewFloat(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valueFloat) addCheck(name string, value []any) error {
+func (v *valueFloat) addSubvalidator(name string, value []any) error {
 	switch name {
 	case "min":
 		return v.addMin(value)
@@ -70,7 +70,7 @@ func (v *valueFloat) addMin(properties []any) error {
 
 	name := fmt.Sprintf("min:%g", limit)
 
-	v.checks[name] = func(value float64) error {
+	v.subvalidators[name] = func(value float64) error {
 		if value < limit {
 			return NewNumConstraintError(NumConstraintMin, limit, value)
 		}
@@ -93,7 +93,7 @@ func (v *valueFloat) addMax(properties []any) error {
 
 	name := fmt.Sprintf("max:%g", limit)
 
-	v.checks[name] = func(value float64) error {
+	v.subvalidators[name] = func(value float64) error {
 		if value > limit {
 			return NewNumConstraintError(NumConstraintMax, limit, value)
 		}
