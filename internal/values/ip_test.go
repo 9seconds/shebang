@@ -448,6 +448,7 @@ func (suite *IPTestSuite) TestCompletion() {
 		properties map[string][]any
 		input      string
 		want       []cobra.Completion
+		directive  cobra.ShellCompDirective
 	}{
 		{
 			name: "family filter without classifiers",
@@ -455,26 +456,30 @@ func (suite *IPTestSuite) TestCompletion() {
 				"subnets": {"192.0.2.0/24", "2001:db8::/32"},
 				"type":    {"v6-only"},
 			},
-			want: []cobra.Completion{"2001:0db8:0000:0000:0000:0000:0000:0000", "2001:db8::"},
+			want:      []cobra.Completion{"2001:0db8:0000:0000:0000:0000:0000:000", "2001:db8:"},
+			directive: cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
 		},
 		{
-			name: "no configured candidates",
-			want: []cobra.Completion{},
+			name:      "no configured candidates",
+			want:      []cobra.Completion{},
+			directive: cobra.ShellCompDirectiveNoFileComp,
 		},
 		{
-			name: "IPv4 retains final octet and deduplicates",
+			name: "IPv4 prefix suggestions are deduplicated",
 			properties: map[string][]any{
 				"subnets": {"192.0.2.1/32", "192.0.2.1/32", "192.0.2.19/24"},
 			},
-			input: "192.0.2.",
-			want:  []cobra.Completion{"192.0.2.0", "192.0.2.1"},
+			input:     "192.0.2.",
+			want:      []cobra.Completion{"192.0.2."},
+			directive: cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
 		},
 		{
 			name: "IPv6 compressed and expanded forms",
 			properties: map[string][]any{
 				"subnets": {"2001:db8::/32"},
 			},
-			want: []cobra.Completion{"2001:0db8:0000:0000:0000:0000:0000:0000", "2001:db8::"},
+			want:      []cobra.Completion{"2001:0db8:0000:0000:0000:0000:0000:000", "2001:db8:"},
+			directive: cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
 		},
 		{
 			name: "type and classifier filter candidates",
@@ -483,15 +488,32 @@ func (suite *IPTestSuite) TestCompletion() {
 				"type":     {"v4"},
 				"loopback": {false},
 			},
-			want: []cobra.Completion{"192.0.2.0"},
+			want:      []cobra.Completion{"192.0.2."},
+			directive: cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
 		},
 		{
 			name: "partial input with no match",
 			properties: map[string][]any{
 				"subnets": {"192.0.2.0/24"},
 			},
-			input: "привет",
-			want:  []cobra.Completion{},
+			input:     "привет",
+			want:      []cobra.Completion{},
+			directive: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:      "valid original IPv6 spelling returned unchanged",
+			input:     "2001:DB8::1",
+			want:      []cobra.Completion{"2001:DB8::1"},
+			directive: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name: "valid base address takes precedence over prefix suggestions",
+			properties: map[string][]any{
+				"subnets": {"192.0.2.0/24"},
+			},
+			input:     "192.0.2.0",
+			want:      []cobra.Completion{"192.0.2.0"},
+			directive: cobra.ShellCompDirectiveNoFileComp,
 		},
 	} {
 		suite.Run(test.name, func() {
@@ -500,11 +522,7 @@ func (suite *IPTestSuite) TestCompletion() {
 
 			candidates, directive := value.Complete(test.input)
 			suite.Equal(test.want, candidates)
-			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
-
-			for _, candidate := range candidates {
-				suite.Require().NoError(value.Validate(candidate))
-			}
+			suite.Equal(test.directive, directive)
 		})
 	}
 }

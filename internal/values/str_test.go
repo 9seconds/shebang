@@ -266,7 +266,12 @@ func (suite *StrTestSuite) TestStringAndCompletion() {
 	for _, input := range []string{"", "привет", "other"} {
 		suite.Run(input, func() {
 			completions, directive := value.Complete(input)
-			suite.Nil(completions)
+			if input == "привет" {
+				suite.Equal([]cobra.Completion{input}, completions)
+			} else {
+				suite.Nil(completions)
+			}
+
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 		})
 	}

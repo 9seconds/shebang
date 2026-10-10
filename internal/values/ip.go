@@ -3,7 +3,6 @@ package values
 import (
 	"fmt"
 	"net/netip"
-	"slices"
 	"strings"
 
 	"github.com/9seconds/shebang/internal/utils"
@@ -148,7 +147,7 @@ func (v *valueIP) addType(arguments []any) error {
 }
 
 func (v *valueIP) completeAddresses(input string) ([]cobra.Completion, cobra.ShellCompDirective) {
-	addresses := make(map[string]struct{}, 2*len(v.prefixes))
+	addresses := make([]string, 0, 2*len(v.prefixes))
 
 	isOk := func(addr netip.Addr) bool {
 		for _, check := range v.checks {
@@ -164,20 +163,27 @@ func (v *valueIP) completeAddresses(input string) ([]cobra.Completion, cobra.She
 		addr := prefix.Addr()
 
 		if isOk(addr) {
-			addresses[addr.String()] = struct{}{}
-			addresses[addr.StringExpanded()] = struct{}{}
+			addresses = append(addresses, addr.String(), addr.StringExpanded())
 		}
 	}
 
 	candidates := make([]cobra.Completion, 0, len(addresses))
 
-	for address := range addresses {
+	for _, address := range addresses {
+		// cut 1 character out of the ip address because we do not
+		// want actually to finish with an own address of the prefix,
+		// we want to complete up to that string
+		address = address[:len(address)-1]
+
 		if strings.HasPrefix(address, input) {
 			candidates = append(candidates, address)
 		}
 	}
 
-	slices.Sort(candidates)
+	directive := cobra.ShellCompDirectiveNoFileComp
+	if len(candidates) > 0 {
+		directive |= cobra.ShellCompDirectiveNoSpace
+	}
 
-	return candidates, cobra.ShellCompDirectiveNoFileComp
+	return candidates, directive
 }

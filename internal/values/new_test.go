@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/9seconds/shebang/internal/values"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -73,6 +74,43 @@ func (suite *NewTestSuite) TestNew() {
 				suite.Equal(test.want, value.String())
 				suite.NoError(value.Validate("привет"))
 			}
+		})
+	}
+}
+
+func (suite *NewTestSuite) TestValidInputCompletion() {
+	for _, test := range []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "str",
+			input: "привет",
+		},
+		{
+			name:  "int",
+			input: "+0012",
+		},
+		{
+			name:  "float",
+			input: "5e-1",
+		},
+		{
+			name:  "ip",
+			input: "2001:DB8::1",
+		},
+		{
+			name:  "port",
+			input: "08080",
+		},
+	} {
+		suite.Run(test.name, func() {
+			value, err := values.New(test.name, nil)
+			suite.Require().NoError(err)
+
+			candidates, directive := value.Complete(test.input)
+			suite.Equal([]cobra.Completion{test.input}, candidates)
+			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 		})
 	}
 }

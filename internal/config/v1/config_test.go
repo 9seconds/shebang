@@ -374,7 +374,7 @@ func (suite *ConfigTestSuite) TestOptionsAndFlags() {
 			suite.Require().True(ok)
 
 			completions, directive := complete(&cmd.Cmd, nil, "привет")
-			suite.Nil(completions)
+			suite.Equal([]cobra.Completion{"привет"}, completions)
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 		})
 	}
@@ -425,7 +425,12 @@ func (suite *ConfigTestSuite) TestPositionalCallbacks() {
 			}
 
 			completions, directive := cmd.Cmd.ValidArgsFunction(&cmd.Cmd, test.args, "привет")
-			suite.Nil(completions)
+			if len(test.args) == 0 {
+				suite.Equal([]cobra.Completion{"привет"}, completions)
+			} else {
+				suite.Nil(completions)
+			}
+
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 		})
 	}
