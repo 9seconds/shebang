@@ -550,6 +550,38 @@ printf 'SCRIPT RAN'
 			stderr: "port 80 is well-known",
 		},
 		{
+			name: "enum option and positional values reach the script",
+			doc: `# option "mode" { value "enum" { choices "dev" "prod"; }; }
+# arg "greeting" { value "enum" { choices "привет"; }; }
+
+printf '%s|%s' "$SHEBANG_OL_MODE" "$1"
+`,
+			args:   []string{"--mode", "prod", "привет"},
+			stdout: "prod|привет",
+		},
+		{
+			name: "unknown enum choice prevents execution",
+			doc: `# option "mode" { value "enum" { choices "dev" "prod"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"--mode", "preview"},
+			exit:   1,
+			stderr: "unknown choice",
+		},
+		{
+			name: "enum choices complete through Cobra protocol",
+			doc: `# option "mode" { value "enum" { choices "production" "preview" "dev"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{"__complete", "--mode", "pr"},
+			stdout: `preview
+production
+:4
+`,
+		},
+		{
 			name: "interpreter exit status preserved",
 			doc: `
 exit 7

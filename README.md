@@ -1119,3 +1119,30 @@ option "port" {
 This accepts `--port 8080` and `-p 08080`. `--port 80` fails the range
 constraint, and `--port 65536` fails parsing. The script reads the original
 value from `SHEBANG_OL_PORT` or `SHEBANG_OS_P`.
+
+### `enum` value
+
+`enum` accepts one of a configured set of strings. Matching is exact and
+case-sensitive: a choice of `"prod"` accepts `"prod"`, but not `"Prod"`,
+`"pro"`, or `" prod "`.
+
+| Subvalidator | Example definition           | Passes          | Fails               | Description |
+| ------------ | ---------------------------- | --------------- | ------------------- | ----------- |
+| `choices`    | `choices "dev" "stage" "prod"` | `"dev"`, `"prod"` | `"preview"`, `"Prod"` | Lists the permitted strings. |
+
+Each choice must be a quoted KDL string.
+
+#### Example
+
+```kdl
+option "environment" {
+  description "Deployment environment"
+  short "e"
+  value "enum" {
+    choices "dev" "stage" "prod"
+  }
+}
+```
+
+The script reads the selected value from `SHEBANG_OL_ENVIRONMENT` or
+`SHEBANG_OS_E`.

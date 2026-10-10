@@ -38,6 +38,8 @@ func New(valueType string, properties map[string][]any) (Value, error) {
 		return NewIP(properties)
 	case "port":
 		return NewPort(properties)
+	case "enum":
+		return NewEnum(properties)
 	}
 
 	return nil, ErrUnknownValueType
