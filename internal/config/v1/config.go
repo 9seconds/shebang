@@ -13,10 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// WithValue describes a value type and its validation properties.
+// WithValue describes a value type and its subvalidators.
 type WithValue struct {
-	Type       string
-	Properties map[string][]any
+	Type          string
+	Properties map[string]any
+	Subvalidators map[string][]any
 }
 
 // Flag describes a boolean command-line flag.
@@ -247,7 +248,7 @@ func (c *Config) configureOptions(cmd *cli.Command) error {
 	flagSet := cmd.Cmd.Flags()
 
 	for idx, opt := range c.Options {
-		value, err := values.New(opt.Type, opt.Properties)
+		value, err := values.New(opt.Type, opt.Subvalidators)
 		if err != nil {
 			return fmt.Errorf("incorrect option %s: %w", opt.Name, err)
 		}

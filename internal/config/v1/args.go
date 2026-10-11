@@ -187,7 +187,7 @@ func newFixedArgValidators(args []Arg) ([]argValidator, error) {
 	for _, arg := range args {
 		name := strings.ToUpper(arg.Name)
 
-		value, err := values.New(arg.Type, arg.Properties)
+		value, err := values.New(arg.Type, arg.Subvalidators)
 		if err != nil {
 			return nil, fmt.Errorf("invalid argument %s: %w", name, err)
 		}
@@ -207,7 +207,7 @@ func newVarArgValidators(arg *VarArg) ([]argValidator, *varArgValidator, error) 
 	var required []argValidator
 
 	if arg.MinCount != nil {
-		value, err := values.New(arg.Type, arg.Properties)
+		value, err := values.New(arg.Type, arg.Subvalidators)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid vararg type: %w", err)
 		}
@@ -220,7 +220,7 @@ func newVarArgValidators(arg *VarArg) ([]argValidator, *varArgValidator, error) 
 		}
 	}
 
-	value, err := values.New(arg.Type, arg.Properties)
+	value, err := values.New(arg.Type, arg.Subvalidators)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid argument %s: %w", name, err)
 	}

@@ -100,9 +100,9 @@ echo "$@"
 				},
 				Options: []v1.Option{
 					{
-						Name:       "output",
-						Type:       "str",
-						Properties: map[string][]any{},
+						Name:          "output",
+						Type:          "str",
+						Subvalidators: map[string][]any{},
 					},
 				},
 				FirstArgs: []v1.Arg{

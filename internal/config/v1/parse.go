@@ -323,7 +323,7 @@ func processWithValue(data *WithValue, node *document.Node) error {
 	}
 
 	data.Type = valueType
-	data.Properties = make(map[string][]any)
+	data.Subvalidators = make(map[string][]any, len(node.Children))
 
 	for _, chld := range node.Children {
 		propName := chld.Name.NodeNameString()
@@ -333,7 +333,13 @@ func processWithValue(data *WithValue, node *document.Node) error {
 			propValues[idx] = arg.Value
 		}
 
-		data.Properties[propName] = propValues
+		data.Subvalidators[propName] = propValues
+	}
+
+	data.Properties = make(map[string]any, len(node.Properties.Unordered()))
+
+	for k, v := range node.Properties.Unordered() {
+		data.Properties[k] = v.Value
 	}
 
 	return nil

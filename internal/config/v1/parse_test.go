@@ -124,7 +124,7 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 					Description: "Output file",
 					Short:       "o",
 					Type:        "str",
-					Properties: map[string][]any{
+					Subvalidators: map[string][]any{
 						"min-length": {int64(1)},
 					},
 				},
@@ -258,7 +258,7 @@ func (suite *ParseTestSuite) TestPositionalArguments() {
 					Name:        "source",
 					Description: "Source file",
 					Type:        "str",
-					Properties: map[string][]any{
+					Subvalidators: map[string][]any{
 						"re": {".*"},
 					},
 				},
@@ -510,8 +510,8 @@ func (suite *ParseTestSuite) TestValues() {
 					name: "without properties",
 					doc:  "value \"str\"\n",
 					want: v1.WithValue{
-						Type:       "str",
-						Properties: map[string][]any{},
+						Type:          "str",
+						Subvalidators: map[string][]any{},
 					},
 				},
 				{
@@ -523,7 +523,7 @@ func (suite *ParseTestSuite) TestValues() {
 					`,
 					want: v1.WithValue{
 						Type: "custom",
-						Properties: map[string][]any{
+						Subvalidators: map[string][]any{
 							"mixed": {"text", int64(2), float64(1.5), true, false, nil},
 							"empty": {},
 						},
@@ -534,7 +534,7 @@ func (suite *ParseTestSuite) TestValues() {
 					doc:  "value \"str\" {\nre \"old\"\nre \"new\" \"other\"\n}\n",
 					want: v1.WithValue{
 						Type: "str",
-						Properties: map[string][]any{
+						Subvalidators: map[string][]any{
 							"re": {"new", "other"},
 						},
 					},
@@ -544,7 +544,7 @@ func (suite *ParseTestSuite) TestValues() {
 					doc:  "value \"old\" {\nre \"old\"\n}\nvalue \"new\" {\nmin-length 2\n}\n",
 					want: v1.WithValue{
 						Type: "new",
-						Properties: map[string][]any{
+						Subvalidators: map[string][]any{
 							"min-length": {int64(2)},
 						},
 					},
@@ -553,8 +553,8 @@ func (suite *ParseTestSuite) TestValues() {
 					name: "value clears properties",
 					doc:  "value \"str\" {\nre \"old\"\n}\nvalue \"str\"\n",
 					want: v1.WithValue{
-						Type:       "str",
-						Properties: map[string][]any{},
+						Type:          "str",
+						Subvalidators: map[string][]any{},
 					},
 				},
 			} {
