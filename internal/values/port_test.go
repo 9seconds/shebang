@@ -83,7 +83,7 @@ func (suite *PortTestSuite) TestParsing() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.New("port", nil)
+			value, err := values.New("port", nil, nil)
 			suite.Require().NoError(err)
 			suite.Equal("port(subvalidators=)", value.String())
 
@@ -131,7 +131,7 @@ func (suite *PortTestSuite) TestRanges() {
 	} {
 		suite.Run(test.name, func() {
 			for _, expected := range []bool{true, false} {
-				value, err := values.NewPort(map[string][]any{
+				value, err := values.NewPort(nil, map[string][]any{
 					test.name: {expected},
 				})
 				suite.Require().NoError(err)
@@ -190,7 +190,7 @@ func (suite *PortTestSuite) TestProperties() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewPort(map[string][]any{
+					value, err := values.NewPort(nil, map[string][]any{
 						property: test.arguments,
 					})
 					suite.Require().ErrorContains(err, "cannot add validator "+property+":")
@@ -209,7 +209,7 @@ func (suite *PortTestSuite) TestProperties() {
 		})
 	}
 
-	value, err := values.NewPort(map[string][]any{
+	value, err := values.NewPort(nil, map[string][]any{
 		"unknown": {true},
 	})
 	suite.Require().ErrorIs(err, values.ErrUnknownProperty)
@@ -217,7 +217,7 @@ func (suite *PortTestSuite) TestProperties() {
 }
 
 func (suite *PortTestSuite) TestCombinedConstraintsAndCompletion() {
-	value, err := values.NewPort(map[string][]any{
+	value, err := values.NewPort(nil, map[string][]any{
 		"well-known": {false},
 		"ephemeral":  {false},
 	})

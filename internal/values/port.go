@@ -23,11 +23,11 @@ type valuePort struct {
 // classifiers.
 //
 //nolint:ireturn // Port validators expose the shared Value interface.
-func NewPort(properties map[string][]any) (Value, error) {
+func NewPort(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valuePort{
 		validatorType: "port",
 		complete:      noopComplete,
-		subvalidators: make(map[string]func(uint16) error, len(properties)),
+		subvalidators: make(map[string]func(uint16) error, len(subvalidators)),
 		prepare: func(input string) (uint16, error) {
 			port, err := strconv.ParseUint(input, 10, 16)
 			if err != nil {
@@ -38,7 +38,11 @@ func NewPort(properties map[string][]any) (Value, error) {
 		},
 	}
 
-	for k, v := range properties {
+	if len(properties) > 0 {
+		return nil, ErrNoProperties
+	}
+
+	for k, v := range subvalidators {
 		if err := val.addSubvalidator(k, v); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
 		}
@@ -47,8 +51,8 @@ func NewPort(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valuePort) addSubvalidator(name string, value []any) error {
-	val, err := utils.One[bool](value)
+func (v *valuePort) addSubvalidator(name string, properties []any) error {
+	val, err := utils.One[bool](properties)
 	if err != nil {
 		return err
 	}

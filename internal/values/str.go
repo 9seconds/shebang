@@ -13,10 +13,13 @@ type valueStr struct {
 }
 
 // NewStr constructs a string validator with rune-length and regular-expression
-// subvalidators described by properties.
+// subvalidators described by subvalidators.
 //
 //nolint:ireturn // String validators expose the shared Value interface.
-func NewStr(properties map[string][]any) (Value, error) {
+func NewStr(
+	properties map[string]any,
+	subvalidators map[string][]any,
+) (Value, error) {
 	val := &valueStr{
 		validatorType: "str",
 		complete:      noopComplete,
@@ -26,7 +29,11 @@ func NewStr(properties map[string][]any) (Value, error) {
 		},
 	}
 
-	for k, v := range properties {
+	if len(properties) > 0 {
+		return nil, ErrNoProperties
+	}
+
+	for k, v := range subvalidators {
 		if err := val.addSubvalidator(k, v); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
 		}
@@ -35,14 +42,14 @@ func NewStr(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valueStr) addSubvalidator(name string, value []any) error {
+func (v *valueStr) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "min-length":
-		return v.addMinLength(value)
+		return v.addMinLength(properties)
 	case "max-length":
-		return v.addMaxLength(value)
+		return v.addMaxLength(properties)
 	case "re":
-		return v.addRe(value)
+		return v.addRe(properties)
 	}
 
 	return ErrUnknownProperty

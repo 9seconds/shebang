@@ -64,7 +64,7 @@ func (suite *NewTestSuite) TestNew() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.New(test.valueType, test.properties)
+			value, err := values.New(test.valueType, nil, test.properties)
 			if test.err != nil {
 				suite.Require().ErrorIs(err, test.err)
 				suite.Nil(value)
@@ -105,12 +105,63 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.New(test.name, nil)
+			value, err := values.New(test.name, nil, nil)
 			suite.Require().NoError(err)
 
 			candidates, directive := value.Complete(test.input)
 			suite.Equal([]cobra.Completion{test.input}, candidates)
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
+		})
+	}
+}
+
+func (suite *NewTestSuite) TestNodeProperties() {
+	for _, test := range []struct {
+		name        string
+		constructor func(map[string]any, map[string][]any) (values.Value, error)
+	}{
+		{
+			name:        "str",
+			constructor: values.NewStr,
+		},
+		{
+			name:        "int",
+			constructor: values.NewInt,
+		},
+		{
+			name:        "float",
+			constructor: values.NewFloat,
+		},
+		{
+			name:        "ip",
+			constructor: values.NewIP,
+		},
+		{
+			name:        "port",
+			constructor: values.NewPort,
+		},
+		{
+			name:        "enum",
+			constructor: values.NewEnum,
+		},
+	} {
+		suite.Run(test.name, func() {
+			for _, properties := range []map[string]any{nil, {}} {
+				value, err := test.constructor(properties, nil)
+				suite.Require().NoError(err)
+				suite.NotNil(value)
+			}
+
+			for _, property := range []any{true, false, nil} {
+				properties := map[string]any{"xx": property}
+				value, err := test.constructor(properties, nil)
+				suite.Require().ErrorIs(err, values.ErrNoProperties)
+				suite.Nil(value)
+
+				value, err = values.New(test.name, properties, nil)
+				suite.Require().ErrorIs(err, values.ErrNoProperties)
+				suite.Nil(value)
+			}
 		})
 	}
 }

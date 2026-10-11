@@ -21,17 +21,21 @@ type valueEnum struct {
 // NewEnum constructs an exact, case-sensitive choice validator with prefix completion.
 //
 //nolint:ireturn // Enum validators expose the shared Value interface.
-func NewEnum(properties map[string][]any) (Value, error) {
+func NewEnum(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueEnum{
 		validatorType: "enum",
-		subvalidators: make(map[string]func(string) error, len(properties)),
+		subvalidators: make(map[string]func(string) error, len(subvalidators)),
 		prepare: func(v string) (string, error) {
 			return v, nil
 		},
 	}
 	val.complete = val.completeChoices
 
-	for k, v := range properties {
+	if len(properties) > 0 {
+		return nil, ErrNoProperties
+	}
+
+	for k, v := range subvalidators {
 		if err := val.addSubvalidator(k, v); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
 		}
@@ -48,16 +52,16 @@ func NewEnum(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valueEnum) addSubvalidator(name string, value []any) error {
+func (v *valueEnum) addSubvalidator(name string, properties []any) error {
 	if name == "choices" {
-		return v.addSubvalidatorChoices(value)
+		return v.addSubvalidatorChoices(properties)
 	}
 
 	return ErrUnknownProperty
 }
 
-func (v *valueEnum) addSubvalidatorChoices(value []any) error {
-	choices, err := utils.All[string](value)
+func (v *valueEnum) addSubvalidatorChoices(properties []any) error {
+	choices, err := utils.All[string](properties)
 	if err != nil {
 		return err
 	}

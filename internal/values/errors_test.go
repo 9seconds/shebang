@@ -18,7 +18,7 @@ func (suite *ValueErrorsTestSuite) TestNegativeLengthError() {
 			suite.Equal(int64(-2), constructed.Length)
 			suite.Equal("length must be positive, not -2", constructed.Error())
 
-			value, err := values.NewStr(map[string][]any{
+			value, err := values.NewStr(nil, map[string][]any{
 				property: {int64(-2)},
 			})
 			suite.Nil(value)
@@ -64,7 +64,7 @@ func (suite *ValueErrorsTestSuite) TestLengthConstraintError() {
 			}, *constructed)
 			suite.Equal(test.message, constructed.Error())
 
-			value, err := values.NewStr(map[string][]any{
+			value, err := values.NewStr(nil, map[string][]any{
 				test.property: {int64(test.bound)},
 			})
 			suite.Require().NoError(err)
@@ -85,7 +85,7 @@ func (suite *ValueErrorsTestSuite) TestRegexMismatchError() {
 	suite.Equal("^other$", constructed.Pattern)
 	suite.Equal("привет does not match ^other$", constructed.Error())
 
-	value, err := values.NewStr(map[string][]any{
+	value, err := values.NewStr(nil, map[string][]any{
 		"re": {"^other$"},
 	})
 	suite.Require().NoError(err)

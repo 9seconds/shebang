@@ -248,7 +248,7 @@ func (c *Config) configureOptions(cmd *cli.Command) error {
 	flagSet := cmd.Cmd.Flags()
 
 	for idx, opt := range c.Options {
-		value, err := values.New(opt.Type, opt.Subvalidators)
+		value, err := values.New(opt.Type, opt.Properties, opt.Subvalidators)
 		if err != nil {
 			return fmt.Errorf("incorrect option %s: %w", opt.Name, err)
 		}

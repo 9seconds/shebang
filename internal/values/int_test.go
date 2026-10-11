@@ -87,7 +87,7 @@ func (suite *IntTestSuite) TestParsing() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewInt(nil)
+			value, err := values.NewInt(nil, nil)
 			suite.Require().NoError(err)
 
 			err = value.Validate(test.input)
@@ -175,7 +175,7 @@ func (suite *IntTestSuite) TestBounds() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewInt(map[string][]any{
+			value, err := values.NewInt(nil, map[string][]any{
 				test.property: {test.bound},
 			})
 			suite.Require().NoError(err)
@@ -228,7 +228,7 @@ func (suite *IntTestSuite) TestProperties() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewInt(map[string][]any{
+					value, err := values.NewInt(nil, map[string][]any{
 						property: test.args,
 					})
 					suite.Require().ErrorContains(err, "cannot add validator "+property+":")
@@ -247,7 +247,7 @@ func (suite *IntTestSuite) TestProperties() {
 		})
 	}
 
-	value, err := values.NewInt(map[string][]any{
+	value, err := values.NewInt(nil, map[string][]any{
 		"unknown": {int64(1)},
 	})
 	suite.Require().ErrorIs(err, values.ErrUnknownProperty)
@@ -257,7 +257,7 @@ func (suite *IntTestSuite) TestProperties() {
 func (suite *IntTestSuite) TestCombinedBoundsAndCompletion() {
 	for _, bound := range []int64{-2, 0, 2} {
 		suite.Run(strconv.FormatInt(bound, 10), func() {
-			value, err := values.New("int", map[string][]any{
+			value, err := values.New("int", nil, map[string][]any{
 				"min": {bound},
 				"max": {bound},
 			})

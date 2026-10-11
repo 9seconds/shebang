@@ -19,11 +19,11 @@ type valueFloat struct {
 // NewFloat constructs a finite float64 validator with inclusive min and max bounds.
 //
 //nolint:ireturn // Floating-point validators expose the shared Value interface.
-func NewFloat(properties map[string][]any) (Value, error) {
+func NewFloat(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueFloat{
 		validatorType: "float",
 		complete:      noopComplete,
-		subvalidators: make(map[string]func(float64) error, len(properties)),
+		subvalidators: make(map[string]func(float64) error, len(subvalidators)),
 		prepare: func(v string) (float64, error) {
 			value, err := strconv.ParseFloat(v, 64)
 			if err != nil {
@@ -38,7 +38,11 @@ func NewFloat(properties map[string][]any) (Value, error) {
 		},
 	}
 
-	for k, v := range properties {
+	if len(properties) > 0 {
+		return nil, ErrNoProperties
+	}
+
+	for k, v := range subvalidators {
 		if err := val.addSubvalidator(k, v); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
 		}
@@ -47,12 +51,12 @@ func NewFloat(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valueFloat) addSubvalidator(name string, value []any) error {
+func (v *valueFloat) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "min":
-		return v.addMin(value)
+		return v.addMin(properties)
 	case "max":
-		return v.addMax(value)
+		return v.addMax(properties)
 	}
 
 	return ErrUnknownProperty

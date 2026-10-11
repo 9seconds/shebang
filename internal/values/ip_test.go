@@ -77,7 +77,7 @@ func (suite *IPTestSuite) TestParsing() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.New("ip", nil)
+			value, err := values.New("ip", nil, nil)
 			suite.Require().NoError(err)
 			suite.Equal("ip(subvalidators=classifiers)", value.String())
 
@@ -119,7 +119,7 @@ func (suite *IPTestSuite) TestTypes() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewIP(map[string][]any{
+			value, err := values.NewIP(nil, map[string][]any{
 				"type": {test.name},
 			})
 			suite.Require().NoError(err)
@@ -190,7 +190,7 @@ func (suite *IPTestSuite) TestClassifiers() {
 	} {
 		suite.Run(test.name, func() {
 			for _, expected := range []bool{true, false} {
-				value, err := values.NewIP(map[string][]any{
+				value, err := values.NewIP(nil, map[string][]any{
 					test.name: {expected},
 				})
 				suite.Require().NoError(err)
@@ -247,7 +247,7 @@ func (suite *IPTestSuite) TestSubnets() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewIP(map[string][]any{
+			value, err := values.NewIP(nil, map[string][]any{
 				"subnets": test.subnets,
 			})
 			suite.Require().NoError(err)
@@ -324,7 +324,7 @@ func (suite *IPTestSuite) TestInvalidProperties() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewIP(map[string][]any{
+			value, err := values.NewIP(nil, map[string][]any{
 				test.property: test.arguments,
 			})
 			suite.Require().ErrorContains(err, "cannot add validator "+test.property+":")
@@ -373,7 +373,7 @@ func (suite *IPTestSuite) TestClassifierArguments() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewIP(map[string][]any{
+					value, err := values.NewIP(nil, map[string][]any{
 						property: test.arguments,
 					})
 					suite.Require().Error(err)
@@ -394,7 +394,7 @@ func (suite *IPTestSuite) TestClassifierArguments() {
 }
 
 func (suite *IPTestSuite) TestCombinedConstraints() {
-	value, err := values.NewIP(map[string][]any{
+	value, err := values.NewIP(nil, map[string][]any{
 		"type":     {"v4"},
 		"private":  {true},
 		"loopback": {false},
@@ -422,7 +422,7 @@ func (suite *IPTestSuite) TestSubnetErrorCopiesPrefixes() {
 }
 
 func (suite *IPTestSuite) TestEveryClassifierIsChecked() {
-	value, err := values.NewIP(map[string][]any{
+	value, err := values.NewIP(nil, map[string][]any{
 		"private":   {true},
 		"loopback":  {false},
 		"multicast": {false},
@@ -517,7 +517,7 @@ func (suite *IPTestSuite) TestCompletion() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewIP(test.properties)
+			value, err := values.NewIP(nil, test.properties)
 			suite.Require().NoError(err)
 
 			candidates, directive := value.Complete(test.input)

@@ -65,7 +65,7 @@ func (suite *EnumTestSuite) TestValidate() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.New("enum", map[string][]any{
+			value, err := values.New("enum", nil, map[string][]any{
 				"choices": test.choices,
 			})
 			suite.Require().NoError(err)
@@ -111,7 +111,7 @@ func (suite *EnumTestSuite) TestProperties() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewEnum(test.properties)
+			value, err := values.NewEnum(nil, test.properties)
 			suite.Require().ErrorContains(err, "cannot add validator")
 			suite.Nil(value)
 
@@ -170,7 +170,7 @@ func (suite *EnumTestSuite) TestCompletion() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewEnum(map[string][]any{
+			value, err := values.NewEnum(nil, map[string][]any{
 				"choices": test.choices,
 			})
 			suite.Require().NoError(err)
@@ -187,7 +187,7 @@ func (suite *EnumTestSuite) TestCompletion() {
 }
 
 func (suite *EnumTestSuite) TestOmittedChoices() {
-	value, err := values.NewEnum(nil)
+	value, err := values.NewEnum(nil, nil)
 	suite.Require().NoError(err)
 	suite.Require().ErrorIs(value.Validate("dev"), values.ErrUnknownChoice)
 

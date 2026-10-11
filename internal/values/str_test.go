@@ -125,7 +125,7 @@ func (suite *StrTestSuite) TestValidate() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewStr(test.properties)
+			value, err := values.NewStr(nil, test.properties)
 			suite.Require().NoError(err)
 
 			err = value.Validate(test.input)
@@ -183,7 +183,7 @@ func (suite *StrTestSuite) TestPropertyArguments() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewStr(map[string][]any{
+					value, err := values.NewStr(nil, map[string][]any{
 						property.name: test.args,
 					})
 					suite.Require().Error(err)
@@ -234,7 +234,7 @@ func (suite *StrTestSuite) TestInvalidProperties() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewStr(map[string][]any{
+			value, err := values.NewStr(nil, map[string][]any{
 				test.property: test.args,
 			})
 			suite.Require().Error(err)
@@ -255,7 +255,7 @@ func (suite *StrTestSuite) TestInvalidProperties() {
 }
 
 func (suite *StrTestSuite) TestStringAndCompletion() {
-	value, err := values.NewStr(map[string][]any{
+	value, err := values.NewStr(nil, map[string][]any{
 		"re":         {"^привет$"},
 		"min-length": {int64(1)},
 		"max-length": {int64(6)},

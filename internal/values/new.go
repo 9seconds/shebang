@@ -11,6 +11,8 @@ var (
 	ErrUnknownValueType = errors.New("unknown type")
 	// ErrUnknownProperty indicates an unsupported validation property.
 	ErrUnknownProperty = errors.New("unknown property")
+	// ErrNoProperties indicates that the value does not support properties.
+	ErrNoProperties = errors.New("does not support properties")
 )
 
 // Value validates input, provides shell completions, and describes its subvalidators.
@@ -21,25 +23,29 @@ type Value interface {
 }
 
 // New constructs a validator for valueType. An empty type selects an
-// unconstrained string validator; explicit types apply the supplied properties.
+// unconstrained string validator; explicit types apply the supplied subvalidators.
 //
 //nolint:ireturn // Configured value types share the Value interface.
-func New(valueType string, properties map[string][]any) (Value, error) {
+func New(
+	valueType string,
+	properties map[string]any,
+	subvalidators map[string][]any,
+) (Value, error) {
 	switch valueType {
 	case "":
-		return NewStr(nil)
+		return NewStr(nil, nil)
 	case "str":
-		return NewStr(properties)
+		return NewStr(properties, subvalidators)
 	case "int":
-		return NewInt(properties)
+		return NewInt(properties, subvalidators)
 	case "float":
-		return NewFloat(properties)
+		return NewFloat(properties, subvalidators)
 	case "ip":
-		return NewIP(properties)
+		return NewIP(properties, subvalidators)
 	case "port":
-		return NewPort(properties)
+		return NewPort(properties, subvalidators)
 	case "enum":
-		return NewEnum(properties)
+		return NewEnum(properties, subvalidators)
 	}
 
 	return nil, ErrUnknownValueType

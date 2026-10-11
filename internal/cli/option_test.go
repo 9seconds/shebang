@@ -65,7 +65,7 @@ func (suite *OptionTestSuite) TestSet() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			validator, err := values.NewStr(test.properties)
+			validator, err := values.NewStr(nil, test.properties)
 			suite.Require().NoError(err)
 
 			option := cli.Option{
@@ -104,7 +104,7 @@ func (suite *OptionTestSuite) TestMetadata() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			validator, err := values.NewStr(nil)
+			validator, err := values.NewStr(nil, nil)
 			suite.Require().NoError(err)
 
 			option := cli.Option{

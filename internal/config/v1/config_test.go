@@ -97,6 +97,48 @@ func (suite *ConfigTestSuite) TestHelpText() {
 	}
 }
 
+func (suite *ConfigTestSuite) TestUnsupportedValueProperties() {
+	for _, valueType := range []string{"str", "int", "float", "ip", "port", "enum"} {
+		suite.Run(valueType, func() {
+			for _, test := range []struct {
+				name string
+				node string
+			}{
+				{
+					name: "option",
+					node: "option",
+				},
+				{
+					name: "arg",
+					node: "arg",
+				},
+				{
+					name: "vararg",
+					node: "vararg",
+				},
+				{
+					name: "required vararg",
+					node: "vararg",
+				},
+			} {
+				suite.Run(test.name, func() {
+					doc := test.node + " \"item\" {\nvalue \"" + valueType + "\" xx=#true\n"
+					if test.name == "required vararg" {
+						doc += "min-count 1\n"
+					}
+
+					conf, err := v1.Parse(strings.NewReader(doc + "}\n"))
+					suite.Require().NoError(err)
+					conf.Argv = []string{suite.runner}
+
+					cmd := cli.NewCommand("/scripts/script", nil)
+					suite.Require().ErrorIs(conf.Configure(cmd), values.ErrNoProperties)
+				})
+			}
+		})
+	}
+}
+
 func (suite *ConfigTestSuite) TestUse() {
 	for _, test := range []struct {
 		name string

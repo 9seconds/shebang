@@ -38,17 +38,21 @@ type valueIP struct {
 // and subnet constraints. Completion suggests configured subnet base addresses.
 //
 //nolint:ireturn // IP validators expose the shared Value interface.
-func NewIP(properties map[string][]any) (Value, error) {
+func NewIP(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueIP{
 		validatorType: "ip",
-		subvalidators: make(map[string]func(netip.Addr) error, len(properties)),
+		subvalidators: make(map[string]func(netip.Addr) error, len(subvalidators)),
 		classifiers:   make(map[string]bool, len(ipClassifiers)),
 		prepare:       netip.ParseAddr,
 	}
 	val.complete = val.completeAddresses
 
-	for name, arguments := range properties {
-		if err := val.addSubvalidator(name, arguments); err != nil {
+	if len(properties) > 0 {
+		return nil, ErrNoProperties
+	}
+
+	for name, properties := range subvalidators {
+		if err := val.addSubvalidator(name, properties); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", name, err)
 		}
 	}
@@ -66,19 +70,19 @@ func NewIP(properties map[string][]any) (Value, error) {
 	return val, nil
 }
 
-func (v *valueIP) addSubvalidator(name string, arguments []any) error {
+func (v *valueIP) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "subnets":
-		return v.addSubnets(arguments)
+		return v.addSubnets(properties)
 	case "type":
-		return v.addType(arguments)
+		return v.addType(properties)
 	}
 
 	if _, ok := ipClassifiers[name]; !ok {
 		return ErrUnknownProperty
 	}
 
-	expected, err := utils.One[bool](arguments)
+	expected, err := utils.One[bool](properties)
 	if err != nil {
 		return err
 	}
@@ -88,12 +92,12 @@ func (v *valueIP) addSubvalidator(name string, arguments []any) error {
 	return nil
 }
 
-func (v *valueIP) addSubnets(arguments []any) error {
-	if len(arguments) == 0 {
+func (v *valueIP) addSubnets(properties []any) error {
+	if len(properties) == 0 {
 		return utils.ErrEmpty
 	}
 
-	strPrefixes, err := utils.All[string](arguments)
+	strPrefixes, err := utils.All[string](properties)
 	if err != nil {
 		return err
 	}
@@ -124,8 +128,8 @@ func (v *valueIP) addSubnets(arguments []any) error {
 	return nil
 }
 
-func (v *valueIP) addType(arguments []any) error {
-	name, err := utils.One[string](arguments)
+func (v *valueIP) addType(properties []any) error {
+	name, err := utils.One[string](properties)
 	if err != nil {
 		return err
 	}

@@ -101,7 +101,7 @@ func (suite *FloatTestSuite) TestParsing() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewFloat(nil)
+			value, err := values.NewFloat(nil, nil)
 			suite.Require().NoError(err)
 			suite.Equal("float(subvalidators=)", value.String())
 
@@ -170,7 +170,7 @@ func (suite *FloatTestSuite) TestBounds() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewFloat(map[string][]any{
+			value, err := values.NewFloat(nil, map[string][]any{
 				test.property: {test.bound},
 			})
 			suite.Require().NoError(err)
@@ -237,7 +237,7 @@ func (suite *FloatTestSuite) TestProperties() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewFloat(map[string][]any{
+					value, err := values.NewFloat(nil, map[string][]any{
 						property: test.args,
 					})
 					suite.Require().ErrorContains(err, "cannot add validator "+property+":")
@@ -256,7 +256,7 @@ func (suite *FloatTestSuite) TestProperties() {
 		})
 	}
 
-	value, err := values.NewFloat(map[string][]any{
+	value, err := values.NewFloat(nil, map[string][]any{
 		"unknown": {1.0},
 	})
 	suite.Require().ErrorIs(err, values.ErrUnknownProperty)
@@ -264,7 +264,7 @@ func (suite *FloatTestSuite) TestProperties() {
 }
 
 func (suite *FloatTestSuite) TestCombinedBoundsAndCompletion() {
-	value, err := values.New("float", map[string][]any{
+	value, err := values.New("float", nil, map[string][]any{
 		"min": {0.5},
 		"max": {0.5},
 	})

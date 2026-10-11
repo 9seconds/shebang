@@ -111,7 +111,7 @@ func (suite *CommandTestSuite) TestExecuteExportsEnvironment() {
 		suite.T().Setenv(key, "old")
 	}
 
-	validator, err := values.NewStr(nil)
+	validator, err := values.NewStr(nil, nil)
 	suite.Require().NoError(err)
 
 	called := false
