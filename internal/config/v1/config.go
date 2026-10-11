@@ -13,10 +13,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// WithValue describes a value type and its subvalidators.
+// WithValue describes a value type, its KDL properties, and its subvalidators.
 type WithValue struct {
 	Type          string
-	Properties map[string]any
+	Properties    map[string]any
 	Subvalidators map[string][]any
 }
 

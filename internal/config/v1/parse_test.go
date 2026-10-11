@@ -124,6 +124,7 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 					Description: "Output file",
 					Short:       "o",
 					Type:        "str",
+					Properties:  map[string]any{},
 					Subvalidators: map[string][]any{
 						"min-length": {int64(1)},
 					},
@@ -258,6 +259,7 @@ func (suite *ParseTestSuite) TestPositionalArguments() {
 					Name:        "source",
 					Description: "Source file",
 					Type:        "str",
+					Properties:  map[string]any{},
 					Subvalidators: map[string][]any{
 						"re": {".*"},
 					},
@@ -511,6 +513,7 @@ func (suite *ParseTestSuite) TestValues() {
 					doc:  "value \"str\"\n",
 					want: v1.WithValue{
 						Type:          "str",
+						Properties:    map[string]any{},
 						Subvalidators: map[string][]any{},
 					},
 				},
@@ -522,7 +525,8 @@ func (suite *ParseTestSuite) TestValues() {
 					}
 					`,
 					want: v1.WithValue{
-						Type: "custom",
+						Type:       "custom",
+						Properties: map[string]any{},
 						Subvalidators: map[string][]any{
 							"mixed": {"text", int64(2), float64(1.5), true, false, nil},
 							"empty": {},
@@ -533,7 +537,8 @@ func (suite *ParseTestSuite) TestValues() {
 					name: "last property wins",
 					doc:  "value \"str\" {\nre \"old\"\nre \"new\" \"other\"\n}\n",
 					want: v1.WithValue{
-						Type: "str",
+						Type:       "str",
+						Properties: map[string]any{},
 						Subvalidators: map[string][]any{
 							"re": {"new", "other"},
 						},
@@ -543,7 +548,8 @@ func (suite *ParseTestSuite) TestValues() {
 					name: "value replaces type and properties",
 					doc:  "value \"old\" {\nre \"old\"\n}\nvalue \"new\" {\nmin-length 2\n}\n",
 					want: v1.WithValue{
-						Type: "new",
+						Type:       "new",
+						Properties: map[string]any{},
 						Subvalidators: map[string][]any{
 							"min-length": {int64(2)},
 						},
@@ -554,7 +560,95 @@ func (suite *ParseTestSuite) TestValues() {
 					doc:  "value \"str\" {\nre \"old\"\n}\nvalue \"str\"\n",
 					want: v1.WithValue{
 						Type:          "str",
+						Properties:    map[string]any{},
 						Subvalidators: map[string][]any{},
+					},
+				},
+				{
+					name: "inline boolean property",
+					doc:  "value \"str\" xx=#true\n",
+					want: v1.WithValue{
+						Type: "str",
+						Properties: map[string]any{
+							"xx": true,
+						},
+						Subvalidators: map[string][]any{},
+					},
+				},
+				{
+					name: "inline properties preserve types and names",
+					doc: `value "custom" text="привет" integer=2 decimal=1.5 \
+	yes=#true no=#false nothing=#null "привет"="value"
+`,
+					want: v1.WithValue{
+						Type: "custom",
+						Properties: map[string]any{
+							"text":    "привет",
+							"integer": int64(2),
+							"decimal": float64(1.5),
+							"yes":     true,
+							"no":      false,
+							"nothing": nil,
+							"привет":  "value",
+						},
+						Subvalidators: map[string][]any{},
+					},
+				},
+				{
+					name: "properties and subvalidators have separate namespaces",
+					doc: `value "str" re=#true {
+	re "^привет$"
+}
+`,
+					want: v1.WithValue{
+						Type: "str",
+						Properties: map[string]any{
+							"re": true,
+						},
+						Subvalidators: map[string][]any{
+							"re": {"^привет$"},
+						},
+					},
+				},
+				{
+					name: "last inline property wins",
+					doc:  "value \"str\" xx=#true xx=#false\n",
+					want: v1.WithValue{
+						Type: "str",
+						Properties: map[string]any{
+							"xx": false,
+						},
+						Subvalidators: map[string][]any{},
+					},
+				},
+				{
+					name: "later value replaces inline properties",
+					doc: `value "old" old=#true shared="old" {
+	re "old"
+}
+value "new" shared="привет"
+`,
+					want: v1.WithValue{
+						Type: "new",
+						Properties: map[string]any{
+							"shared": "привет",
+						},
+						Subvalidators: map[string][]any{},
+					},
+				},
+				{
+					name: "later value clears inline properties",
+					doc: `value "str" xx=#true
+value "str" {
+	min-length 2
+}
+`,
+					want: v1.WithValue{
+						Type:       "str",
+						Properties: map[string]any{},
+						Subvalidators: map[string][]any{
+							"min-length": {int64(2)},
+						},
 					},
 				},
 			} {

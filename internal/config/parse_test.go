@@ -102,6 +102,7 @@ echo "$@"
 					{
 						Name:          "output",
 						Type:          "str",
+						Properties:    map[string]any{},
 						Subvalidators: map[string][]any{},
 					},
 				},
