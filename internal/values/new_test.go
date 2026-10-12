@@ -103,6 +103,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			name:  "port",
 			input: "08080",
 		},
+		{
+			name:  "datetime",
+			input: "2026-10-12T13:14:15.123+02:00",
+		},
 	} {
 		suite.Run(test.name, func() {
 			value, err := values.New(test.name, nil, nil)
@@ -113,6 +117,27 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 		})
 	}
+}
+
+func (suite *NewTestSuite) TestDatetimeConfiguration() {
+	value, err := values.New("datetime", map[string]any{"format": "unix"}, map[string][]any{
+		"date-after":  {"100"},
+		"date-before": {"200"},
+	})
+	suite.Require().NoError(err)
+	suite.Equal("datetime(date-after:100, date-before:200)", value.String())
+	suite.Require().NoError(value.Validate("+00150"))
+	suite.Require().Error(value.Validate("100"))
+	suite.Require().Error(value.Validate("200"))
+	suite.Require().Error(value.Validate("2026-10-12"))
+
+	value, err = values.New("datetime", map[string]any{"unknown": true}, nil)
+	suite.Nil(value)
+	suite.Require().ErrorIs(err, values.ErrUnknownProperty)
+
+	value, err = values.New("datetime", nil, map[string][]any{"unknown": {"1h"}})
+	suite.Nil(value)
+	suite.Require().ErrorIs(err, values.ErrUnknownSubvalidator)
 }
 
 func (suite *NewTestSuite) TestNodeProperties() {

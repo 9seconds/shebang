@@ -51,6 +51,8 @@ func New(
 		return NewPort(properties, subvalidators)
 	case "enum":
 		return NewEnum(properties, subvalidators)
+	case "datetime":
+		return NewDatetime(properties, subvalidators)
 	}
 
 	return nil, ErrUnknownValueType

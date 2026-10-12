@@ -157,7 +157,7 @@ func (v *valueIP) addType(properties []any) error {
 	return nil
 }
 
-func (v *valueIP) genCompletions(input string) ([]cobra.Completion, cobra.ShellCompDirective) {
+func (v *valueIP) genCompletions(input string) ([]string, cobra.ShellCompDirective) {
 	addresses := make([]string, 0, 2*len(v.prefixes))
 
 	isOk := func(addr netip.Addr) bool {

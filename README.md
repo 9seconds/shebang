@@ -1148,3 +1148,92 @@ option "environment" {
 
 The script reads the selected value from `SHEBANG_OL_ENVIRONMENT` or
 `SHEBANG_OS_E`.
+### `datetime` value
+
+`datetime` accepts dates and times. By default, it parses ISO 8601 strings,
+such as `2026-10-12`, `2026-10-12T13:14:15Z`, or
+`2026-10-12T13:14:15.123+02:00`.
+
+Set the optional `format` [property](https://kdl.dev/spec/#name-property) on
+the `value` node to select a different parser. Properties use `name=value`
+syntax.
+
+```kdl
+value "datetime" format="unix" {
+  date-after "0"
+}
+```
+
+The format names are case-sensitive, and `format` must be a KDL string.
+
+| Format | Example input | Description |
+| ------ | ------------- | ----------- |
+| `iso8601` | `2026-10-12T13:14:15Z` | [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601); the default. |
+| `unix` | `1791810855` | Signed decimal [seconds since the Unix epoch](https://en.wikipedia.org/wiki/Unix_time). |
+| `unix-ms` | `1791810855123` | Signed decimal milliseconds since the Unix epoch. |
+| `rfc822` | `12 Oct 26 13:14 UTC` | [RFC 822](https://www.rfc-editor.org/info/rfc822/#section-5) with a named timezone. |
+| `rfc822z` | `12 Oct 26 13:14 +0200` | RFC 822 with a numeric timezone. |
+| `rfc850` | `Monday, 12-Oct-26 13:14:15 UTC` | [RFC 850](https://www.rfc-editor.org/info/rfc850/#section-2.1.4). |
+| `rfc1123` | `Mon, 12 Oct 2026 13:14:15 UTC` | [RFC 1123](https://www.rfc-editor.org/info/rfc1123/#section-5.2.14) with a named timezone. |
+| `rfc1123z` | `Mon, 12 Oct 2026 13:14:15 +0200` | RFC 1123 with a numeric timezone. |
+| `rfc3339` | `2026-10-12T13:14:15Z` | [RFC 3339](https://www.rfc-editor.org/info/rfc3339/). |
+| `rfc3339nano` | `2026-10-12T13:14:15.123456789Z` | RFC 3339 with fractional seconds. |
+| `Y-m-d` | `2026-10-12` | Year-month-day. |
+| `d.m.Y` | `12.10.2026` | Day.month.year. |
+| `H:M:S` | `13:14:15` | Hours:minutes:seconds. |
+| `H:M` | `13:14` | Hours:minutes. |
+| `M:S` | `14:15` | Minutes:seconds. |
+| `custom:2006/01/02 15:04` | `2026/10/12 13:14` | A custom Go time layout after `custom:`. |
+
+[Custom layouts](https://pkg.go.dev/time#Layout) use Go's reference time, `Mon
+Jan 2 15:04:05 MST 2006`: `2006` represents the year, `01` the month, `02` the
+day, `15` the hour, `04` the minute, and `05` the second. Quote command-line
+values containing spaces. Prefer numeric timezone offsets or `Z` when comparing
+timestamps from different timezones. Layouts without a timezone are parsed in
+UTC; time-only layouts use year 0, January 1 for their date.
+
+| Subvalidator | Example definition | Passes | Fails | Description |
+| ------------ | ------------------ | ------ | ----- | ----------- |
+| `before` | `before "1h"` | A timestamp 30 minutes from now. | A timestamp 2 hours from now. | Requires a time before now plus the duration. |
+| `after` | `after "-1h"` | A timestamp 30 minutes ago. | A timestamp 2 hours ago. | Requires a time after now plus the duration. |
+| `date-before` | `date-before "2026-11-01T00:00:00Z"` | `2026-10-12T00:00:00Z` | `2026-11-01T00:00:00Z` | Requires a time before the supplied timestamp. |
+| `date-after` | `date-after "2026-10-01T00:00:00Z"` | `2026-10-12T00:00:00Z` | `2026-10-01T00:00:00Z` | Requires a time after the supplied timestamp. |
+
+Each subvalidator takes exactly one quoted string. All bounds are strict:
+a timestamp equal to a bound fails. Absolute bounds (`date-before` and
+`date-after`) use the selected `format`, so with `format="unix"` write
+`date-after "0"` rather than an ISO 8601 date.
+
+Relative bounds (`before` and `after`) use durations:
+
+> A duration string is a possibly signed sequence of decimal numbers, each with
+> optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m".
+> Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h", "d", "w",
+> "y". Units "day", "week" and "year" are all approximate units with the values
+> of "24h" in a day, "7d" in a week, "365d" in a year.
+>
+> `"-1h"`, or `"30m"`. The cutoff is calculated when the validator is
+> constructed: positive durations move it into the future and negative
+> durations into the past. It is not recalculated for each input. All
+> configured bounds must pass.
+
+Completion suggests the current time and configured cutoff timestamps in
+the selected format.
+
+#### Example
+
+```kdl
+option "scheduled-at" {
+  description "Schedule a job within the next 24 hours"
+  short "s"
+  value "datetime" format="rfc3339" {
+    after "0s"
+    before "24h"
+  }
+}
+```
+
+This accepts a timestamp strictly after command configuration and less than
+24 hours ahead, for example `--scheduled-at 2026-10-12T14:00:00Z` if the
+command is configured at `2026-10-12T13:00:00Z`. The script reads the original
+value from `SHEBANG_OL_SCHEDULED_AT` or `SHEBANG_OS_S`.
