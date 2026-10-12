@@ -508,7 +508,7 @@ func (suite *ArgsTestSuite) TestNewArgValidatorsErrors() {
 			name:    "invalid validator property",
 			doc:     "arg \"source\" { value \"str\" { unknown 1; }; }\n",
 			message: "invalid argument SOURCE:",
-			want:    values.ErrUnknownProperty,
+			want:    values.ErrUnknownSubvalidator,
 		},
 	} {
 		suite.Run(test.name, func() {

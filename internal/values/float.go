@@ -21,11 +21,10 @@ type valueFloat struct {
 //nolint:ireturn // Floating-point validators expose the shared Value interface.
 func NewFloat(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueFloat{
-		validatorType: "float",
-		complete:      noopComplete,
-		subvalidators: make(map[string]func(float64) error, len(subvalidators)),
-		prepare: func(v string) (float64, error) {
-			value, err := strconv.ParseFloat(v, 64)
+		baseValue: newBase[float64]("float", len(subvalidators)),
+	}
+	val.toValue = func(input string) (float64, error){
+			value, err := strconv.ParseFloat(input, 64)
 			if err != nil {
 				return 0, err
 			}
@@ -35,7 +34,6 @@ func NewFloat(properties map[string]any, subvalidators map[string][]any) (Value,
 			}
 
 			return value, nil
-		},
 	}
 
 	if len(properties) > 0 {
@@ -59,7 +57,7 @@ func (v *valueFloat) addSubvalidator(name string, properties []any) error {
 		return v.addMax(properties)
 	}
 
-	return ErrUnknownProperty
+	return ErrUnknownSubvalidator
 }
 
 func (v *valueFloat) addMin(properties []any) error {
@@ -72,15 +70,13 @@ func (v *valueFloat) addMin(properties []any) error {
 		return ErrNonFiniteFloat
 	}
 
-	name := fmt.Sprintf("min:%g", limit)
-
-	v.subvalidators[name] = func(value float64) error {
-		if value < limit {
-			return NewNumConstraintError(NumConstraintMin, limit, value)
+	v.setSubvalidator("min", fmt.Sprintf("%g", limit), func(input float64) error {
+		if input < limit {
+			return NewNumConstraintError(NumConstraintMin, limit, input)
 		}
 
 		return nil
-	}
+	})
 
 	return nil
 }
@@ -95,15 +91,13 @@ func (v *valueFloat) addMax(properties []any) error {
 		return ErrNonFiniteFloat
 	}
 
-	name := fmt.Sprintf("max:%g", limit)
-
-	v.subvalidators[name] = func(value float64) error {
-		if value > limit {
-			return NewNumConstraintError(NumConstraintMax, limit, value)
+	v.setSubvalidator("max", fmt.Sprintf("%g", limit), func(input float64) error {
+		if input > limit {
+			return NewNumConstraintError(NumConstraintMax, limit, input)
 		}
 
 		return nil
-	}
+	})
 
 	return nil
 }

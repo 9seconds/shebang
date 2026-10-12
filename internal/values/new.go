@@ -9,8 +9,13 @@ import (
 var (
 	// ErrUnknownValueType indicates an unsupported value type.
 	ErrUnknownValueType = errors.New("unknown type")
-	// ErrUnknownProperty indicates an unsupported validation property.
+
+	// ErrUnknownSubvalidator indicates an unsupported subvalidator.
+	ErrUnknownSubvalidator = errors.New("unknown subvalidator")
+
+	// ErrUnknownProperty indicates an unsupported value property.
 	ErrUnknownProperty = errors.New("unknown property")
+
 	// ErrNoProperties indicates that the value does not support properties.
 	ErrNoProperties = errors.New("does not support properties")
 )

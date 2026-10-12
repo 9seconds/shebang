@@ -103,7 +103,7 @@ func (suite *FloatTestSuite) TestParsing() {
 		suite.Run(test.name, func() {
 			value, err := values.NewFloat(nil, nil)
 			suite.Require().NoError(err)
-			suite.Equal("float(subvalidators=)", value.String())
+			suite.Equal("float()", value.String())
 
 			err = value.Validate(test.input)
 			if test.want == nil {
@@ -259,7 +259,7 @@ func (suite *FloatTestSuite) TestProperties() {
 	value, err := values.NewFloat(nil, map[string][]any{
 		"unknown": {1.0},
 	})
-	suite.Require().ErrorIs(err, values.ErrUnknownProperty)
+	suite.Require().ErrorIs(err, values.ErrUnknownSubvalidator)
 	suite.Nil(value)
 }
 
@@ -269,7 +269,7 @@ func (suite *FloatTestSuite) TestCombinedBoundsAndCompletion() {
 		"max": {0.5},
 	})
 	suite.Require().NoError(err)
-	suite.Equal("float(subvalidators=max:0.5, min:0.5)", value.String())
+	suite.Equal("float(max:0.5, min:0.5)", value.String())
 	suite.Require().NoError(value.Validate("5e-1"))
 	suite.Require().Error(value.Validate("0.49"))
 	suite.Require().Error(value.Validate("0.51"))

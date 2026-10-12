@@ -228,9 +228,9 @@ func (suite *StrTestSuite) TestInvalidProperties() {
 			message:  "incorrect regular expression [:",
 		},
 		{
-			name:     "unknown property",
+			name:     "unknown subvalidator",
 			property: "unknown",
-			want:     values.ErrUnknownProperty,
+			want:     values.ErrUnknownSubvalidator,
 		},
 	} {
 		suite.Run(test.name, func() {
@@ -261,7 +261,7 @@ func (suite *StrTestSuite) TestStringAndCompletion() {
 		"max-length": {int64(6)},
 	})
 	suite.Require().NoError(err)
-	suite.Equal("str(subvalidators=max-length:6, min-length:1, re:^привет$)", value.String())
+	suite.Equal("str(max-length:6, min-length:1, re:^привет$)", value.String())
 
 	for _, input := range []string{"", "привет", "other"} {
 		suite.Run(input, func() {

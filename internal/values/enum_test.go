@@ -69,7 +69,7 @@ func (suite *EnumTestSuite) TestValidate() {
 				"choices": test.choices,
 			})
 			suite.Require().NoError(err)
-			suite.Equal("enum(subvalidators=choices)", value.String())
+			suite.Equal("enum(choices)", value.String())
 
 			err = value.Validate(test.input)
 			if test.valid {
@@ -89,11 +89,11 @@ func (suite *EnumTestSuite) TestProperties() {
 		typeError  bool
 	}{
 		{
-			name: "unknown property",
+			name: "unknown subvalidator",
 			properties: map[string][]any{
 				"unknown": {"dev"},
 			},
-			want: values.ErrUnknownProperty,
+			want: values.ErrUnknownSubvalidator,
 		},
 		{
 			name: "integer choice",

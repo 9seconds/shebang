@@ -502,7 +502,7 @@ func (suite *ConfigTestSuite) TestConfigureErrors() {
 			name:    "invalid option property",
 			doc:     "option \"output\" { value \"str\" { unknown 1; }; }\n",
 			message: "incorrect option output:",
-			want:    values.ErrUnknownProperty,
+			want:    values.ErrUnknownSubvalidator,
 		},
 		{
 			name:    "invalid positional type",

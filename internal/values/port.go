@@ -25,17 +25,15 @@ type valuePort struct {
 //nolint:ireturn // Port validators expose the shared Value interface.
 func NewPort(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valuePort{
-		validatorType: "port",
-		complete:      noopComplete,
-		subvalidators: make(map[string]func(uint16) error, len(subvalidators)),
-		prepare: func(input string) (uint16, error) {
+		baseValue: newBase[uint16]("port", len(subvalidators)),
+	}
+	val.toValue = func(input string) (uint16, error) {
 			port, err := strconv.ParseUint(input, 10, 16)
 			if err != nil {
 				return 0, err
 			}
 
 			return uint16(port), nil
-		},
 	}
 
 	if len(properties) > 0 {
@@ -80,18 +78,18 @@ func (v *valuePort) addSubvalidator(name string, properties []any) error {
 			val,
 		)
 	default:
-		return ErrUnknownProperty
+		return ErrUnknownSubvalidator
 	}
 
 	return nil
 }
 
 func (v *valuePort) addRangeSubvalidator(name string, first, last uint16, expected bool) {
-	v.subvalidators[name] = func(port uint16) error {
-		if expected == (first <= port && port <= last) {
+	v.setSubvalidator(name, "", func(input uint16) error {
+		if expected == (first <= input && input <= last) {
 			return nil
 		}
 
-		return NewPortRangeError(port, name, expected)
-	}
+		return NewPortRangeError(input, name, expected)
+	})
 }

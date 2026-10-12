@@ -1,12 +1,18 @@
 package values
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/9seconds/shebang/internal/utils"
 )
+
+// ErrNotPrintable indicates that a string contains a non-printable character.
+var ErrNotPrintable = errors.New("is not printable")
 
 type valueStr struct {
 	baseValue[string]
@@ -16,17 +22,18 @@ type valueStr struct {
 // subvalidators described by subvalidators.
 //
 //nolint:ireturn // String validators expose the shared Value interface.
-func NewStr(
-	properties map[string]any,
-	subvalidators map[string][]any,
-) (Value, error) {
+func NewStr(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueStr{
-		validatorType: "str",
-		complete:      noopComplete,
-		subvalidators: make(map[string]func(string) error),
-		prepare: func(v string) (string, error) {
-			return v, nil
-		},
+		baseValue: newBase[string]("str", len(subvalidators)),
+	}
+	val.toValue = func(input string) (string, error) {
+		for _, char := range input {
+			if !unicode.IsPrint(char) {
+				return "", ErrNotPrintable
+			}
+		}
+
+		return input, nil
 	}
 
 	if len(properties) > 0 {
@@ -52,7 +59,7 @@ func (v *valueStr) addSubvalidator(name string, properties []any) error {
 		return v.addRe(properties)
 	}
 
-	return ErrUnknownProperty
+	return ErrUnknownSubvalidator
 }
 
 func (v *valueStr) addMinLength(properties []any) error {
@@ -66,15 +73,14 @@ func (v *valueStr) addMinLength(properties []any) error {
 	}
 
 	intLength := int(length)
-	name := fmt.Sprintf("min-length:%d", intLength)
 
-	v.subvalidators[name] = func(value string) error {
-		if lv := utf8.RuneCountInString(value); lv < intLength {
+	v.setSubvalidator("min-length", strconv.Itoa(intLength), func(input string) error {
+		if lv := utf8.RuneCountInString(input); lv < intLength {
 			return NewLengthConstraintError(LengthConstraintMinimum, intLength, lv)
 		}
 
 		return nil
-	}
+	})
 
 	return nil
 }
@@ -90,15 +96,14 @@ func (v *valueStr) addMaxLength(properties []any) error {
 	}
 
 	intLength := int(length)
-	name := fmt.Sprintf("max-length:%d", intLength)
 
-	v.subvalidators[name] = func(value string) error {
-		if lv := utf8.RuneCountInString(value); lv > intLength {
+	v.setSubvalidator("max-length", strconv.Itoa(intLength), func(input string) error {
+		if lv := utf8.RuneCountInString(input); lv > intLength {
 			return NewLengthConstraintError(LengthConstraintMaximum, intLength, lv)
 		}
 
 		return nil
-	}
+	})
 
 	return nil
 }
@@ -114,15 +119,13 @@ func (v *valueStr) addRe(properties []any) error {
 		return fmt.Errorf("incorrect regular expression %s: %w", strExpr, err)
 	}
 
-	name := "re:" + strExpr
-
-	v.subvalidators[name] = func(value string) error {
-		if !expression.MatchString(value) {
-			return NewRegexMismatchError(value, strExpr)
+	v.setSubvalidator("re", strExpr, func(input string) error {
+		if !expression.MatchString(input) {
+			return NewRegexMismatchError(input, strExpr)
 		}
 
 		return nil
-	}
+	})
 
 	return nil
 }

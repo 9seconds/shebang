@@ -16,12 +16,10 @@ type valueInt struct {
 //nolint:ireturn // Integer validators expose the shared Value interface.
 func NewInt(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueInt{
-		validatorType: "int",
-		complete:      noopComplete,
-		subvalidators: make(map[string]func(int64) error, len(subvalidators)),
-		prepare: func(v string) (int64, error) {
-			return strconv.ParseInt(v, 10, 64)
-		},
+		baseValue: newBase[int64]("int", len(subvalidators)),
+	}
+	val.toValue = func(input string) (int64, error) {
+		return strconv.ParseInt(input, 10, 64)
 	}
 
 	if len(properties) > 0 {
@@ -45,7 +43,7 @@ func (v *valueInt) addSubvalidator(name string, properties []any) error {
 		return v.addMax(properties)
 	}
 
-	return ErrUnknownProperty
+	return ErrUnknownSubvalidator
 }
 
 func (v *valueInt) addMin(properties []any) error {
@@ -54,15 +52,13 @@ func (v *valueInt) addMin(properties []any) error {
 		return err
 	}
 
-	name := fmt.Sprintf("min:%d", limit)
-
-	v.subvalidators[name] = func(value int64) error {
-		if value < limit {
-			return NewNumConstraintError(NumConstraintMin, limit, value)
+	v.setSubvalidator("min", strconv.FormatInt(limit, 10), func(input int64) error {
+		if input < limit {
+			return NewNumConstraintError(NumConstraintMin, limit, input)
 		}
 
 		return nil
-	}
+	})
 
 	return nil
 }
@@ -73,15 +69,13 @@ func (v *valueInt) addMax(properties []any) error {
 		return err
 	}
 
-	name := fmt.Sprintf("max:%d", limit)
-
-	v.subvalidators[name] = func(value int64) error {
-		if value > limit {
-			return NewNumConstraintError(NumConstraintMax, limit, value)
+	v.setSubvalidator("max", strconv.FormatInt(limit, 10), func(input int64) error {
+		if input > limit {
+			return NewNumConstraintError(NumConstraintMax, limit, input)
 		}
 
 		return nil
-	}
+	})
 
 	return nil
 }

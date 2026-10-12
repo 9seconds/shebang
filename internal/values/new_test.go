@@ -22,19 +22,19 @@ func (suite *NewTestSuite) TestNew() {
 	}{
 		{
 			name: "default type",
-			want: "str(subvalidators=)",
+			want: "str()",
 		},
 		{
 			name: "default ignores properties",
 			properties: map[string][]any{
 				"unknown": {true},
 			},
-			want: "str(subvalidators=)",
+			want: "str()",
 		},
 		{
 			name:      "string type",
 			valueType: "str",
-			want:      "str(subvalidators=)",
+			want:      "str()",
 		},
 		{
 			name:      "string properties forwarded",
@@ -42,7 +42,7 @@ func (suite *NewTestSuite) TestNew() {
 			properties: map[string][]any{
 				"min-length": {int64(2)},
 			},
-			want: "str(subvalidators=min-length:2)",
+			want: "str(min-length:2)",
 		},
 		{
 			name:      "unknown type",
@@ -60,7 +60,7 @@ func (suite *NewTestSuite) TestNew() {
 			properties: map[string][]any{
 				"unknown": {},
 			},
-			err: values.ErrUnknownProperty,
+			err: values.ErrUnknownSubvalidator,
 		},
 	} {
 		suite.Run(test.name, func() {

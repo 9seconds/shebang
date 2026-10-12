@@ -79,7 +79,7 @@ func (suite *IPTestSuite) TestParsing() {
 		suite.Run(test.name, func() {
 			value, err := values.New("ip", nil, nil)
 			suite.Require().NoError(err)
-			suite.Equal("ip(subvalidators=classifiers)", value.String())
+			suite.Equal("ip(classifiers)", value.String())
 
 			err = value.Validate(test.input)
 			if test.valid {
@@ -123,7 +123,7 @@ func (suite *IPTestSuite) TestTypes() {
 				"type": {test.name},
 			})
 			suite.Require().NoError(err)
-			suite.Equal("ip(subvalidators=classifiers, type:"+test.name+")", value.String())
+			suite.Equal("ip(classifiers, type:"+test.name+")", value.String())
 
 			for _, address := range test.accepted {
 				suite.Require().NoError(value.Validate(address))
@@ -278,9 +278,9 @@ func (suite *IPTestSuite) TestInvalidProperties() {
 		message   string
 	}{
 		{
-			name:     "unknown property",
+			name:     "unknown subvalidator",
 			property: "unknown",
-			want:     values.ErrUnknownProperty,
+			want:     values.ErrUnknownSubvalidator,
 		},
 		{
 			name:     "missing type",
@@ -401,7 +401,7 @@ func (suite *IPTestSuite) TestCombinedConstraints() {
 		"subnets":  {"10.0.0.0/8", "192.168.0.0/16"},
 	})
 	suite.Require().NoError(err)
-	suite.Equal("ip(subvalidators=classifiers, subnets:10.0.0.0/8,192.168.0.0/16, type:v4)",
+	suite.Equal("ip(classifiers, subnets:10.0.0.0/8,192.168.0.0/16, type:v4)",
 		value.String())
 	suite.Require().NoError(value.Validate("10.1.2.3"))
 	suite.Require().NoError(value.Validate("192.168.1.10"))
@@ -457,7 +457,7 @@ func (suite *IPTestSuite) TestCompletion() {
 				"type":    {"v6-only"},
 			},
 			want:      []cobra.Completion{"2001:0db8:0000:0000:0000:0000:0000:000", "2001:db8:"},
-			directive: cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
+			directive: cobra.ShellCompDirectiveNoSpace,
 		},
 		{
 			name:      "no configured candidates",
@@ -471,7 +471,7 @@ func (suite *IPTestSuite) TestCompletion() {
 			},
 			input:     "192.0.2.",
 			want:      []cobra.Completion{"192.0.2."},
-			directive: cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
+			directive: cobra.ShellCompDirectiveNoSpace,
 		},
 		{
 			name: "IPv6 compressed and expanded forms",
@@ -479,7 +479,7 @@ func (suite *IPTestSuite) TestCompletion() {
 				"subnets": {"2001:db8::/32"},
 			},
 			want:      []cobra.Completion{"2001:0db8:0000:0000:0000:0000:0000:000", "2001:db8:"},
-			directive: cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
+			directive: cobra.ShellCompDirectiveNoSpace,
 		},
 		{
 			name: "type and classifier filter candidates",
@@ -489,7 +489,7 @@ func (suite *IPTestSuite) TestCompletion() {
 				"loopback": {false},
 			},
 			want:      []cobra.Completion{"192.0.2."},
-			directive: cobra.ShellCompDirectiveNoSpace | cobra.ShellCompDirectiveNoFileComp,
+			directive: cobra.ShellCompDirectiveNoSpace,
 		},
 		{
 			name: "partial input with no match",

@@ -3,6 +3,7 @@ package values
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/9seconds/shebang/internal/utils"
@@ -23,13 +24,12 @@ type valueEnum struct {
 //nolint:ireturn // Enum validators expose the shared Value interface.
 func NewEnum(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueEnum{
-		validatorType: "enum",
-		subvalidators: make(map[string]func(string) error, len(subvalidators)),
-		prepare: func(v string) (string, error) {
-			return v, nil
-		},
+		baseValue: newBase[string]("enum", len(subvalidators)),
 	}
-	val.complete = val.completeChoices
+	val.toValue = func(input string) (string, error) {
+		return input, nil
+	}
+	val.toComplete = val.genCompletions
 
 	if len(properties) > 0 {
 		return nil, ErrNoProperties
@@ -41,13 +41,13 @@ func NewEnum(properties map[string]any, subvalidators map[string][]any) (Value, 
 		}
 	}
 
-	val.subvalidators["choices"] = func(v string) error {
-		if !val.choices[v] {
+	val.setSubvalidator("choices", "", func(input string) error {
+		if !val.choices[input] {
 			return ErrUnknownChoice
 		}
 
 		return nil
-	}
+	})
 
 	return val, nil
 }
@@ -57,7 +57,7 @@ func (v *valueEnum) addSubvalidator(name string, properties []any) error {
 		return v.addSubvalidatorChoices(properties)
 	}
 
-	return ErrUnknownProperty
+	return ErrUnknownSubvalidator
 }
 
 func (v *valueEnum) addSubvalidatorChoices(properties []any) error {
@@ -66,6 +66,8 @@ func (v *valueEnum) addSubvalidatorChoices(properties []any) error {
 		return err
 	}
 
+	slices.Sort(choices)
+	v.subvalidatorDetails["choices"] = strings.Join(choices, ",")
 	v.choices = make(map[string]bool, len(choices))
 
 	for _, choice := range choices {
@@ -75,8 +77,8 @@ func (v *valueEnum) addSubvalidatorChoices(properties []any) error {
 	return nil
 }
 
-func (v *valueEnum) completeChoices(input string) ([]cobra.Completion, cobra.ShellCompDirective) {
-	choices := make([]cobra.Completion, 0, len(v.choices))
+func (v *valueEnum) genCompletions(input string) ([]string, cobra.ShellCompDirective) {
+	choices := make([]string, 0, len(v.choices))
 
 	for choice := range v.choices {
 		if strings.HasPrefix(choice, input) {

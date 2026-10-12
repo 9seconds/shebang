@@ -3,6 +3,7 @@ package values
 import (
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"github.com/9seconds/shebang/internal/utils"
@@ -40,12 +41,11 @@ type valueIP struct {
 //nolint:ireturn // IP validators expose the shared Value interface.
 func NewIP(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueIP{
-		validatorType: "ip",
-		subvalidators: make(map[string]func(netip.Addr) error, len(subvalidators)),
+		baseValue: newBase[netip.Addr]("ip", len(subvalidators)),
 		classifiers:   make(map[string]bool, len(ipClassifiers)),
-		prepare:       netip.ParseAddr,
 	}
-	val.complete = val.completeAddresses
+	val.toValue = netip.ParseAddr
+	val.toComplete = val.genCompletions
 
 	if len(properties) > 0 {
 		return nil, ErrNoProperties
@@ -57,15 +57,15 @@ func NewIP(properties map[string]any, subvalidators map[string][]any) (Value, er
 		}
 	}
 
-	val.subvalidators["classifiers"] = func(addr netip.Addr) error {
+	val.setSubvalidator("classifiers", "", func(input netip.Addr) error {
 		for name, expected := range val.classifiers {
-			if ipClassifiers[name](addr) != expected {
-				return NewIPClassifierError(addr, name, expected)
+			if ipClassifiers[name](input) != expected {
+				return NewIPClassifierError(input, name, expected)
 			}
 		}
 
 		return nil
-	}
+	})
 
 	return val, nil
 }
@@ -79,7 +79,7 @@ func (v *valueIP) addSubvalidator(name string, properties []any) error {
 	}
 
 	if _, ok := ipClassifiers[name]; !ok {
-		return ErrUnknownProperty
+		return ErrUnknownSubvalidator
 	}
 
 	expected, err := utils.One[bool](properties)
@@ -88,6 +88,15 @@ func (v *valueIP) addSubvalidator(name string, properties []any) error {
 	}
 
 	v.classifiers[name] = expected
+
+	details := make([]string, 0, len(v.classifiers))
+	for name := range v.classifiers {
+		details = append(details, name)
+	}
+
+	slices.Sort(details)
+
+	v.subvalidatorDetails["classifiers"] = strings.Join(details, ",")
 
 	return nil
 }
@@ -113,17 +122,15 @@ func (v *valueIP) addSubnets(properties []any) error {
 		v.prefixes[idx] = prefix.Masked()
 	}
 
-	name := "subnets:" + strings.Join(strPrefixes, ",")
-
-	v.subvalidators[name] = func(addr netip.Addr) error {
+	v.setSubvalidator("subnets", strings.Join(strPrefixes, ","), func(input netip.Addr) error {
 		for _, prefix := range v.prefixes {
-			if prefix.Contains(addr) {
+			if prefix.Contains(input) {
 				return nil
 			}
 		}
 
-		return NewIPSubnetError(addr, v.prefixes)
-	}
+		return NewIPSubnetError(input, v.prefixes)
+	})
 
 	return nil
 }
@@ -139,18 +146,18 @@ func (v *valueIP) addType(properties []any) error {
 		return NewIPTypeError(netip.Addr{}, name)
 	}
 
-	v.subvalidators["type:"+name] = func(addr netip.Addr) error {
-		if !subvalidator(addr) {
-			return NewIPTypeError(addr, name)
+	v.setSubvalidator("type", name, func(input netip.Addr) error {
+		if !subvalidator(input) {
+			return NewIPTypeError(input, name)
 		}
 
 		return nil
-	}
+	})
 
 	return nil
 }
 
-func (v *valueIP) completeAddresses(input string) ([]cobra.Completion, cobra.ShellCompDirective) {
+func (v *valueIP) genCompletions(input string) ([]cobra.Completion, cobra.ShellCompDirective) {
 	addresses := make([]string, 0, 2*len(v.prefixes))
 
 	isOk := func(addr netip.Addr) bool {
@@ -186,7 +193,7 @@ func (v *valueIP) completeAddresses(input string) ([]cobra.Completion, cobra.She
 
 	directive := cobra.ShellCompDirectiveNoFileComp
 	if len(candidates) > 0 {
-		directive |= cobra.ShellCompDirectiveNoSpace
+		directive = cobra.ShellCompDirectiveNoSpace
 	}
 
 	return candidates, directive
