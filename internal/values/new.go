@@ -4,6 +4,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var newFactories = map[string]func(map[string]any, map[string][]any) (Value, error){
+	"str":      NewStr,
+	"int":      NewInt,
+	"float":    NewFloat,
+	"ip":       NewIP,
+	"port":     NewPort,
+	"enum":     NewEnum,
+	"datetime": NewDatetime,
+	"filepath": NewFilepath,
+	"base64":   NewBase64,
+	"uuid":     NewUUID,
+}
+
 // Value validates input, provides shell completions, and describes its subvalidators.
 type Value interface {
 	Validate(string) error
@@ -14,35 +27,18 @@ type Value interface {
 // New constructs a validator for valueType. An empty type selects an
 // unconstrained string validator; explicit types apply the supplied subvalidators.
 //
-//nolint:ireturn,cyclop // Value interface dispatch needs one case per supported type.
+//nolint:ireturn // Value interface is required here
 func New(
 	valueType string,
 	properties map[string]any,
 	subvalidators map[string][]any,
 ) (Value, error) {
-	switch valueType {
-	case "":
+	if valueType == "" {
 		return NewStr(nil, nil)
-	case "str":
-		return NewStr(properties, subvalidators)
-	case "int":
-		return NewInt(properties, subvalidators)
-	case "float":
-		return NewFloat(properties, subvalidators)
-	case "ip":
-		return NewIP(properties, subvalidators)
-	case "port":
-		return NewPort(properties, subvalidators)
-	case "enum":
-		return NewEnum(properties, subvalidators)
-	case "datetime":
-		return NewDatetime(properties, subvalidators)
-	case "filepath":
-		return NewFilepath(properties, subvalidators)
-	case "base64":
-		return NewBase64(properties, subvalidators)
-	case "uuid":
-		return NewUUID(properties, subvalidators)
+	}
+
+	if create, ok := newFactories[valueType]; ok {
+		return create(properties, subvalidators)
 	}
 
 	return nil, ErrUnknownValueType
