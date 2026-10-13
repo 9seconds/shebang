@@ -16,6 +16,7 @@ var newFactories = map[string]func(map[string]any, map[string][]any) (Value, err
 	"base64":   NewBase64,
 	"uuid":     NewUUID,
 	"mac-addr": NewMacAddr,
+	"email":    NewEmail,
 }
 
 // Value validates input, provides shell completions, and describes its subvalidators.

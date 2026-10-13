@@ -1563,10 +1563,54 @@ This accepts `--source AA-BB-CC-DD-EE-FF 0000.5e00.5301`. The script reads
 the unchanged source address from `SHEBANG_OL_SOURCE` or `SHEBANG_OS_S`, and
 the destination address from its first positional argument.
 
+### `email` value
+
+`email` validates email addresses using that [famous RFC3522
+regexp](https://stackoverflow.com/a/201378/5405453). This has **a lot** of
+flaws but practically is doing a pretty good job. The only correct way to
+validate email is trying sending there something but this is an overkill for
+such tool. You are free doing that on your own, considering at least the
+format.
+
+| Subvalidator | Example definition | Description |
+| ------------ | ------------------ | ----------- |
+| `domain` | `domain "example.com"` | Requires an exact, case-sensitive domain match. |
+| `domain-re` | `domain-re "^example[.]com$"` | Matches a Go regular expression against the domain. |
+| `user-re` | `user-re "^alice(\\+.*)?$"` | Matches a Go regular expression against the local part before the final `@`. |
+| `icann` | `icann #true` | Requires an ICANN-managed public suffix; `#false` excludes those suffixes. |
+
+`domain`, `domain-re`, and `user-re` each take exactly one string;
+`icann` takes exactly one boolean.
+
+`domain` requires a literal match. `domain-re` validates by regular expression.
+Same for `user-re` that works on "local part" of the email.
+
+The `icann` check uses the embedded [public-suffix
+list](https://en.wikipedia.org/wiki/Public_Suffix_List), without DNS lookups or
+mail-server connections. For example, `alice@example.com` passes `icann #true`,
+while `alice@example.invalid` passes `icann #false`.
+
+#### Example
+
+```kdl
+option "recipient" {
+  description "Recipient in the example.com domain"
+  short "r"
+  value "email" {
+    domain "example.com"
+    user-re "^alice(\\+.*)?$"
+    icann #true
+  }
+}
+```
+
+This accepts `--recipient alice+tag@example.com`, but rejects
+`bob@example.com` and `alice@EXAMPLE.COM`. The script reads the unchanged
+address from `SHEBANG_OL_RECIPIENT` or `SHEBANG_OS_R`.
+
 # TODO
 
 - json
-- email
 - url
 - git-ref
 - hostname

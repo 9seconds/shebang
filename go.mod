@@ -5,6 +5,7 @@ go 1.27.1
 require (
 	charm.land/glamour/v2 v2.0.1
 	github.com/goschtalt/approx v1.0.0
+	github.com/mcnijman/go-emailaddress v1.1.1
 	github.com/njreid/gokdl2 v0.6.1
 	github.com/relvacode/iso8601 v1.8.2
 	github.com/spf13/cobra v1.10.2

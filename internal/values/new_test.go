@@ -122,6 +122,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			input: "AA-BB-CC-DD-EE-FF",
 		},
 		{
+			name:  "email",
+			input: "Alice+tag@EXAMPLE.COM",
+		},
+		{
 			name:  "datetime",
 			input: "2026-10-12T13:14:15.123+02:00",
 		},
@@ -280,6 +284,10 @@ func (suite *NewTestSuite) TestNodeProperties() {
 		{
 			name:        "mac-addr",
 			constructor: values.NewMacAddr,
+		},
+		{
+			name:        "email",
+			constructor: values.NewEmail,
 		},
 	} {
 		suite.Run(test.name, func() {

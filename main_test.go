@@ -714,6 +714,100 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "email preserves option and positional spelling",
+			doc: `# option "recipient" {
+#   short "r"
+#   value "email" { domain "EXAMPLE.COM"; user-re "^Alice"; icann #true; }
+# }
+# arg "sender" { value "email" { domain-re "^example[.]com$"; }; }
+
+printf '%s|%s|%s' "$SHEBANG_OL_RECIPIENT" "$SHEBANG_OS_R" "$1"
+`,
+			args: []string{
+				"--recipient",
+				"Alice+tag@EXAMPLE.COM",
+				"sender@example.com",
+			},
+			stdout: "Alice+tag@EXAMPLE.COM|Alice+tag@EXAMPLE.COM|sender@example.com",
+		},
+		{
+			name: "email domain rejection prevents execution",
+			doc: `# option "recipient" { value "email" { domain "example.com"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"--recipient",
+				"alice@example.org",
+			},
+			exit:   1,
+			stderr: "unsupported domain",
+		},
+		{
+			name: "empty email prevents execution without panic",
+			doc: `# arg "recipient" { value "email"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{""},
+			exit:   1,
+			stderr: "email address cannot be empty",
+		},
+		{
+			name: "ICANN required rejection prevents execution",
+			doc: `# arg "recipient" { value "email" { icann #true; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"alice@example.invalid"},
+			exit:   1,
+			stderr: "email domain must have an ICANN-managed public suffix",
+		},
+		{
+			name: "ICANN excluded rejection prevents execution",
+			doc: `# arg "recipient" { value "email" { icann #false; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"alice@example.com"},
+			exit:   1,
+			stderr: "email domain must not have an ICANN-managed public suffix",
+		},
+		{
+			name: "email option completion preserves input",
+			doc: `# option "recipient" { value "email"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"--recipient",
+				"Alice@EXAMPLE.COM",
+			},
+			stdout: "Alice@EXAMPLE.COM\n:4\n",
+		},
+		{
+			name: "empty email completion has no suggestions or panic",
+			doc: `# arg "recipient" { value "email"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"",
+			},
+			stdout: ":4\n",
+		},
+		{
+			name: "invalid email regex prevents configuration",
+			doc: `# arg "recipient" { value "email" { user-re "["; }; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "cannot add subvalidator user-re",
+		},
+		{
 			name: "UUID option and positional preserve original spelling",
 			doc: `# option "request-id" { short "r"; value "uuid"; }
 # arg "resource-id" { value "uuid"; }
