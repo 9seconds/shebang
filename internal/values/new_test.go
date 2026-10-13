@@ -114,6 +114,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			input: "0L/RgNC40LLQtdGC",
 		},
 		{
+			name:  "uuid",
+			input: "F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6",
+		},
+		{
 			name:  "datetime",
 			input: "2026-10-12T13:14:15.123+02:00",
 		},
@@ -264,6 +268,10 @@ func (suite *NewTestSuite) TestNodeProperties() {
 		{
 			name:        "filepath",
 			constructor: values.NewFilepath,
+		},
+		{
+			name:        "uuid",
+			constructor: values.NewUUID,
 		},
 	} {
 		suite.Run(test.name, func() {

@@ -41,6 +41,8 @@ func New(
 		return NewFilepath(properties, subvalidators)
 	case "base64":
 		return NewBase64(properties, subvalidators)
+	case "uuid":
+		return NewUUID(properties, subvalidators)
 	}
 
 	return nil, ErrUnknownValueType

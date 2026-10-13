@@ -1493,9 +1493,46 @@ This accepts `--payload -_8` and rejects `--payload Zg` (only one decoded
 byte) and `--payload -_8=` (padding is not allowed). The script reads the
 original encoded string from `SHEBANG_OL_PAYLOAD` or `SHEBANG_OS_P`.
 
+### `uuid` value
+
+`uuid` accepts UUID strings as described in
+[RFC 9562](https://www.rfc-editor.org/rfc/rfc9562.html).
+
+| Form | Example input |
+| ---- | ------------- |
+| Hyphenated | `f81d4fae-7dec-11d0-a765-00a0c91e6bf6` |
+| Compact hexadecimal | `f81d4fae7dec11d0a76500a0c91e6bf6` |
+| Braced | `{f81d4fae-7dec-11d0-a765-00a0c91e6bf6}` |
+| URN | `urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6` |
+
+Hexadecimal digits may be lowercase, uppercase, or mixed case. The URN prefix
+must be exactly lowercase `urn:uuid:`. Braced input requires both braces, and
+the hyphens must appear in the positions shown. Empty strings, partial UUIDs,
+non-hexadecimal digits, and leading or trailing whitespace are rejected.
+
+Validation checks the representation without restricting UUID version or
+variant bits. The Nil UUID (`00000000-0000-0000-0000-000000000000`) and Max UUID
+(`ffffffff-ffff-ffff-ffff-ffffffffffff`) are accepted.
+
+This value supports no node properties or child subvalidators.
+
+#### Example
+
+```kdl
+option "request-id" {
+  description "UUID identifying the request"
+  short "r"
+  value "uuid"
+}
+```
+
+This accepts `--request-id F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6` followed by
+a valid resource UUID. The script reads the unchanged request identifier from
+`SHEBANG_OL_REQUEST_ID` or `SHEBANG_OS_R`, and the resource identifier from its
+first positional argument.
+
 # TODO
 
-- uuid
 - json
 - email
 - url

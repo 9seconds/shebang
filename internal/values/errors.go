@@ -14,6 +14,8 @@ var (
 	ErrUnknownProperty = errors.New("unknown property")
 	// ErrNoProperties indicates that the value does not support properties.
 	ErrNoProperties = errors.New("does not support properties")
+	// ErrNoSubvalidators indicates that the value does not support subvalidators.
+	ErrNoSubvalidators = errors.New("does not support subvalidators")
 )
 
 // Number includes the numeric representations supported by value validators.

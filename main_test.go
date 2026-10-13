@@ -714,6 +714,90 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "UUID option and positional preserve original spelling",
+			doc: `# option "request-id" { short "r"; value "uuid"; }
+# arg "resource-id" { value "uuid"; }
+# vararg "related-id" { value "uuid"; min-count 1; }
+
+printf '%s|%s|%s|%s' "$SHEBANG_OL_REQUEST_ID" "$SHEBANG_OS_R" "$1" "$2"
+`,
+			args: []string{
+				"--request-id",
+				"F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6",
+				"{550e8400-e29b-41d4-a716-446655440000}",
+				"f81d4fae7dec11d0a76500a0c91e6bf6",
+			},
+			stdout: "F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6|" +
+				"F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6|" +
+				"{550e8400-e29b-41d4-a716-446655440000}|f81d4fae7dec11d0a76500a0c91e6bf6",
+		},
+		{
+			name: "invalid UUID option prevents execution",
+			doc: `# option "request-id" { value "uuid"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"--request-id",
+				"привет",
+			},
+			exit:   1,
+			stderr: "invalid uuid",
+		},
+		{
+			name: "invalid UUID positional prevents execution",
+			doc: `# arg "resource-id" { value "uuid"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"f81d4fae"},
+			exit:   1,
+			stderr: "invalid uuid",
+		},
+		{
+			name: "UUID property prevents configuration",
+			doc: `# arg "resource-id" { value "uuid" format="urn"; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "does not support properties",
+		},
+		{
+			name: "UUID subvalidator prevents configuration",
+			doc: `# arg "resource-id" { value "uuid" { version 4; }; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "does not support subvalidators",
+		},
+		{
+			name: "UUID option completion preserves uppercase input",
+			doc: `# option "request-id" { value "uuid"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"--request-id",
+				"F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6",
+			},
+			stdout: "F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6\n:4\n",
+		},
+		{
+			name: "partial UUID positional completion has no suggestions",
+			doc: `# arg "resource-id" { value "uuid"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"f81d4fae",
+			},
+			stdout: ":4\n",
+		},
+		{
 			name: "base64 preserves encoded option and positional values",
 			doc: `# option "payload" {
 #   short "p"
