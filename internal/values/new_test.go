@@ -110,6 +110,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			input: "08080",
 		},
 		{
+			name:  "base64",
+			input: "0L/RgNC40LLQtdGC",
+		},
+		{
 			name:  "datetime",
 			input: "2026-10-12T13:14:15.123+02:00",
 		},
@@ -171,6 +175,28 @@ func (suite *NewTestSuite) TestDatetimeConfiguration() {
 			}
 		})
 	}
+}
+
+func (suite *NewTestSuite) TestBase64Configuration() {
+	// Arrange
+	properties := map[string]any{
+		"format": "raw-url",
+	}
+	subvalidators := map[string][]any{
+		"min-bytes": {int64(2)},
+		"max-bytes": {int64(2)},
+	}
+
+	// Act
+	value, err := values.New("base64", properties, subvalidators)
+
+	// Assert
+	suite.Require().NoError(err)
+	suite.Equal("base64(max-bytes:2, min-bytes:2)", value.String())
+	suite.Require().NoError(value.Validate("-_8"))
+	suite.Require().Error(value.Validate("-_8="))
+	suite.Require().Error(value.Validate("Zg"))
+	suite.Require().Error(value.Validate("Zm9v"))
 }
 
 func (suite *NewTestSuite) TestDatetimeConfigurationErrors() {

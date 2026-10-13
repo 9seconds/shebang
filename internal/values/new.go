@@ -14,7 +14,7 @@ type Value interface {
 // New constructs a validator for valueType. An empty type selects an
 // unconstrained string validator; explicit types apply the supplied subvalidators.
 //
-//nolint:ireturn // Configured value types share the Value interface.
+//nolint:ireturn,cyclop // Value interface dispatch needs one case per supported type.
 func New(
 	valueType string,
 	properties map[string]any,
@@ -39,6 +39,8 @@ func New(
 		return NewDatetime(properties, subvalidators)
 	case "filepath":
 		return NewFilepath(properties, subvalidators)
+	case "base64":
+		return NewBase64(properties, subvalidators)
 	}
 
 	return nil, ErrUnknownValueType

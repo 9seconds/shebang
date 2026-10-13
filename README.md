@@ -1453,10 +1453,48 @@ This accepts `--input ./report.json` when it is a readable regular file,
 and rejects a directory, a missing file, or `report.txt`. The script reads
 the original path from `SHEBANG_OL_INPUT` or `SHEBANG_OS_I`.
 
+### `base64` value
+
+`base64` accepts Base64-encoded text. Validation decodes the input internally,
+but options and positional arguments retain their original encoded strings.
+Decoded data may contain arbitrary binary bytes.
+
+The optional `format` property selects the alphabet and padding rules.
+
+| Format | Example input | Description |
+| ------ | ------------- | ----------- |
+| `std` | `+/8=` | [Standard alphabet (`+`, `/`) with padding](https://www.rfc-editor.org/rfc/rfc4648.html#section-4); the default. |
+| `url` | `-_8=` | [URL-safe alphabet (`-`, `_`)](https://www.rfc-editor.org/rfc/rfc4648.html#section-5) with padding. |
+| `raw` | `+/8` | [Standard alphabet without padding](https://www.rfc-editor.org/rfc/rfc4648.html#section-3.2). |
+| `raw-url` | `-_8` | URL-safe alphabet without padding. |
+
+There are 2 subvalidators that validate the length of the decoded payload in
+bytes.
+
+| Subvalidator | Example definition | Passes | Fails | Description |
+| ------------ | ------------------ | ------ | ----- | ----------- |
+| `min-bytes` | `min-bytes 2` | `Zm8=` (2 bytes) | `Zg==` (1 byte) | Requires at least this many decoded bytes. |
+| `max-bytes` | `max-bytes 2` | `Zm8=` (2 bytes) | `Zm9v` (3 bytes) | Allows at most this many decoded bytes. |
+
+#### Example
+
+```kdl
+option "payload" {
+  description "URL-safe Base64 payload containing 2 to 1024 decoded bytes"
+  short "p"
+  value "base64" format="raw-url" {
+    min-bytes 2
+    max-bytes 1024
+  }
+}
+```
+
+This accepts `--payload -_8` and rejects `--payload Zg` (only one decoded
+byte) and `--payload -_8=` (padding is not allowed). The script reads the
+original encoded string from `SHEBANG_OL_PAYLOAD` or `SHEBANG_OS_P`.
+
 # TODO
 
-- addr-port
-- base64
 - uuid
 - json
 - email

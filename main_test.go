@@ -714,6 +714,77 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "base64 preserves encoded option and positional values",
+			doc: `# option "payload" {
+#   short "p"
+#   value "base64" format="raw-url" { min-bytes 2; max-bytes 2; }
+# }
+# arg "greeting" { value "base64" { min-bytes 12; max-bytes 12; }; }
+
+printf '%s|%s|%s' "$SHEBANG_OL_PAYLOAD" "$SHEBANG_OS_P" "$1"
+`,
+			args: []string{
+				"--payload",
+				"-_8",
+				"0L/RgNC40LLQtdGC",
+			},
+			stdout: "-_8|-_8|0L/RgNC40LLQtdGC",
+		},
+		{
+			name: "base64 decoded byte limit prevents execution",
+			doc: `# arg "payload" { value "base64" { max-bytes 1; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"Zm8="},
+			exit:   1,
+			stderr: "length must be at most 1 bytes",
+		},
+		{
+			name: "malformed base64 prevents execution",
+			doc: `# arg "payload" { value "base64"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"Zg"},
+			exit:   1,
+			stderr: "illegal base64 data",
+		},
+		{
+			name: "base64 completion preserves input through Cobra",
+			doc: `# option "payload" { value "base64" format="raw-url"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"--payload",
+				"Zm8",
+			},
+			stdout: "Zm8\n:4\n",
+		},
+		{
+			name: "invalid base64 format prevents execution",
+			doc: `# arg "payload" { value "base64" format="STD"; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "unknown format STD",
+		},
+		{
+			name: "base64 invalid completion has no suggestions",
+			doc: `# arg "payload" { value "base64"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"Zg",
+			},
+			stdout: ":4\n",
+		},
+		{
 			name: "filepath option and positional preserve original paths",
 			doc: `# option "input" { value "filepath" { file-extensions "txt"; }; }
 # arg "directory" { value "filepath" { type "directory"; }; }
