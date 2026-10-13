@@ -53,6 +53,8 @@ func New(
 		return NewEnum(properties, subvalidators)
 	case "datetime":
 		return NewDatetime(properties, subvalidators)
+	case "filepath":
+		return NewFilepath(properties, subvalidators)
 	}
 
 	return nil, ErrUnknownValueType

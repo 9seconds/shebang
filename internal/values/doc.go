@@ -1,2 +1,2 @@
-// Package values constructs validators and completion callbacks for script values.
+// Package values provides configured input validators and shell completions.
 package values

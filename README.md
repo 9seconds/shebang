@@ -322,7 +322,9 @@ Now let's see how shebang could help.
 # }
 # arg "source-dir" {
 #   description "Existing directory to archive"
-#   value "directory"
+#   value "filepath" {
+#     type "directory"
+#   }
 # }
 # arg "destination-dir" {
 #   description "Destination directory on dev"
@@ -1148,6 +1150,11 @@ option "environment" {
 
 The script reads the selected value from `SHEBANG_OL_ENVIRONMENT` or
 `SHEBANG_OS_E`.
+
+
+
+
+
 ### `datetime` value
 
 `datetime` accepts dates and times. By default, it parses ISO 8601 strings,
@@ -1237,3 +1244,224 @@ This accepts a timestamp strictly after command configuration and less than
 24 hours ahead, for example `--scheduled-at 2026-10-12T14:00:00Z` if the
 command is configured at `2026-10-12T13:00:00Z`. The script reads the original
 value from `SHEBANG_OL_SCHEDULED_AT` or `SHEBANG_OS_S`.
+
+### `filepath` value
+
+`filepath` accepts nonempty filesystem paths. Relative paths are checked from
+the command's working directory; the script receives the original string.
+Spaces and Unicode in filenames are preserved.
+
+| Subvalidator | Example definition | Passes | Fails | Description |
+| ------------ | ------------------ | ------ | ----- | ----------- |
+| `root` | `root "/srv/data"` | `/srv/data/report.txt` | `/srv/other/report.txt` | Requires lexical containment within the root, including the root itself. |
+| `type` | `type "regular" "directory"` | An existing file or directory. | A missing path. | Accepts any of the listed filesystem types. |
+| `file-extensions` | `file-extensions "txt" ".json"` | `report.txt`, `report.json` | `report.TXT`, `report.txt.gz` | Checks the final extension, case-sensitively. |
+| `permissions` | `permissions 0o600` | A file with mode `0600`. | A file with mode `0644`. | Requires exactly these permission bits. |
+| `owner-name` | `owner-name "alice"` | A file owned by Alice. | A file owned by another user. | Looks up a user by name. |
+| `owner-id` | `owner-id 1000` | A file with UID 1000. | A file with UID 1001. | Requires the numeric owner UID. |
+| `owner-me` | `owner-me #true` | A file owned by the current user. | A file owned by another user. | Checks ownership against the current user. |
+| `group-name` | `group-name "staff"` | A file owned by group staff. | A file owned by another group. | Looks up a group by name. |
+| `group-id` | `group-id 1000` | A file with GID 1000. | A file with GID 1001. | Requires the numeric owner GID. |
+| `group-me` | `group-me #true` | A file whose group is one of the current user's groups. | A file owned by a different group. | Checks group membership. |
+| `readable` | `readable #true` | A readable file. | A file denied read access. | Checks OS read access. |
+| `writable` | `writable #true` | A writable file. | A file denied write access. | Checks OS write access. |
+| `executable` | `executable #true` | An executable file or searchable directory. | A file denied execute access. | Checks OS execute/search access. |
+
+#### `root` subvalidator
+
+`root` takes exactly one quoted path and requires the input to be lexically
+within that directory. The root itself passes: with `root "/srv/data"`, both
+`/srv/data` and `/srv/data/report.txt` pass, while `/srv/data-other/report.txt`
+fails.
+
+Relative roots are interpreted from the command's working directory. Neither
+the root nor the input must exist unless another subvalidator requires it. This
+check does not resolve symlinks; a link inside the root may point outside it.
+
+#### `type` subvalidator
+
+`type` selects the permitted filesystem object types. It takes quoted strings
+from the list below. A path needs to match only one listed type; duplicate
+types have no additional effect. Omitting `type` imposes no existence or type
+restriction, while an explicitly empty `type` list accepts no path.
+
+- `"exists"`: The path resolves to an existing filesystem object of any type.
+  A symlink passes if its target exists; a dangling symlink fails. A filesystem
+  lookup error, such as denied access to a parent directory, also fails.
+- `"absent"`: Looking up the path reports that it does not exist. This can be
+  used for a new output filename. A missing parent directory or a dangling
+  symlink also passes; this does not establish that the path can be created.
+  Other lookup errors, such as permission denied, fail.
+- `"regular"`: The path resolves to a regular file, such as a text document,
+  image, or executable file. Directories and special filesystem objects fail.
+  A symlink to a regular file passes. Readability and executability are separate
+  checks, so add their subvalidators if needed.
+- `"directory"`: The path resolves to a directory. A symlink to a directory
+  also passes. This does not check whether its contents can be listed or whether
+  the directory can be searched; use `readable` and `executable` for those checks.
+- `"symlink"`: The path itself is a symbolic link. This check inspects the link
+  rather than following its target, so both working and dangling symlinks pass.
+  An ordinary file or directory fails.
+- `"pipe"`: The path resolves to a named pipe (FIFO), used for communication
+  between processes. Regular files and unnamed pipes without a filesystem path
+  do not satisfy this check.
+- `"socket"`: The path resolves to a filesystem socket, such as a Unix-domain
+  socket used by a local service. A network address or port number is not a
+  filesystem socket path.
+- `"device"`: The path resolves to a device node, either a block device or a
+  character device. Examples include disk device nodes and `/dev/null`.
+- `"char-device"`: The path resolves specifically to a character device, such
+  as `/dev/null` or a terminal device. Block devices fail this check.
+
+Multiple types are alternatives: `type "regular" "directory"` accepts either
+a regular file or a directory. Other subvalidators are combined, and all must
+pass. Except for `"symlink"`, type checks follow symbolic links; permissions
+and ownership checks also inspect the target. Consequently, a dangling symlink
+passes both `type "symlink"` and `type "absent"`, but fails `type "exists"`.
+
+#### `file-extensions` subvalidator
+
+`file-extensions` takes quoted extension strings. The extensions are
+alternatives: `file-extensions "txt" ".json"` accepts either `.txt` or `.json`.
+A leading dot is added when omitted, so `"txt"` and `".txt"` are equivalent.
+Duplicates have no additional effect. Matching is exact and case-sensitive:
+`report.txt` passes, but `report.TXT` fails unless `"TXT"` is also listed. The
+arguments are literal extensions, not glob patterns; use `"txt"` rather than
+`"*.txt"`.
+
+Only the suffix beginning at the final dot in the last path component is
+checked. For `archive.tar.gz`, the extension is `.gz`, so configure `"gz"`, not
+`"tar.gz"`. Dots in parent directory names do not count. A dotfile such as
+`.env` has extension `.env`, while a name without a dot has no extension.
+
+```kdl
+value "filepath" {
+  type "regular"
+  file-extensions "json" "yaml" "yml"
+  readable #true
+}
+```
+
+This accepts a readable regular file named `config.json`, `config.yaml`, or
+`config.yml`. Renaming another kind of file to one of those extensions is
+enough to pass the extension check; parsing the contents remains the script's
+responsibility. Completion filters file suggestions by extension, while
+keeping directories available for navigation.
+
+#### `permissions` subvalidator
+
+`permissions` takes exactly one KDL integer from `0` through `0o777` and
+requires an exact match for the path's nine owner/group/other permission bits.
+Octal notation makes the usual Unix modes easy to express: `permissions 0o600`
+requires owner read/write and no group or other permissions. A mode of `0o640`
+fails that constraint even though the owner still has read/write access.
+Setuid, setgid, and sticky bits are excluded from the comparison. Symlinks are
+followed, and a missing path fails. This checks mode bits; use the access
+subvalidators to check what the running process is allowed to do.
+
+#### `owner-name` subvalidator
+
+`owner-name` takes exactly one quoted username, such as `owner-name "alice"`.
+The username is resolved to a UID when the validator is configured; an unknown
+user causes a configuration error. Validation requires an existing path owned
+by that UID. Symlinks are followed, so the target's owner is checked. This
+does not imply read or write access and does not check group membership.
+
+#### `owner-id` subvalidator
+
+`owner-id` takes exactly one integer. For example, `owner-id 1000` requires the
+path's owner UID to be 1000. No user lookup is performed, so the UID need not
+have a named account on the machine. Negative values and values above the range
+are configuration errors. The path must exist, and symlinks are followed to
+inspect the target's owner.
+
+#### `owner-me` subvalidator
+
+`owner-me` takes exactly one KDL boolean. `owner-me #true` requires the path
+to be owned by the current user; `owner-me #false` requires a different owner.
+The current user's UID is determined when the validator is configured.
+Both forms require an existing path and inspect the target of a symlink.
+Ownership alone does not establish whether the current user can read, write,
+or execute the path.
+
+#### `group-name` subvalidator
+
+`group-name` takes exactly one quoted group name, such as `group-name "staff"`.
+The group is resolved to a GID when the validator is configured; an unknown
+group causes a configuration error. The path must exist and have that owning
+GID. This compares the file's owning group, not the memberships of its owner or
+the running user. Symlinks are followed to inspect the target's group.
+
+#### `group-id` subvalidator
+
+`group-id` takes exactly one integer. For example, `group-id 1000` requires the
+path's owning GID to be 1000. No group-name lookup is performed, so the GID
+need not have a named group on the machine. Out-of-range values are
+configuration errors. Missing paths fail, and symlinks are followed to inspect
+the target's group.
+
+#### `group-me` subvalidator
+
+`group-me` takes exactly one KDL boolean. `group-me #true` requires the path's
+owning GID to be among the current user's groups; `group-me #false` requires it
+to be outside that set. The group IDs are obtained from the current user's
+account when the validator is configured. This checks the owning group rather
+than ownership by the current user, and does not by itself establish access.
+The path must exist, and symlinks are followed.
+
+#### `readable` subvalidator
+
+`readable` takes one boolean and checks OS read access for the running process.
+`readable #true` requires allowed read access; `readable #false` requires a
+permission-denied result. For a directory, read access concerns listing its
+entries; searching it is a separate execute check. Access is determined by OS
+rules rather than just the owner mode bits. Missing paths and other lookup
+errors fail both forms, and symlinks are followed. Passing does not guarantee
+that a later read by the script succeeds.
+
+#### `writable` subvalidator
+
+The same as `readable` but for writes.
+
+#### `executable` subvalidator
+
+The same as `readable` but for executablity.
+
+#### Completion
+
+Completion lists entries matching the typed filename prefix and validates
+file candidates against the configured constraints. Directories remain
+available for navigation even under file-only constraints, are suffixed with
+`/`, and suppress a trailing space. Candidate paths retain their directory
+prefix. Completion reports an error if the directory cannot be read.
+
+#### Example
+
+```kdl
+option "input" {
+  description "Readable JSON input file"
+  short "i"
+  value "filepath" {
+    type "regular"
+    file-extensions "json"
+    readable #true
+  }
+}
+```
+
+This accepts `--input ./report.json` when it is a readable regular file,
+and rejects a directory, a missing file, or `report.txt`. The script reads
+the original path from `SHEBANG_OL_INPUT` or `SHEBANG_OS_I`.
+
+# TODO
+
+- addr-port
+- base64
+- uuid
+- json
+- email
+- url
+- git-ref
+- hostname
+- mac
+- semver

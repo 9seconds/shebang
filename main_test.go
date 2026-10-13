@@ -589,6 +589,36 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "filepath option and positional preserve original paths",
+			doc: `# option "input" { value "filepath" { file-extensions "txt"; }; }
+# arg "directory" { value "filepath" { type "directory"; }; }
+
+printf '%s|%s' "$SHEBANG_OL_INPUT" "$1"
+`,
+			args:   []string{"--input", "./привет.txt", "."},
+			stdout: "./привет.txt|.",
+		},
+		{
+			name: "filepath type rejection prevents execution",
+			doc: `# arg "input" { value "filepath" { type "regular"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"."},
+			exit:   1,
+			stderr: "path has no suitable type",
+		},
+		{
+			name: "filepath empty input prevents execution",
+			doc: `# arg "input" { value "filepath"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{""},
+			exit:   1,
+			stderr: "no path is defined",
+		},
+		{
 			name: "debug does not execute script",
 			doc: `# arg "word"
 
