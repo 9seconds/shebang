@@ -956,12 +956,12 @@ notation.
 | `min`        | `min 0`            | `"0"`, `"12"`, `"+12"` | `"-1"`, `"-12"` | Requires a value at least this minimum. |
 | `max`        | `max 10`           | `"10"`, `"0"`, `"-12"` | `"11"`, `"12"`  | Allows a value at most this maximum.    |
 
-Both bounds are inclusive and optional. Each takes exactly one unquoted KDL
-integer within the int64 range; negative bounds and zero are allowed. For
-example, `min -10` is valid, but `min "-10"` and `min 1.5` are not. Omitting
-a bound leaves that side unrestricted within the int64 range. Equal bounds
-accept only that numeric value; reversed bounds are accepted as configuration,
-but no input can satisfy both.
+Both bounds are inclusive and optional. Each takes exactly one integer within
+the int64 range; negative bounds and zero are allowed. For example, `min -10`
+is valid, but `min "-10"` and `min 1.5` are not. Omitting a bound leaves that
+side unrestricted within the int64 range. Equal bounds accept only that numeric
+value; reversed bounds are accepted as configuration, but no input can satisfy
+both.
 
 Validation parses the number internally, but preserves the original string
 passed to the script. For example, `"+0012"` is validated as 12 and remains
@@ -1037,7 +1037,7 @@ syntax is described in [RFC 4291, section 2.2](https://www.rfc-editor.org/rfc/rf
 | `private`             | `private #true`             | `10.1.2.3`     | `192.0.2.1`    | Requires RFC 1918 IPv4 or RFC 4193 IPv6 private addressing. |
 | `unspecified`         | `unspecified #true`         | `0.0.0.0`      | `192.0.2.1`    | Requires an unspecified address (`0.0.0.0` or `::`). |
 
-Each classifier takes exactly one KDL boolean. Use `#false` to exclude that
+Each classifier takes exactly one boolean. Use `#false` to exclude that
 classification, `#true` - to include, or omit the child to impose no
 restriction.
 
@@ -1102,7 +1102,7 @@ The range classifications follow
 | `registered` | `registered #true` | `"1024"`, `"8080"`  | `"80"`, `"49152"`    | User (registered) ports: 1,024–49,151. |
 | `ephemeral`  | `ephemeral #true`  | `"49152"`, `"65535"` | `"80"`, `"49151"`   | Dynamic/private ports: 49,152–65,535. |
 
-Each subvalidator takes exactly one KDL boolean. `#true` requires membership
+Each subvalidator takes exactly one boolean. `#true` requires membership
 in the range; `#false` excludes it. Omit a subvalidator to impose no restriction
 on that range. All configured constraints must pass. For example, combining
 `well-known #false` and `ephemeral #false` allows only registered-range ports.
@@ -1134,7 +1134,7 @@ case-sensitive: a choice of `"prod"` accepts `"prod"`, but not `"Prod"`,
 | ------------ | ---------------------------- | --------------- | ------------------- | ----------- |
 | `choices`    | `choices "dev" "stage" "prod"` | `"dev"`, `"prod"` | `"preview"`, `"Prod"` | Lists the permitted strings. |
 
-Each choice must be a quoted KDL string.
+Each choice must be a quoted string.
 
 #### Example
 
@@ -1171,7 +1171,7 @@ value "datetime" format="unix" {
 }
 ```
 
-The format names are case-sensitive, and `format` must be a KDL string.
+The format names are case-sensitive, and `format` must be a string.
 
 | Format | Example input | Description |
 | ------ | ------------- | ----------- |
@@ -1350,9 +1350,9 @@ keeping directories available for navigation.
 
 #### `permissions` subvalidator
 
-`permissions` takes exactly one KDL integer from `0` through `0o777` and
-requires an exact match for the path's nine owner/group/other permission bits.
-Octal notation makes the usual Unix modes easy to express: `permissions 0o600`
+`permissions` takes exactly one integer from `0` through `0o777` and requires
+an exact match for the path's nine owner/group/other permission bits. Octal
+notation makes the usual Unix modes easy to express: `permissions 0o600`
 requires owner read/write and no group or other permissions. A mode of `0o640`
 fails that constraint even though the owner still has read/write access.
 Setuid, setgid, and sticky bits are excluded from the comparison. Symlinks are
@@ -1377,12 +1377,12 @@ inspect the target's owner.
 
 #### `owner-me` subvalidator
 
-`owner-me` takes exactly one KDL boolean. `owner-me #true` requires the path
-to be owned by the current user; `owner-me #false` requires a different owner.
-The current user's UID is determined when the validator is configured.
-Both forms require an existing path and inspect the target of a symlink.
-Ownership alone does not establish whether the current user can read, write,
-or execute the path.
+`owner-me` takes exactly one boolean. `owner-me #true` requires the path to be
+owned by the current user; `owner-me #false` requires a different owner. The
+current user's UID is determined when the validator is configured. Both forms
+require an existing path and inspect the target of a symlink. Ownership alone
+does not establish whether the current user can read, write, or execute the
+path.
 
 #### `group-name` subvalidator
 
@@ -1402,7 +1402,7 @@ the target's group.
 
 #### `group-me` subvalidator
 
-`group-me` takes exactly one KDL boolean. `group-me #true` requires the path's
+`group-me` takes exactly one boolean. `group-me #true` requires the path's
 owning GID to be among the current user's groups; `group-me #false` requires it
 to be outside that set. The group IDs are obtained from the current user's
 account when the validator is configured. This checks the owning group rather
