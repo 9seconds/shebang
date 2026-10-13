@@ -118,6 +118,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			input: "F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6",
 		},
 		{
+			name:  "mac-addr",
+			input: "AA-BB-CC-DD-EE-FF",
+		},
+		{
 			name:  "datetime",
 			input: "2026-10-12T13:14:15.123+02:00",
 		},
@@ -272,6 +276,10 @@ func (suite *NewTestSuite) TestNodeProperties() {
 		{
 			name:        "uuid",
 			constructor: values.NewUUID,
+		},
+		{
+			name:        "mac-addr",
+			constructor: values.NewMacAddr,
 		},
 	} {
 		suite.Run(test.name, func() {

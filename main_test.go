@@ -732,6 +732,88 @@ printf '%s|%s|%s|%s' "$SHEBANG_OL_REQUEST_ID" "$SHEBANG_OS_R" "$1" "$2"
 				"{550e8400-e29b-41d4-a716-446655440000}|f81d4fae7dec11d0a76500a0c91e6bf6",
 		},
 		{
+			name: "MAC address preserves option and positional spelling",
+			doc: `# option "source" { short "s"; value "mac-addr"; }
+# arg "destination" { value "mac-addr"; }
+# vararg "peer" { value "mac-addr"; min-count 1; }
+
+printf '%s|%s|%s|%s' "$SHEBANG_OL_SOURCE" "$SHEBANG_OS_S" "$1" "$2"
+`,
+			args: []string{
+				"--source",
+				"AA-BB-CC-DD-EE-FF",
+				"0000.5e00.5301",
+				"02005e1000000001",
+			},
+			stdout: "AA-BB-CC-DD-EE-FF|AA-BB-CC-DD-EE-FF|0000.5e00.5301|02005e1000000001",
+		},
+		{
+			name: "invalid MAC option prevents execution",
+			doc: `# option "source" { value "mac-addr"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"--source",
+				"привет",
+			},
+			exit:   1,
+			stderr: "invalid MAC address",
+		},
+		{
+			name: "invalid MAC positional prevents execution",
+			doc: `# arg "destination" { value "mac-addr"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"00:00:5e"},
+			exit:   1,
+			stderr: "invalid MAC address",
+		},
+		{
+			name: "MAC property prevents configuration",
+			doc: `# arg "destination" { value "mac-addr" format="colon"; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "does not support properties",
+		},
+		{
+			name: "MAC subvalidator prevents configuration",
+			doc: `# arg "destination" { value "mac-addr" { length 6; }; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "does not support subvalidators",
+		},
+		{
+			name: "MAC option completion preserves uppercase hyphens",
+			doc: `# option "source" { value "mac-addr"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"--source",
+				"AA-BB-CC-DD-EE-FF",
+			},
+			stdout: "AA-BB-CC-DD-EE-FF\n:4\n",
+		},
+		{
+			name: "partial MAC positional completion has no suggestions",
+			doc: `# arg "destination" { value "mac-addr"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"00:00:5e",
+			},
+			stdout: ":4\n",
+		},
+		{
 			name: "invalid UUID option prevents execution",
 			doc: `# option "request-id" { value "uuid"; }
 

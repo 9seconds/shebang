@@ -1531,6 +1531,38 @@ a valid resource UUID. The script reads the unchanged request identifier from
 `SHEBANG_OL_REQUEST_ID` or `SHEBANG_OS_R`, and the resource identifier from its
 first positional argument.
 
+### `mac-addr` value
+
+`mac-addr` validates MAC addresses. It supports 6-byte MAC-48/EUI-48 addresses,
+8-byte EUI-64 addresses, and 20-byte IP-over-InfiniBand link-layer addresses.
+
+Each supported length can use any of these notations:
+
+| Notation | 6-byte example | Description |
+| -------- | -------------- | ----------- |
+| Colon-separated | `00:00:5e:00:53:01` | Two hexadecimal digits per byte, separated by `:`. |
+| Hyphen-separated | `00-00-5e-00-53-01` | Two hexadecimal digits per byte, separated by `-`. |
+| Dotted | `0000.5e00.5301` | Four hexadecimal digits per group, separated by `.`. |
+| Compact hexadecimal | `00005e005301` | Two hexadecimal digits per byte, without separators. |
+
+#### Example
+
+```kdl
+option "source" {
+  description "Source hardware address"
+  short "s"
+  value "mac-addr"
+}
+arg "destination" {
+  description "Destination hardware address"
+  value "mac-addr"
+}
+```
+
+This accepts `--source AA-BB-CC-DD-EE-FF 0000.5e00.5301`. The script reads
+the unchanged source address from `SHEBANG_OL_SOURCE` or `SHEBANG_OS_S`, and
+the destination address from its first positional argument.
+
 # TODO
 
 - json
@@ -1538,5 +1570,4 @@ first positional argument.
 - url
 - git-ref
 - hostname
-- mac
 - semver
