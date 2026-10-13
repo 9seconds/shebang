@@ -1608,10 +1608,38 @@ This accepts `--recipient alice+tag@example.com`, but rejects
 `bob@example.com` and `alice@EXAMPLE.COM`. The script reads the unchanged
 address from `SHEBANG_OL_RECIPIENT` or `SHEBANG_OS_R`.
 
+### `json` value
+
+`json` validates one complete [JSON](https://www.rfc-editor.org/info/rfc8259/)
+value without requiring a schema. The only reason why schema is not required is
+because I haven't found a good way of representing it in KDL without feeling
+myself like an idiot.
+
+So, it just validates a correct syntax, but not the contents.
+
+#### Example
+
+```kdl
+option "payload" {
+  description "JSON value to process"
+  short "p"
+  value "json"
+}
+```
+
+Quote JSON appropriately for your shell so it remains a single argument:
+
+```shell
+your-script --payload '{"message":"привет","items":[1,null]}'
+your-script --payload 'null'
+your-script --payload '1'
+```
+
+The script reads the unchanged JSON text from `SHEBANG_OL_PAYLOAD` or
+`SHEBANG_OS_P`.
+
 # TODO
 
-- json
 - url
 - git-ref
-- hostname
 - semver

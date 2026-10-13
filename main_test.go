@@ -714,6 +714,81 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "JSON option and scalar arguments preserve original text",
+			doc: `# option "payload" { short "p"; value "json"; }
+# arg "first" { value "json"; }
+# vararg "items" { value "json"; min-count 1; }
+
+printf '%s|%s|%s|%s|%s' "$SHEBANG_OL_PAYLOAD" "$SHEBANG_OS_P" "$1" "$2" "$3"
+`,
+			args: []string{
+				"--payload",
+				` { "greeting": "привет", "nested": [null, {"x":1}] } `,
+				"null",
+				"1e1000",
+				`"привет"`,
+			},
+			stdout: ` { "greeting": "привет", "nested": [null, {"x":1}] } |` +
+				` { "greeting": "привет", "nested": [null, {"x":1}] } |null|1e1000|"привет"`,
+		},
+		{
+			name: "invalid JSON option prevents execution with syntax error",
+			doc: `# option "payload" { value "json"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"--payload",
+				`{"a":}`,
+			},
+			exit:   1,
+			stderr: "looking for beginning of value",
+		},
+		{
+			name: "multiple JSON positional values in one argument prevent execution",
+			doc: `# arg "payload" { value "json"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"1 2"},
+			exit:   1,
+			stderr: "after top-level value",
+		},
+		{
+			name: "JSON option completion preserves original text",
+			doc: `# option "payload" { value "json"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"--payload",
+				`{"greeting":"привет"}`,
+			},
+			stdout: "{\"greeting\":\"привет\"}\n:4\n",
+		},
+		{
+			name: "incomplete JSON positional completion has no suggestions",
+			doc: `# arg "payload" { value "json"; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"{",
+			},
+			stdout: ":4\n",
+		},
+		{
+			name: "JSON subvalidator prevents configuration",
+			doc: `# arg "payload" { value "json" { schema "object"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "does not support subvalidators",
+		},
+		{
 			name: "email preserves option and positional spelling",
 			doc: `# option "recipient" {
 #   short "r"

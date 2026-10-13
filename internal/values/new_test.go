@@ -126,6 +126,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			input: "Alice+tag@EXAMPLE.COM",
 		},
 		{
+			name:  "json",
+			input: " null ",
+		},
+		{
 			name:  "datetime",
 			input: "2026-10-12T13:14:15.123+02:00",
 		},
@@ -288,6 +292,10 @@ func (suite *NewTestSuite) TestNodeProperties() {
 		{
 			name:        "email",
 			constructor: values.NewEmail,
+		},
+		{
+			name:        "json",
+			constructor: values.NewJSON,
 		},
 	} {
 		suite.Run(test.name, func() {
