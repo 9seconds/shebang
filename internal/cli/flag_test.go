@@ -41,6 +41,7 @@ func (suite *FlagTestSuite) TestSetEnv() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.T().Setenv("SHEBANG_FL_VERBOSE", "old")
 			suite.T().Setenv("SHEBANG_FS_V", "old")
 
@@ -49,7 +50,11 @@ func (suite *FlagTestSuite) TestSetEnv() {
 				Short: test.short,
 				Value: test.value,
 			}
+
+			// Act
 			flag.SetEnv()
+
+			// Assert
 			suite.Equal(test.wantLong, os.Getenv("SHEBANG_FL_VERBOSE"))
 			suite.Equal(test.wantShort, os.Getenv("SHEBANG_FS_V"))
 		})

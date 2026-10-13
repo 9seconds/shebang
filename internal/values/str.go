@@ -1,7 +1,6 @@
 package values
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -10,9 +9,6 @@ import (
 
 	"github.com/9seconds/shebang/internal/utils"
 )
-
-// ErrNotPrintable indicates that a string contains a non-printable character.
-var ErrNotPrintable = errors.New("is not printable")
 
 type valueStr struct {
 	baseValue[string]
@@ -29,7 +25,7 @@ func NewStr(properties map[string]any, subvalidators map[string][]any) (Value, e
 	val.toValue = func(input string) (string, error) {
 		for _, char := range input {
 			if !unicode.IsPrint(char) {
-				return "", ErrNotPrintable
+				return "", ErrStrNotPrintable
 			}
 		}
 
@@ -69,14 +65,14 @@ func (v *valueStr) addMinLength(properties []any) error {
 	}
 
 	if length < 0 {
-		return NewNegativeLengthError(length)
+		return NewErrStrNegativeLength(length)
 	}
 
 	intLength := int(length)
 
 	v.setSubvalidator("min-length", strconv.Itoa(intLength), func(input string) error {
 		if lv := utf8.RuneCountInString(input); lv < intLength {
-			return NewLengthConstraintError(LengthConstraintMinimum, intLength, lv)
+			return NewErrStrLengthConstraint(StrLengthConstraintMinimum, intLength, lv)
 		}
 
 		return nil
@@ -92,14 +88,14 @@ func (v *valueStr) addMaxLength(properties []any) error {
 	}
 
 	if length < 0 {
-		return NewNegativeLengthError(length)
+		return NewErrStrNegativeLength(length)
 	}
 
 	intLength := int(length)
 
 	v.setSubvalidator("max-length", strconv.Itoa(intLength), func(input string) error {
 		if lv := utf8.RuneCountInString(input); lv > intLength {
-			return NewLengthConstraintError(LengthConstraintMaximum, intLength, lv)
+			return NewErrStrLengthConstraint(StrLengthConstraintMaximum, intLength, lv)
 		}
 
 		return nil
@@ -121,7 +117,7 @@ func (v *valueStr) addRe(properties []any) error {
 
 	v.setSubvalidator("re", strExpr, func(input string) error {
 		if !expression.MatchString(input) {
-			return NewRegexMismatchError(input, strExpr)
+			return NewErrStrRegexMismatch(input, strExpr)
 		}
 
 		return nil

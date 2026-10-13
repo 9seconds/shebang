@@ -87,10 +87,14 @@ func (suite *IntTestSuite) TestParsing() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewInt(nil, nil)
 			suite.Require().NoError(err)
 
+			// Act
 			err = value.Validate(test.input)
+
+			// Assert
 			if test.want == nil {
 				suite.Require().NoError(err)
 
@@ -113,7 +117,7 @@ func (suite *IntTestSuite) TestBounds() {
 		property string
 		bound    int64
 		input    string
-		want     *values.NumConstraintError[int64]
+		want     *values.ErrNumConstraint[int64]
 		message  string
 	}{
 		{
@@ -133,7 +137,7 @@ func (suite *IntTestSuite) TestBounds() {
 			property: "min",
 			bound:    -2,
 			input:    "-3",
-			want:     values.NewNumConstraintError(values.NumConstraintMin, int64(-2), int64(-3)),
+			want:     values.NewErrNumConstraint(values.NumConstraintMin, int64(-2), int64(-3)),
 			message:  "number must be at least -2, got -3",
 		},
 		{
@@ -153,7 +157,7 @@ func (suite *IntTestSuite) TestBounds() {
 			property: "max",
 			bound:    -2,
 			input:    "-1",
-			want:     values.NewNumConstraintError(values.NumConstraintMax, int64(-2), int64(-1)),
+			want:     values.NewErrNumConstraint(values.NumConstraintMax, int64(-2), int64(-1)),
 			message:  "number must be at most -2, got -1",
 		},
 		{
@@ -175,12 +179,16 @@ func (suite *IntTestSuite) TestBounds() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewInt(nil, map[string][]any{
 				test.property: {test.bound},
 			})
 			suite.Require().NoError(err)
 
+			// Act
 			err = value.Validate(test.input)
+
+			// Assert
 			if test.want == nil {
 				suite.Require().NoError(err)
 
@@ -189,7 +197,7 @@ func (suite *IntTestSuite) TestBounds() {
 
 			suite.Require().EqualError(err, test.message)
 
-			var constraintError *values.NumConstraintError[int64]
+			var constraintError *values.ErrNumConstraint[int64]
 
 			suite.Require().ErrorAs(err, &constraintError)
 			suite.Equal(*test.want, *constraintError)
@@ -199,7 +207,10 @@ func (suite *IntTestSuite) TestBounds() {
 }
 
 func (suite *IntTestSuite) TestProperties() {
-	for _, property := range []string{"min", "max"} {
+	for _, property := range []string{
+		"min",
+		"max",
+	} {
 		suite.Run(property, func() {
 			for _, test := range []struct {
 				name      string
@@ -228,9 +239,15 @@ func (suite *IntTestSuite) TestProperties() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewInt(nil, map[string][]any{
+					// Arrange
+					properties := map[string][]any{
 						property: test.args,
-					})
+					}
+
+					// Act
+					value, err := values.NewInt(nil, properties)
+
+					// Assert
 					suite.Require().ErrorContains(err, "cannot add validator "+property+":")
 					suite.Nil(value)
 
@@ -247,9 +264,15 @@ func (suite *IntTestSuite) TestProperties() {
 		})
 	}
 
-	value, err := values.NewInt(nil, map[string][]any{
+	// Arrange
+	properties := map[string][]any{
 		"unknown": {int64(1)},
-	})
+	}
+
+	// Act
+	value, err := values.NewInt(nil, properties)
+
+	// Assert
 	suite.Require().ErrorIs(err, values.ErrUnknownSubvalidator)
 	suite.Nil(value)
 }
@@ -257,18 +280,39 @@ func (suite *IntTestSuite) TestProperties() {
 func (suite *IntTestSuite) TestCombinedBoundsAndCompletion() {
 	for _, bound := range []int64{-2, 0, 2} {
 		suite.Run(strconv.FormatInt(bound, 10), func() {
+			// Arrange
 			value, err := values.New("int", nil, map[string][]any{
 				"min": {bound},
 				"max": {bound},
 			})
 			suite.Require().NoError(err)
-			suite.Equal(fmt.Sprintf("int(max:%d, min:%d)", bound, bound), value.String())
-			suite.Require().NoError(value.Validate(strconv.FormatInt(bound, 10)))
-			suite.Require().Error(value.Validate(strconv.FormatInt(bound-1, 10)))
-			suite.Require().Error(value.Validate(strconv.FormatInt(bound+1, 10)))
 
-			for _, prefix := range []string{"", "привет", "1", "-"} {
+			for _, offset := range []int64{-1, 0, 1} {
+				suite.Run(strconv.FormatInt(offset, 10), func() {
+					// Act
+					err := value.Validate(strconv.FormatInt(bound+offset, 10))
+
+					// Assert
+					suite.Equal(fmt.Sprintf("int(max:%d, min:%d)", bound, bound), value.String())
+
+					if offset == 0 {
+						suite.Require().NoError(err)
+					} else {
+						suite.Require().Error(err)
+					}
+				})
+			}
+
+			for _, prefix := range []string{
+				"",
+				"привет",
+				"1",
+				"-",
+			} {
+				// Act
 				completions, directive := value.Complete(prefix)
+
+				// Assert
 				suite.Nil(completions)
 				suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 			}

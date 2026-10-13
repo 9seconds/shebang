@@ -21,10 +21,13 @@ func (suite *EnumTestSuite) TestValidate() {
 		valid   bool
 	}{
 		{
-			name:    "exact match",
-			choices: []any{"dev", "prod"},
-			input:   "prod",
-			valid:   true,
+			name: "exact match",
+			choices: []any{
+				"dev",
+				"prod",
+			},
+			input: "prod",
+			valid: true,
 		},
 		{
 			name:    "unicode match",
@@ -33,10 +36,13 @@ func (suite *EnumTestSuite) TestValidate() {
 			valid:   true,
 		},
 		{
-			name:    "duplicate choices",
-			choices: []any{"dev", "dev"},
-			input:   "dev",
-			valid:   true,
+			name: "duplicate choices",
+			choices: []any{
+				"dev",
+				"dev",
+			},
+			input: "dev",
+			valid: true,
 		},
 		{
 			name:    "explicit empty choice",
@@ -65,17 +71,21 @@ func (suite *EnumTestSuite) TestValidate() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.New("enum", nil, map[string][]any{
 				"choices": test.choices,
 			})
 			suite.Require().NoError(err)
 			suite.Equal("enum(choices)", value.String())
 
+			// Act
 			err = value.Validate(test.input)
+
+			// Assert
 			if test.valid {
 				suite.Require().NoError(err)
 			} else {
-				suite.Require().ErrorIs(err, values.ErrUnknownChoice)
+				suite.Require().ErrorIs(err, values.ErrEnumUnknownChoice)
 			}
 		})
 	}
@@ -105,13 +115,22 @@ func (suite *EnumTestSuite) TestProperties() {
 		{
 			name: "mixed choice types",
 			properties: map[string][]any{
-				"choices": {"dev", true},
+				"choices": {
+					"dev",
+					true,
+				},
 			},
 			typeError: true,
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewEnum(nil, test.properties)
+			// Arrange
+			properties := test.properties
+
+			// Act
+			value, err := values.NewEnum(nil, properties)
+
+			// Assert
 			suite.Require().ErrorContains(err, "cannot add validator")
 			suite.Nil(value)
 
@@ -135,27 +154,49 @@ func (suite *EnumTestSuite) TestCompletion() {
 		want    []cobra.Completion
 	}{
 		{
-			name:    "sorted distinct choices",
-			choices: []any{"prod", "dev", "prod", "привет"},
-			want:    []cobra.Completion{"dev", "prod", "привет"},
+			name: "sorted distinct choices",
+			choices: []any{
+				"prod",
+				"dev",
+				"prod",
+				"привет",
+			},
+			want: []cobra.Completion{
+				"dev",
+				"prod",
+				"привет",
+			},
 		},
 		{
-			name:    "prefix filtering",
-			choices: []any{"production", "preview", "dev"},
-			input:   "pr",
-			want:    []cobra.Completion{"preview", "production"},
+			name: "prefix filtering",
+			choices: []any{
+				"production",
+				"preview",
+				"dev",
+			},
+			input: "pr",
+			want: []cobra.Completion{
+				"preview",
+				"production",
+			},
 		},
 		{
-			name:    "unicode prefix",
-			choices: []any{"привет", "dev"},
-			input:   "при",
-			want:    []cobra.Completion{"привет"},
+			name: "unicode prefix",
+			choices: []any{
+				"привет",
+				"dev",
+			},
+			input: "при",
+			want:  []cobra.Completion{"привет"},
 		},
 		{
-			name:    "exact match takes precedence",
-			choices: []any{"prod", "production"},
-			input:   "prod",
-			want:    []cobra.Completion{"prod"},
+			name: "exact match takes precedence",
+			choices: []any{
+				"prod",
+				"production",
+			},
+			input: "prod",
+			want:  []cobra.Completion{"prod"},
 		},
 		{
 			name:    "case sensitive prefix",
@@ -170,12 +211,16 @@ func (suite *EnumTestSuite) TestCompletion() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewEnum(nil, map[string][]any{
 				"choices": test.choices,
 			})
 			suite.Require().NoError(err)
 
+			// Act
 			choices, directive := value.Complete(test.input)
+
+			// Assert
 			suite.Equal(test.want, choices)
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 
@@ -187,11 +232,16 @@ func (suite *EnumTestSuite) TestCompletion() {
 }
 
 func (suite *EnumTestSuite) TestOmittedChoices() {
+	// Arrange
 	value, err := values.NewEnum(nil, nil)
 	suite.Require().NoError(err)
-	suite.Require().ErrorIs(value.Validate("dev"), values.ErrUnknownChoice)
 
+	// Act
+	err = value.Validate("dev")
 	choices, directive := value.Complete("")
+
+	// Assert
+	suite.Require().ErrorIs(err, values.ErrEnumUnknownChoice)
 	suite.Empty(choices)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 }

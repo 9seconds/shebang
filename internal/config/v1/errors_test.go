@@ -29,7 +29,11 @@ func (suite *ArgumentCountErrorTestSuite) TestArgumentCountErrors() {
 		{
 			name: "missing fixed and required variadic arguments",
 			doc:  "arg \"source\"\nvararg \"items\" { min-count 2; }\narg \"dest\"\n",
-			args: []string{"привет", "привет", "привет"},
+			args: []string{
+				"привет",
+				"привет",
+				"привет",
+			},
 			want: v1.ArgumentCountError{
 				Kind:     v1.ArgumentCountMinimum,
 				Expected: 4,
@@ -40,7 +44,11 @@ func (suite *ArgumentCountErrorTestSuite) TestArgumentCountErrors() {
 		{
 			name: "unexpected variadic arguments exclude fixed arguments",
 			doc:  "arg \"source\"\n",
-			args: []string{"привет", "привет", "привет"},
+			args: []string{
+				"привет",
+				"привет",
+				"привет",
+			},
 			want: v1.ArgumentCountError{
 				Kind:     v1.ArgumentCountUnexpectedVarArgs,
 				Expected: 0,
@@ -51,7 +59,13 @@ func (suite *ArgumentCountErrorTestSuite) TestArgumentCountErrors() {
 		{
 			name: "maximum includes required variadic items only",
 			doc:  "arg \"source\"\nvararg \"items\" {\nmin-count 1\nmax-count 2\n}\narg \"dest\"\n",
-			args: []string{"привет", "привет", "привет", "привет", "привет"},
+			args: []string{
+				"привет",
+				"привет",
+				"привет",
+				"привет",
+				"привет",
+			},
 			want: v1.ArgumentCountError{
 				Kind:     v1.ArgumentCountMaximumVarArgs,
 				Expected: 2,
@@ -61,6 +75,7 @@ func (suite *ArgumentCountErrorTestSuite) TestArgumentCountErrors() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			constructed := v1.NewArgumentCountError(test.want.Kind, test.want.Expected, test.want.Actual)
 			suite.Require().NotNil(constructed)
 			suite.Equal(test.want, *constructed)
@@ -73,7 +88,10 @@ func (suite *ArgumentCountErrorTestSuite) TestArgumentCountErrors() {
 			cmd := cli.NewCommand("script", nil)
 			suite.Require().NoError(conf.Configure(cmd))
 
+			// Act
 			err = cmd.Cmd.Args(&cmd.Cmd, test.args)
+
+			// Assert
 			suite.Require().EqualError(err, test.message)
 
 			var countError *v1.ArgumentCountError
@@ -105,6 +123,7 @@ func (suite *ArgumentCountErrorTestSuite) TestVarArgBoundsError() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			constructed := v1.NewVarArgBoundsError(test.minimum, test.maximum)
 			suite.Require().NotNil(constructed)
 			suite.Equal(test.minimum, constructed.Min)
@@ -113,7 +132,11 @@ func (suite *ArgumentCountErrorTestSuite) TestVarArgBoundsError() {
 
 			doc := fmt.Sprintf("vararg \"items\" {\nmin-count %d\nmax-count %d\n}\n",
 				test.minimum, test.maximum)
+
+			// Act
 			conf, err := v1.Parse(strings.NewReader(doc))
+
+			// Assert
 			suite.Require().ErrorContains(err, "cannot process node vararg:")
 			suite.Require().ErrorContains(err, test.message)
 			suite.Nil(conf)

@@ -9,7 +9,9 @@ type ShortNamePatternError struct {
 
 // NewShortNamePatternError constructs an error for an invalid shorthand pattern.
 func NewShortNamePatternError(pattern string) *ShortNamePatternError {
-	return &ShortNamePatternError{Pattern: pattern}
+	return &ShortNamePatternError{
+		Pattern: pattern,
+	}
 }
 
 // Error describes the required shorthand pattern.
@@ -25,7 +27,10 @@ type NamePatternError struct {
 
 // NewNamePatternError constructs an error for an invalid declaration name.
 func NewNamePatternError(value, pattern string) *NamePatternError {
-	return &NamePatternError{Value: value, Pattern: pattern}
+	return &NamePatternError{
+		Value:   value,
+		Pattern: pattern,
+	}
 }
 
 // Error describes the rejected name and its required pattern.

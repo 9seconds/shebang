@@ -1,23 +1,7 @@
 package values
 
 import (
-	"errors"
-
 	"github.com/spf13/cobra"
-)
-
-var (
-	// ErrUnknownValueType indicates an unsupported value type.
-	ErrUnknownValueType = errors.New("unknown type")
-
-	// ErrUnknownSubvalidator indicates an unsupported subvalidator.
-	ErrUnknownSubvalidator = errors.New("unknown subvalidator")
-
-	// ErrUnknownProperty indicates an unsupported value property.
-	ErrUnknownProperty = errors.New("unknown property")
-
-	// ErrNoProperties indicates that the value does not support properties.
-	ErrNoProperties = errors.New("does not support properties")
 )
 
 // Value validates input, provides shell completions, and describes its subvalidators.

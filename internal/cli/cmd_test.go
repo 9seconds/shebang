@@ -18,7 +18,10 @@ type CommandTestSuite struct {
 }
 
 func (suite *CommandTestSuite) TestNewCommand() {
+	// Act
 	cmd := cli.NewCommand("/scripts/script", nil)
+
+	// Assert
 	suite.Equal("/scripts/script", cmd.ScriptName)
 	suite.True(cmd.Cmd.DisableAutoGenTag)
 	suite.True(cmd.Cmd.DisableFlagsInUseLine)
@@ -43,42 +46,78 @@ func (suite *CommandTestSuite) TestExecute() {
 			name: "script only",
 			argv: []string{"runner"},
 			args: []string{},
-			want: []string{"runner", "/scripts/script"},
+			want: []string{
+				"runner",
+				"/scripts/script",
+			},
 		},
 		{
 			name: "runner and script arguments",
-			argv: []string{"runner", "-eu"},
-			args: []string{"привет", "dest"},
-			want: []string{"runner", "-eu", "/scripts/script", "привет", "dest"},
+			argv: []string{
+				"runner",
+				"-eu",
+			},
+			args: []string{
+				"привет",
+				"dest",
+			},
+			want: []string{
+				"runner",
+				"-eu",
+				"/scripts/script",
+				"привет",
+				"dest",
+			},
 		},
 		{
 			name: "dash arguments after separator",
 			argv: []string{"runner"},
-			args: []string{"--", "-value"},
-			want: []string{"runner", "/scripts/script", "-value"},
+			args: []string{
+				"--",
+				"-value",
+			},
+			want: []string{
+				"runner",
+				"/scripts/script",
+				"-value",
+			},
 		},
 		{
 			name: "completion remains a script argument",
 			argv: []string{"runner"},
-			args: []string{"completion", "bash"},
-			want: []string{"runner", "/scripts/script", "completion", "bash"},
+			args: []string{
+				"completion",
+				"bash",
+			},
+			want: []string{
+				"runner",
+				"/scripts/script",
+				"completion",
+				"bash",
+			},
 		},
 		{
 			name: "execution error propagated",
 			argv: []string{"runner"},
 			args: []string{},
-			want: []string{"runner", "/scripts/script"},
-			err:  wantError,
+			want: []string{
+				"runner",
+				"/scripts/script",
+			},
+			err: wantError,
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.T().Setenv("SHEBANG_TEST_INHERITED", "привет")
 
 			calls := 0
+
+			var received []string
+
 			cmd := cli.NewCommand("/scripts/script", func(_ *cobra.Command, argv []string) error {
 				calls++
-
-				suite.Equal(test.want, argv)
+				received = argv
 
 				return test.err
 			})
@@ -89,7 +128,10 @@ func (suite *CommandTestSuite) TestExecute() {
 			cmd.Cmd.SetArgs(test.args)
 			suite.Zero(calls)
 
+			// Act
 			err := cmd.Cmd.Execute()
+
+			// Assert
 			if test.err == nil {
 				suite.Require().NoError(err)
 			} else {
@@ -97,11 +139,13 @@ func (suite *CommandTestSuite) TestExecute() {
 			}
 
 			suite.Equal(1, calls)
+			suite.Equal(test.want, received)
 		})
 	}
 }
 
 func (suite *CommandTestSuite) TestExecuteExportsEnvironment() {
+	// Arrange
 	for _, key := range []string{
 		"SHEBANG_OL_OUTPUT",
 		"SHEBANG_OS_O",
@@ -115,19 +159,13 @@ func (suite *CommandTestSuite) TestExecuteExportsEnvironment() {
 	suite.Require().NoError(err)
 
 	called := false
+
+	var received, environment []string
+
 	cmd := cli.NewCommand("script", func(_ *cobra.Command, argv []string) error {
 		called = true
-
-		suite.Equal([]string{"runner", "script", "source"}, argv)
-
-		for _, entry := range []string{
-			"SHEBANG_OL_OUTPUT=привет",
-			"SHEBANG_OS_O=привет",
-			"SHEBANG_FL_VERBOSE=true",
-			"SHEBANG_FS_V=true",
-		} {
-			suite.Contains(os.Environ(), entry)
-		}
+		received = argv
+		environment = os.Environ()
 
 		return nil
 	})
@@ -147,7 +185,12 @@ func (suite *CommandTestSuite) TestExecuteExportsEnvironment() {
 	}
 	cmd.Cmd.Flags().VarP(&cmd.Options[0], "output", "o", "Output")
 	cmd.Cmd.Flags().BoolVarP(&cmd.Flags[0].Value, "verbose", "v", false, "Verbose")
-	cmd.Cmd.SetArgs([]string{"-o", "привет", "-v", "source"})
+	cmd.Cmd.SetArgs([]string{
+		"-o",
+		"привет",
+		"-v",
+		"source",
+	})
 	suite.False(called)
 	suite.Nil(cmd.Options[0].Value)
 	suite.False(cmd.Flags[0].Value)
@@ -161,8 +204,26 @@ func (suite *CommandTestSuite) TestExecuteExportsEnvironment() {
 		suite.Equal("old", os.Getenv(key))
 	}
 
-	suite.Require().NoError(cmd.Cmd.Execute())
+	// Act
+	err = cmd.Cmd.Execute()
+
+	// Assert
+	suite.Require().NoError(err)
 	suite.True(called)
+	suite.Equal([]string{
+		"runner",
+		"script",
+		"source",
+	}, received)
+
+	for _, entry := range []string{
+		"SHEBANG_OL_OUTPUT=привет",
+		"SHEBANG_OS_O=привет",
+		"SHEBANG_FL_VERBOSE=true",
+		"SHEBANG_FS_V=true",
+	} {
+		suite.Contains(environment, entry)
+	}
 }
 
 func (suite *CommandTestSuite) TestRejectedArgumentsDoNotExecute() {
@@ -184,6 +245,7 @@ func (suite *CommandTestSuite) TestRejectedArgumentsDoNotExecute() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			calls := 0
 			cmd := cli.NewCommand("script", func(*cobra.Command, []string) error {
 				calls++
@@ -202,7 +264,10 @@ func (suite *CommandTestSuite) TestRejectedArgumentsDoNotExecute() {
 
 			cmd.Cmd.SetArgs(test.args)
 
+			// Act
 			err := cmd.Cmd.Execute()
+
+			// Assert
 			suite.Require().Error(err)
 
 			if test.validate {

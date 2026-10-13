@@ -142,7 +142,11 @@ func (c *Config) configureDescription(cmd *cli.Command) {
 
 	if len(description) > 0 {
 		description = append(
-			[]string{c.Description, "", "Positional arguments:"},
+			[]string{
+				c.Description,
+				"",
+				"Positional arguments:",
+			},
 			description...,
 		)
 		cmd.Cmd.Long = strings.TrimSpace(strings.Join(description, "\n"))
@@ -211,15 +215,25 @@ func requiredVarArgUsage(name string, minCount int) []string {
 	case 1:
 		return []string{name + "1"}
 	case 2:
-		return []string{name + "1", name + "2"}
+		return []string{
+			name + "1",
+			name + "2",
+		}
 	default:
-		return []string{name + "1", "...", fmt.Sprintf("%s%d", name, minCount)}
+		return []string{
+			name + "1",
+			"...",
+			fmt.Sprintf("%s%d", name, minCount),
+		}
 	}
 }
 
 func (a *VarArg) optionalUsageArgs(name string, minCount int) []string {
 	if a.MaxCount == nil {
-		return []string{fmt.Sprintf("[%s%d", name, minCount+1), "...]"}
+		return []string{
+			fmt.Sprintf("[%s%d", name, minCount+1),
+			"...]",
+		}
 	}
 
 	maxCount := int(*a.MaxCount)

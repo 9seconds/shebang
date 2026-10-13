@@ -2,16 +2,18 @@ package values
 
 import "fmt"
 
-// PortRangeError describes a port with an unexpected range classification.
-type PortRangeError struct {
+// ErrPortRange describes a port with an unexpected range classification.
+//
+//nolint:errname // Project convention requires Err<Stem> names for all errors.
+type ErrPortRange struct {
 	Port     uint16
 	Range    string
 	Expected bool
 }
 
-// NewPortRangeError constructs an error for a failed port range constraint.
-func NewPortRangeError(port uint16, category string, expected bool) *PortRangeError {
-	return &PortRangeError{
+// NewErrPortRange constructs an error for a failed port range constraint.
+func NewErrPortRange(port uint16, category string, expected bool) *ErrPortRange {
+	return &ErrPortRange{
 		Port:     port,
 		Range:    category,
 		Expected: expected,
@@ -19,7 +21,7 @@ func NewPortRangeError(port uint16, category string, expected bool) *PortRangeEr
 }
 
 // Error describes whether the port must belong to the configured range.
-func (e *PortRangeError) Error() string {
+func (e *ErrPortRange) Error() string {
 	if e.Expected {
 		return fmt.Sprintf("port %d is not %s", e.Port, e.Range)
 	}

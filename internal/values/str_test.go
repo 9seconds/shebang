@@ -125,10 +125,14 @@ func (suite *StrTestSuite) TestValidate() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewStr(nil, test.properties)
 			suite.Require().NoError(err)
 
+			// Act
 			err = value.Validate(test.input)
+
+			// Assert
 			if test.message == "" {
 				suite.NoError(err)
 			} else {
@@ -172,8 +176,11 @@ func (suite *StrTestSuite) TestPropertyArguments() {
 					want: utils.ErrEmpty,
 				},
 				{
-					name:    "multiple",
-					args:    []any{property.value, property.value},
+					name: "multiple",
+					args: []any{
+						property.value,
+						property.value,
+					},
 					message: "expected 1 element, got 2",
 				},
 				{
@@ -183,9 +190,15 @@ func (suite *StrTestSuite) TestPropertyArguments() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewStr(nil, map[string][]any{
+					// Arrange
+					properties := map[string][]any{
 						property.name: test.args,
-					})
+					}
+
+					// Act
+					value, err := values.NewStr(nil, properties)
+
+					// Assert
 					suite.Require().Error(err)
 					suite.Nil(value)
 					suite.Require().ErrorContains(err, "cannot add validator "+property.name+":")
@@ -234,9 +247,15 @@ func (suite *StrTestSuite) TestInvalidProperties() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewStr(nil, map[string][]any{
+			// Arrange
+			properties := map[string][]any{
 				test.property: test.args,
-			})
+			}
+
+			// Act
+			value, err := values.NewStr(nil, properties)
+
+			// Assert
 			suite.Require().Error(err)
 			suite.Nil(value)
 
@@ -255,6 +274,7 @@ func (suite *StrTestSuite) TestInvalidProperties() {
 }
 
 func (suite *StrTestSuite) TestStringAndCompletion() {
+	// Arrange
 	value, err := values.NewStr(nil, map[string][]any{
 		"re":         {"^привет$"},
 		"min-length": {int64(1)},
@@ -263,9 +283,16 @@ func (suite *StrTestSuite) TestStringAndCompletion() {
 	suite.Require().NoError(err)
 	suite.Equal("str(max-length:6, min-length:1, re:^привет$)", value.String())
 
-	for _, input := range []string{"", "привет", "other"} {
+	for _, input := range []string{
+		"",
+		"привет",
+		"other",
+	} {
 		suite.Run(input, func() {
+			// Act
 			completions, directive := value.Complete(input)
+
+			// Assert
 			if input == "привет" {
 				suite.Equal([]cobra.Completion{input}, completions)
 			} else {
@@ -273,6 +300,46 @@ func (suite *StrTestSuite) TestStringAndCompletion() {
 			}
 
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
+		})
+	}
+}
+
+func (suite *StrTestSuite) TestPrintableCharacters() {
+	for _, test := range []struct {
+		name  string
+		input string
+		want  error
+	}{
+		{
+			name:  "printable Unicode and spaces",
+			input: " привет ",
+		},
+		{
+			name:  "newline",
+			input: "привет\n",
+			want:  values.ErrStrNotPrintable,
+		},
+		{
+			name:  "tab",
+			input: "\tпривет",
+			want:  values.ErrStrNotPrintable,
+		},
+		{
+			name:  "control character",
+			input: "\x00",
+			want:  values.ErrStrNotPrintable,
+		},
+	} {
+		suite.Run(test.name, func() {
+			// Arrange
+			value, err := values.NewStr(nil, nil)
+			suite.Require().NoError(err)
+
+			// Act
+			err = value.Validate(test.input)
+
+			// Assert
+			suite.Require().ErrorIs(err, test.want)
 		})
 	}
 }

@@ -105,8 +105,13 @@ func (suite *LogTestSuite) TestPrintVal() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.output.Reset()
+
+			// Act
 			PrintVal(test.reason, test.value)
+
+			// Assert
 			suite.Equal(test.want, suite.output.String())
 		})
 	}
@@ -131,8 +136,12 @@ func (suite *LogTestSuite) TestPrintf() {
 		{
 			name:   "formatted arguments",
 			format: "%s %d %t",
-			args:   []any{"привет", 2, true},
-			want:   ">>>  привет 2 true\n",
+			args: []any{
+				"привет",
+				2,
+				true,
+			},
+			want: ">>>  привет 2 true\n",
 		},
 		{
 			name:   "formatted multiline value",
@@ -142,8 +151,13 @@ func (suite *LogTestSuite) TestPrintf() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.output.Reset()
+
+			// Act
 			Printf(test.format, test.args...)
+
+			// Assert
 			suite.Equal(test.want, suite.output.String())
 		})
 	}
@@ -163,9 +177,13 @@ func (suite *LogTestSuite) TestConfigure() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			main.SetOutput(&suite.output)
+
+			// Act
 			Configure(test.debug)
 
+			// Assert
 			if test.debug {
 				suite.Same(os.Stderr, main.Writer())
 			} else {
@@ -174,8 +192,13 @@ func (suite *LogTestSuite) TestConfigure() {
 		})
 	}
 
+	// Arrange
 	Configure(true)
+
+	// Act
 	Configure(false)
+
+	// Assert
 	suite.Same(os.Stderr, main.Writer())
 }
 
@@ -202,30 +225,48 @@ func (suite *LogTestSuite) TestIterLines() {
 		{
 			name:  "preserve leading whitespace",
 			value: "  first\n\tsecond",
-			want:  []string{"  first", "\tsecond"},
+			want: []string{
+				"  first",
+				"\tsecond",
+			},
 		},
 		{
 			name:  "trim trailing whitespace on each line",
 			value: "first \t\nsecond\t\n\n",
-			want:  []string{"first", "second"},
+			want: []string{
+				"first",
+				"second",
+			},
 		},
 		{
 			name:  "preserve inner empty lines",
 			value: "\nfirst\n\nsecond",
-			want:  []string{"", "first", "", "second"},
+			want: []string{
+				"",
+				"first",
+				"",
+				"second",
+			},
 		},
 		{
 			name:  "windows line endings",
 			value: "first\r\nsecond\r\n",
-			want:  []string{"first", "second"},
+			want: []string{
+				"first",
+				"second",
+			},
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			var lines []string
+
+			// Act
 			for line := range iterLines(test.value) {
 				lines = append(lines, line)
 			}
 
+			// Assert
 			suite.Equal(test.want, lines)
 		})
 	}
@@ -247,16 +288,22 @@ func (suite *LogTestSuite) TestIterLinesEarlyStop() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			calls := 0
 
+			var received string
+
+			// Act
 			iterLines(test.value)(func(line string) bool {
 				calls++
-
-				suite.Equal(test.want, line)
+				received = line
 
 				return false
 			})
+
+			// Assert
 			suite.Equal(1, calls)
+			suite.Equal(test.want, received)
 		})
 	}
 }
@@ -292,6 +339,7 @@ func (suite *LogTestSuite) TestDief() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			cmd := exec.Command(executable, "-test.run=^TestLogProcess$")
 
 			for _, entry := range os.Environ() {
@@ -307,9 +355,13 @@ func (suite *LogTestSuite) TestDief() {
 
 			cmd.Stderr = &stderr
 			cmd.Stdout = io.Discard
-			processError := cmd.Run()
 
 			var exitError *exec.ExitError
+
+			// Act
+			processError := cmd.Run()
+
+			// Assert
 			suite.Require().ErrorAs(processError, &exitError)
 			suite.Equal(1, exitError.ExitCode())
 			suite.Equal(test.want, stderr.String())

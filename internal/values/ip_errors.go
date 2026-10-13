@@ -6,23 +6,25 @@ import (
 	"slices"
 )
 
-// IPTypeError describes an unknown family constraint or an address of the wrong family.
-type IPTypeError struct {
+// ErrIPType describes an unknown family constraint or an address of the wrong family.
+//
+//nolint:errname // Project convention requires Err<Stem> names for all errors.
+type ErrIPType struct {
 	Address netip.Addr
 	Type    string
 }
 
-// NewIPTypeError constructs an error for a family constraint.
+// NewErrIPType constructs an error for a family constraint.
 // An invalid address indicates an unknown configured type.
-func NewIPTypeError(address netip.Addr, family string) *IPTypeError {
-	return &IPTypeError{
+func NewErrIPType(address netip.Addr, family string) *ErrIPType {
+	return &ErrIPType{
 		Address: address,
 		Type:    family,
 	}
 }
 
 // Error describes the unknown type or rejected address.
-func (e *IPTypeError) Error() string {
+func (e *ErrIPType) Error() string {
 	if !e.Address.IsValid() {
 		return "unknown IP type " + e.Type
 	}
@@ -30,20 +32,22 @@ func (e *IPTypeError) Error() string {
 	return fmt.Sprintf("IP address %s is not of type %s", e.Address, e.Type)
 }
 
-// IPClassifierError describes an address with an unexpected classification.
-type IPClassifierError struct {
+// ErrIPClassifier describes an address with an unexpected classification.
+//
+//nolint:errname // Project convention requires Err<Stem> names for all errors.
+type ErrIPClassifier struct {
 	Address    netip.Addr
 	Classifier string
 	Expected   bool
 }
 
-// NewIPClassifierError constructs an error for a failed classification constraint.
-func NewIPClassifierError(
+// NewErrIPClassifier constructs an error for a failed classification constraint.
+func NewErrIPClassifier(
 	address netip.Addr,
 	classifier string,
 	expected bool,
-) *IPClassifierError {
-	return &IPClassifierError{
+) *ErrIPClassifier {
+	return &ErrIPClassifier{
 		Address:    address,
 		Classifier: classifier,
 		Expected:   expected,
@@ -51,7 +55,7 @@ func NewIPClassifierError(
 }
 
 // Error describes the required and actual classification.
-func (e *IPClassifierError) Error() string {
+func (e *ErrIPClassifier) Error() string {
 	return fmt.Sprintf(
 		"IP address %s: %s must be %t",
 		e.Address,
@@ -60,22 +64,24 @@ func (e *IPClassifierError) Error() string {
 	)
 }
 
-// IPSubnetError describes an address outside all configured subnets.
-type IPSubnetError struct {
+// ErrIPSubnet describes an address outside all configured subnets.
+//
+//nolint:errname // Project convention requires Err<Stem> names for all errors.
+type ErrIPSubnet struct {
 	Address netip.Addr
 	Subnets []netip.Prefix
 }
 
-// NewIPSubnetError constructs an error with an independent copy of the allowed subnets.
-func NewIPSubnetError(address netip.Addr, subnets []netip.Prefix) *IPSubnetError {
-	return &IPSubnetError{
+// NewErrIPSubnet constructs an error with an independent copy of the allowed subnets.
+func NewErrIPSubnet(address netip.Addr, subnets []netip.Prefix) *ErrIPSubnet {
+	return &ErrIPSubnet{
 		Address: address,
 		Subnets: slices.Clone(subnets),
 	}
 }
 
 // Error describes the address that failed subnet membership.
-func (e *IPSubnetError) Error() string {
+func (e *ErrIPSubnet) Error() string {
 	return fmt.Sprintf(
 		"IP address %s does not belong to any configured subnet",
 		e.Address,

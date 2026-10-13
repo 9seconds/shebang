@@ -65,6 +65,7 @@ func (suite *OptionTestSuite) TestSet() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			validator, err := values.NewStr(nil, test.properties)
 			suite.Require().NoError(err)
 
@@ -73,7 +74,10 @@ func (suite *OptionTestSuite) TestSet() {
 				Validator: validator,
 			}
 
+			// Act
 			err = option.Set(test.value)
+
+			// Assert
 			if test.message == "" {
 				suite.Require().NoError(err)
 			} else {
@@ -104,6 +108,7 @@ func (suite *OptionTestSuite) TestMetadata() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			validator, err := values.NewStr(nil, nil)
 			suite.Require().NoError(err)
 
@@ -114,9 +119,16 @@ func (suite *OptionTestSuite) TestMetadata() {
 				Value:     new("привет"),
 				Validator: validator,
 			}
-			suite.Empty(option.String())
-			suite.Equal(test.valueType, option.Type())
-			suite.Equal(test.want, option.AsString())
+
+			// Act
+			defaultValue := option.String()
+			valueType := option.Type()
+			description := option.AsString()
+
+			// Assert
+			suite.Empty(defaultValue)
+			suite.Equal(test.valueType, valueType)
+			suite.Equal(test.want, description)
 		})
 	}
 }
@@ -155,6 +167,7 @@ func (suite *OptionTestSuite) TestSetEnv() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.T().Setenv("SHEBANG_OL_OUTPUT", "old")
 			suite.T().Setenv("SHEBANG_OS_O", "old")
 
@@ -163,7 +176,11 @@ func (suite *OptionTestSuite) TestSetEnv() {
 				Short: test.short,
 				Value: test.value,
 			}
+
+			// Act
 			option.SetEnv()
+
+			// Assert
 			suite.Equal(test.wantLong, os.Getenv("SHEBANG_OL_OUTPUT"))
 			suite.Equal(test.wantShort, os.Getenv("SHEBANG_OS_O"))
 		})

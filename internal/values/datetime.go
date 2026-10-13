@@ -140,7 +140,7 @@ func (v *valueDatetime) addPropFormat(value any) error {
 		}
 
 	default:
-		return NewDatetimeFormatError(strValue)
+		return NewErrDatetimeFormat(strValue)
 	}
 
 	return nil
@@ -234,7 +234,7 @@ func (v *valueDatetime) addSubvalidatorDateAfter(properties []any) error {
 func (v *valueDatetime) makeValidatorAfter(datetime time.Time) func(time.Time) error {
 	return func(input time.Time) error {
 		if !input.After(datetime) {
-			return NewDatetimeConstraintError(input, datetime, "after")
+			return NewErrDatetimeConstraint(input, datetime, "after")
 		}
 
 		return nil
@@ -244,7 +244,7 @@ func (v *valueDatetime) makeValidatorAfter(datetime time.Time) func(time.Time) e
 func (v *valueDatetime) makeValidatorBefore(datetime time.Time) func(time.Time) error {
 	return func(input time.Time) error {
 		if !input.Before(datetime) {
-			return NewDatetimeConstraintError(input, datetime, "before")
+			return NewErrDatetimeConstraint(input, datetime, "before")
 		}
 
 		return nil

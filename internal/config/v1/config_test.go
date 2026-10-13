@@ -87,18 +87,31 @@ func (suite *ConfigTestSuite) TestHelpText() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			conf := test.conf
 			conf.Argv = []string{suite.runner}
 			cmd := cli.NewCommand("/scripts/script", nil)
 
-			suite.Require().NoError(conf.Configure(cmd))
+			// Act
+			err := conf.Configure(cmd)
+
+			// Assert
+			suite.Require().NoError(err)
 			suite.Equal(test.want, cmd.Cmd.Long)
 		})
 	}
 }
 
 func (suite *ConfigTestSuite) TestUnsupportedValueProperties() {
-	for _, valueType := range []string{"str", "int", "float", "ip", "port", "enum"} {
+	for _, valueType := range []string{
+		"str",
+		"int",
+		"float",
+		"ip",
+		"port",
+		"enum",
+		"filepath",
+	} {
 		suite.Run(valueType, func() {
 			for _, test := range []struct {
 				name string
@@ -122,6 +135,7 @@ func (suite *ConfigTestSuite) TestUnsupportedValueProperties() {
 				},
 			} {
 				suite.Run(test.name, func() {
+					// Arrange
 					doc := test.node + " \"item\" {\nvalue \"" + valueType + "\" xx=#true\n"
 					if test.name == "required vararg" {
 						doc += "min-count 1\n"
@@ -132,7 +146,12 @@ func (suite *ConfigTestSuite) TestUnsupportedValueProperties() {
 					conf.Argv = []string{suite.runner}
 
 					cmd := cli.NewCommand("/scripts/script", nil)
-					suite.Require().ErrorIs(conf.Configure(cmd), values.ErrNoProperties)
+
+					// Act
+					err = conf.Configure(cmd)
+
+					// Assert
+					suite.Require().ErrorIs(err, values.ErrNoProperties)
 				})
 			}
 		})
@@ -211,13 +230,18 @@ func (suite *ConfigTestSuite) TestUse() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			conf, err := v1.Parse(strings.NewReader(test.doc))
 			suite.Require().NoError(err)
 
 			conf.Argv = []string{suite.runner}
 			cmd := cli.NewCommand("/scripts/script", nil)
 
-			suite.Require().NoError(conf.Configure(cmd))
+			// Act
+			err = conf.Configure(cmd)
+
+			// Assert
+			suite.Require().NoError(err)
 			suite.Equal(test.want, cmd.Cmd.Use)
 			suite.Equal(test.want, cmd.Cmd.UseLine())
 		})
@@ -225,13 +249,19 @@ func (suite *ConfigTestSuite) TestUse() {
 }
 
 func (suite *ConfigTestSuite) TestHyphenatedPositionalNames() {
+	// Arrange
 	conf, err := v1.Parse(strings.NewReader("arg \"source-dir\"\n" +
 		"vararg \"extra-path\" { min-count 1; }\narg \"destination-dir\"\n"))
 	suite.Require().NoError(err)
 
 	conf.Argv = []string{suite.runner}
 	cmd := cli.NewCommand("script", nil)
-	suite.Require().NoError(conf.Configure(cmd))
+
+	// Act
+	err = conf.Configure(cmd)
+
+	// Assert
+	suite.Require().NoError(err)
 	suite.Equal("script [--] SOURCE_DIR EXTRA_PATH1 [EXTRA_PATH2 ...] DESTINATION_DIR", cmd.Cmd.Use)
 	suite.Contains(cmd.Cmd.Long, "SOURCE_DIR")
 	suite.Contains(cmd.Cmd.Long, "EXTRA_PATH")
@@ -254,19 +284,27 @@ func (suite *ConfigTestSuite) TestNormalizedVarArgBounds() {
 			valid:  []string{},
 		},
 		{
-			name:    "required items with unlimited maximum",
-			bounds:  "min-count 2\nmax-count -1\n",
-			use:     "script [--] ITEMS1 ITEMS2 [ITEMS3 ...]",
-			valid:   []string{"привет", "привет", "привет"},
+			name:   "required items with unlimited maximum",
+			bounds: "min-count 2\nmax-count -1\n",
+			use:    "script [--] ITEMS1 ITEMS2 [ITEMS3 ...]",
+			valid: []string{
+				"привет",
+				"привет",
+				"привет",
+			},
 			invalid: []string{"привет"},
 			message: "there must be at least 2 arguments, got 1",
 		},
 		{
-			name:    "negative minimum with finite maximum",
-			bounds:  "min-count -3\nmax-count 2\n",
-			use:     "script [--] [ITEMS1 ITEMS2]",
-			valid:   []string{},
-			invalid: []string{"привет", "привет", "привет"},
+			name:   "negative minimum with finite maximum",
+			bounds: "min-count -3\nmax-count 2\n",
+			use:    "script [--] [ITEMS1 ITEMS2]",
+			valid:  []string{},
+			invalid: []string{
+				"привет",
+				"привет",
+				"привет",
+			},
 			message: "there must be at most 2 variadic arguments, got 3",
 		},
 		{
@@ -279,11 +317,17 @@ func (suite *ConfigTestSuite) TestNormalizedVarArgBounds() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			conf, err := v1.Parse(strings.NewReader("vararg \"items\" {\n" + test.bounds + "}\n"))
 			suite.Require().NoError(err)
 			conf.Argv = []string{suite.runner}
 			cmd := cli.NewCommand("script", nil)
-			suite.Require().NoError(conf.Configure(cmd))
+
+			// Act
+			err = conf.Configure(cmd)
+
+			// Assert
+			suite.Require().NoError(err)
 			suite.Equal(test.use, cmd.Cmd.Use)
 			suite.Require().NoError(cmd.Cmd.Args(&cmd.Cmd, test.valid))
 
@@ -305,23 +349,37 @@ func (suite *ConfigTestSuite) TestInterpreter() {
 		},
 		{
 			name: "executable arguments",
-			argv: []string{suite.runner, "-eu", "-o", "pipefail"},
+			argv: []string{
+				suite.runner,
+				"-eu",
+				"-o",
+				"pipefail",
+			},
 		},
 		{
 			name: "executable resolved through path",
-			argv: []string{filepath.Base(suite.runner), "-x"},
+			argv: []string{
+				filepath.Base(suite.runner),
+				"-x",
+			},
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.T().Setenv("PATH", filepath.Dir(suite.runner))
 
 			conf := &v1.Config{
 				Argv: test.argv,
 			}
 			cmd := cli.NewCommand("script", nil)
-			suite.Require().NoError(conf.Configure(cmd))
 
 			want := append([]string{suite.runner}, test.argv[1:]...)
+
+			// Act
+			err := conf.Configure(cmd)
+
+			// Assert
+			suite.Require().NoError(err)
 			suite.Equal(want, cmd.Argv)
 			suite.Equal(test.argv, conf.Argv)
 		})
@@ -329,6 +387,7 @@ func (suite *ConfigTestSuite) TestInterpreter() {
 }
 
 func (suite *ConfigTestSuite) TestOptionsAndFlags() {
+	// Arrange
 	conf, err := v1.Parse(strings.NewReader(`option "output" {
 		short "o"
 		description "Output value"
@@ -376,8 +435,10 @@ func (suite *ConfigTestSuite) TestOptionsAndFlags() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Act
 			flag := cmd.Cmd.Flags().Lookup(test.name)
 
+			// Assert
 			suite.Require().NotNil(flag)
 			suite.Equal(test.short, flag.Shorthand)
 			suite.Equal(test.description, flag.Usage)
@@ -403,19 +464,31 @@ func (suite *ConfigTestSuite) TestOptionsAndFlags() {
 	suite.Require().Error(cmd.Cmd.Flags().Set("output", "invalid"))
 	suite.Nil(cmd.Options[0].Value)
 	suite.Require().NoError(cmd.Cmd.ParseFlags([]string{
-		"-o", "привет", "--plain", "text", "-v", "--quiet",
+		"-o",
+		"привет",
+		"--plain",
+		"text",
+		"-v",
+		"--quiet",
 	}))
 	suite.Equal(new("привет"), cmd.Options[0].Value)
 	suite.Equal(new("text"), cmd.Options[1].Value)
 	suite.True(cmd.Flags[0].Value)
 	suite.True(cmd.Flags[1].Value)
 
-	for _, name := range []string{"output", "plain"} {
+	for _, name := range []string{
+		"output",
+		"plain",
+	} {
 		suite.Run(name+" completion", func() {
+			// Arrange
 			complete, ok := cmd.Cmd.GetFlagCompletionFunc(name)
 			suite.Require().True(ok)
 
+			// Act
 			completions, directive := complete(&cmd.Cmd, nil, "привет")
+
+			// Assert
 			suite.Equal([]cobra.Completion{"привет"}, completions)
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 		})
@@ -442,12 +515,16 @@ func (suite *ConfigTestSuite) TestPositionalCallbacks() {
 			message: "invalid argument WORD:",
 		},
 		{
-			name:    "extra argument",
-			args:    []string{"привет", "extra"},
+			name: "extra argument",
+			args: []string{
+				"привет",
+				"extra",
+			},
 			message: "expected 0 variadic arguments, got 1",
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			doc := "arg \"word\" { value \"str\" { re \"^привет$\"; }; }\n"
 			conf, err := v1.Parse(strings.NewReader(doc))
 			suite.Require().NoError(err)
@@ -458,15 +535,17 @@ func (suite *ConfigTestSuite) TestPositionalCallbacks() {
 			suite.Require().NotNil(cmd.Cmd.Args)
 			suite.Require().NotNil(cmd.Cmd.ValidArgsFunction)
 
+			// Act
 			err = cmd.Cmd.Args(&cmd.Cmd, test.args)
+			completions, directive := cmd.Cmd.ValidArgsFunction(&cmd.Cmd, test.args, "привет")
 
+			// Assert
 			if test.message == "" {
 				suite.Require().NoError(err)
 			} else {
 				suite.Require().ErrorContains(err, test.message)
 			}
 
-			completions, directive := cmd.Cmd.ValidArgsFunction(&cmd.Cmd, test.args, "привет")
 			if len(test.args) == 0 {
 				suite.Equal([]cobra.Completion{"привет"}, completions)
 			} else {
@@ -512,6 +591,7 @@ func (suite *ConfigTestSuite) TestConfigureErrors() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			conf, err := v1.Parse(strings.NewReader(test.doc))
 			suite.Require().NoError(err)
 
@@ -523,7 +603,11 @@ func (suite *ConfigTestSuite) TestConfigureErrors() {
 			}
 
 			cmd := cli.NewCommand("script", nil)
+
+			// Act
 			err = conf.Configure(cmd)
+
+			// Assert
 			suite.Require().Error(err)
 			suite.Require().ErrorContains(err, test.message)
 			suite.ErrorIs(err, test.want)

@@ -33,18 +33,34 @@ func (suite *GettersTestSuite) TestAllStrings() {
 			want:   []string{"привет"},
 		},
 		{
-			name:   "order and empty strings preserved",
-			values: []any{"second", "", "привет", "first"},
-			want:   []string{"second", "", "привет", "first"},
+			name: "order and empty strings preserved",
+			values: []any{
+				"second",
+				"",
+				"привет",
+				"first",
+			},
+			want: []string{
+				"second",
+				"",
+				"привет",
+				"first",
+			},
 		},
 		{
-			name:    "wrong type first",
-			values:  []any{int64(1), "text"},
+			name: "wrong type first",
+			values: []any{
+				int64(1),
+				"text",
+			},
 			message: "expected string parameter, got int64",
 		},
 		{
-			name:    "wrong type after valid value",
-			values:  []any{"text", true},
+			name: "wrong type after valid value",
+			values: []any{
+				"text",
+				true,
+			},
 			message: "expected string parameter, got bool",
 		},
 		{
@@ -54,7 +70,13 @@ func (suite *GettersTestSuite) TestAllStrings() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			got, err := utils.All[string](test.values)
+			// Arrange
+			input := test.values
+
+			// Act
+			got, err := utils.All[string](input)
+
+			// Assert
 			if test.message == "" {
 				suite.Require().NoError(err)
 				suite.Equal(test.want, got)
@@ -95,7 +117,13 @@ func (suite *GettersTestSuite) TestAllIntegers() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			got, err := utils.All[int64](test.values)
+			// Arrange
+			input := test.values
+
+			// Act
+			got, err := utils.All[int64](input)
+
+			// Assert
 			if test.message == "" {
 				suite.Require().NoError(err)
 				suite.Equal(test.want, got)
@@ -140,14 +168,21 @@ func (suite *GettersTestSuite) TestOneStrings() {
 			values: []any{""},
 		},
 		{
-			name:      "two values",
-			values:    []any{"first", "second"},
+			name: "two values",
+			values: []any{
+				"first",
+				"second",
+			},
 			message:   "expected 1 element, got 2",
 			wantError: utils.ErrSingleArgumentExpected,
 		},
 		{
-			name:      "three values",
-			values:    []any{"first", "second", "third"},
+			name: "three values",
+			values: []any{
+				"first",
+				"second",
+				"third",
+			},
 			message:   "expected 1 element, got 3",
 			wantError: utils.ErrSingleArgumentExpected,
 		},
@@ -157,8 +192,11 @@ func (suite *GettersTestSuite) TestOneStrings() {
 			message: "expected string parameter, got int64",
 		},
 		{
-			name:    "type error precedes count error",
-			values:  []any{"first", true},
+			name: "type error precedes count error",
+			values: []any{
+				"first",
+				true,
+			},
 			message: "expected string parameter, got bool",
 		},
 		{
@@ -168,8 +206,13 @@ func (suite *GettersTestSuite) TestOneStrings() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			got, err := utils.One[string](test.values)
+			// Arrange
+			input := test.values
 
+			// Act
+			got, err := utils.One[string](input)
+
+			// Assert
 			switch {
 			case test.empty:
 				suite.Require().ErrorIs(err, utils.ErrEmpty)
@@ -218,7 +261,13 @@ func (suite *GettersTestSuite) TestOneIntegers() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			got, err := utils.One[int64](test.values)
+			// Arrange
+			input := test.values
+
+			// Act
+			got, err := utils.One[int64](input)
+
+			// Assert
 			if test.message == "" {
 				suite.Require().NoError(err)
 				suite.Equal(test.want, got)
@@ -253,9 +302,14 @@ func (suite *GettersTestSuite) TestPointers() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			all, allErr := utils.All[*string]([]any{test.value})
+			// Arrange
+			input := []any{test.value}
 
-			one, oneErr := utils.One[*string]([]any{test.value})
+			// Act
+			all, allErr := utils.All[*string](input)
+			one, oneErr := utils.One[*string](input)
+
+			// Assert
 			if test.message != "" {
 				suite.Require().EqualError(allErr, test.message)
 				suite.Require().EqualError(oneErr, test.message)
@@ -315,7 +369,10 @@ func (suite *GettersTestSuite) TestNewArgumentTypeError() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Act
 			err := utils.NewArgumentTypeError(test.expected, test.actual)
+
+			// Assert
 			suite.Require().NotNil(err)
 			suite.Equal(test.want, *err)
 			suite.Equal("expected "+test.want.Expected+" parameter, got "+test.want.Actual, err.Error())

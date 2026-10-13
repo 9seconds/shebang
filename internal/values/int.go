@@ -54,7 +54,7 @@ func (v *valueInt) addMin(properties []any) error {
 
 	v.setSubvalidator("min", strconv.FormatInt(limit, 10), func(input int64) error {
 		if input < limit {
-			return NewNumConstraintError(NumConstraintMin, limit, input)
+			return NewErrNumConstraint(NumConstraintMin, limit, input)
 		}
 
 		return nil
@@ -71,7 +71,7 @@ func (v *valueInt) addMax(properties []any) error {
 
 	v.setSubvalidator("max", strconv.FormatInt(limit, 10), func(input int64) error {
 		if input > limit {
-			return NewNumConstraintError(NumConstraintMax, limit, input)
+			return NewErrNumConstraint(NumConstraintMax, limit, input)
 		}
 
 		return nil

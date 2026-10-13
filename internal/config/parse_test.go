@@ -56,7 +56,10 @@ func (suite *ParseTestSuite) TestParse() {
 				"# execute \"sh\" \"-eu\"\n" +
 				"# description \"привет\"\n",
 			want: v1.Config{
-				Argv:        []string{"sh", "-eu"},
+				Argv: []string{
+					"sh",
+					"-eu",
+				},
 				Description: "привет",
 			},
 		},
@@ -66,7 +69,10 @@ func (suite *ParseTestSuite) TestParse() {
 				"# execute \"sh\" \"-eu\"\n" +
 				"# description \"привет\"\n",
 			want: v1.Config{
-				Argv:        []string{"sh", "-eu"},
+				Argv: []string{
+					"sh",
+					"-eu",
+				},
 				Description: "привет",
 			},
 		},
@@ -90,7 +96,10 @@ echo "$@"
 # unknown
 `,
 			want: v1.Config{
-				Argv:        []string{"sh", "-eu"},
+				Argv: []string{
+					"sh",
+					"-eu",
+				},
 				Description: "привет",
 				Flags: []v1.Flag{
 					{
@@ -123,7 +132,13 @@ echo "$@"
 		},
 	} {
 		suite.Run(test.name, func() {
-			conf, err := config.Parse(strings.NewReader(test.doc))
+			// Arrange
+			input := strings.NewReader(test.doc)
+
+			// Act
+			conf, err := config.Parse(input)
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().IsType(&v1.Config{}, conf)
 
@@ -199,7 +214,13 @@ func (suite *ParseTestSuite) TestErrors() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			conf, err := config.Parse(strings.NewReader(test.doc))
+			// Arrange
+			input := strings.NewReader(test.doc)
+
+			// Act
+			conf, err := config.Parse(input)
+
+			// Assert
 			suite.Require().Error(err)
 			suite.Nil(conf)
 
@@ -238,9 +259,13 @@ func (suite *ParseTestSuite) TestReadErrors() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			input := io.MultiReader(strings.NewReader(test.prefix), iotest.ErrReader(want))
+
+			// Act
 			conf, err := config.Parse(input)
 
+			// Assert
 			suite.Require().ErrorIs(err, want)
 			suite.Nil(conf)
 		})

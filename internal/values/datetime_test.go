@@ -86,44 +86,69 @@ func (suite *DatetimeTestSuite) TestFormats() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewDatetime(map[string]any{"format": test.name}, nil)
+			// Arrange
+			value, err := values.NewDatetime(map[string]any{
+				"format": test.name,
+			}, nil)
 			suite.Require().NoError(err)
-			suite.Equal("datetime()", value.String())
-			suite.Require().NoError(value.Validate(test.input))
-			suite.Require().Error(value.Validate("привет"))
 
+			// Act
+			validError := value.Validate(test.input)
+			invalidError := value.Validate("привет")
 			choices, directive := value.Complete(test.input)
+			current, currentDirective := value.Complete("")
+
+			// Assert
+			suite.Equal("datetime()", value.String())
+			suite.Require().NoError(validError)
+			suite.Require().Error(invalidError)
 			suite.Equal([]cobra.Completion{test.input}, choices)
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 
-			choices, directive = value.Complete("")
-			suite.Require().Len(choices, 1)
-			suite.Require().NoError(value.Validate(choices[0]))
-			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
+			suite.Require().Len(current, 1)
+			suite.Require().NoError(value.Validate(current[0]))
+			suite.Equal(cobra.ShellCompDirectiveNoFileComp, currentDirective)
 		})
 	}
 }
 
 func (suite *DatetimeTestSuite) TestDefaultFormat() {
+	// Arrange
 	value, err := values.NewDatetime(nil, nil)
 	suite.Require().NoError(err)
-	suite.Require().NoError(value.Validate("2026-10-12T13:14:15Z"))
-	suite.Require().NoError(value.Validate("2026-10-12"))
-	suite.Require().Error(value.Validate("2026-02-30"))
 
+	// Act
+	timestampError := value.Validate("2026-10-12T13:14:15Z")
+	dateError := value.Validate("2026-10-12")
+	invalidError := value.Validate("2026-02-30")
 	choices, directive := value.Complete("привет")
+
+	// Assert
+	suite.Require().NoError(timestampError)
+	suite.Require().NoError(dateError)
+	suite.Require().Error(invalidError)
 	suite.Empty(choices)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 }
 
 func (suite *DatetimeTestSuite) TestPropertyErrors() {
-	value, err := values.NewDatetime(map[string]any{"unknown": true}, nil)
+	// Act
+	value, err := values.NewDatetime(map[string]any{
+		"unknown": true,
+	}, nil)
+
+	// Assert
 	suite.Require().ErrorIs(err, values.ErrUnknownProperty)
 	suite.Require().ErrorContains(err, "cannot add the property unknown")
 	suite.Nil(value)
 
 	for _, property := range []any{true, int64(1), nil} {
-		value, err = values.NewDatetime(map[string]any{"format": property}, nil)
+		// Act
+		value, err = values.NewDatetime(map[string]any{
+			"format": property,
+		}, nil)
+
+		// Assert
 		suite.Nil(value)
 
 		var typeError *utils.ArgumentTypeError
@@ -132,18 +157,28 @@ func (suite *DatetimeTestSuite) TestPropertyErrors() {
 		suite.Equal(*utils.NewArgumentTypeError("", property), *typeError)
 	}
 
-	value, err = values.NewDatetime(map[string]any{"format": "привет"}, nil)
+	// Act
+	value, err = values.NewDatetime(map[string]any{
+		"format": "привет",
+	}, nil)
+
+	// Assert
 	suite.Nil(value)
 
-	var formatError *values.DatetimeFormatError
+	var formatError *values.ErrDatetimeFormat
 
 	suite.Require().ErrorAs(err, &formatError)
-	suite.Equal(*values.NewDatetimeFormatError("привет"), *formatError)
+	suite.Equal(*values.NewErrDatetimeFormat("привет"), *formatError)
 	suite.Equal("unknown time format привет", formatError.Error())
 }
 
 func (suite *DatetimeTestSuite) TestSubvalidatorErrors() {
-	for _, name := range []string{"before", "after", "date-before", "date-after"} {
+	for _, name := range []string{
+		"before",
+		"after",
+		"date-before",
+		"date-after",
+	} {
 		suite.Run(name, func() {
 			for _, test := range []struct {
 				name       string
@@ -156,9 +191,12 @@ func (suite *DatetimeTestSuite) TestSubvalidatorErrors() {
 					want: utils.ErrEmpty,
 				},
 				{
-					name:       "extra argument",
-					properties: []any{"1h", "2h"},
-					want:       utils.ErrSingleArgumentExpected,
+					name: "extra argument",
+					properties: []any{
+						"1h",
+						"2h",
+					},
+					want: utils.ErrSingleArgumentExpected,
 				},
 				{
 					name:       "wrong type",
@@ -171,7 +209,15 @@ func (suite *DatetimeTestSuite) TestSubvalidatorErrors() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewDatetime(nil, map[string][]any{name: test.properties})
+					// Arrange
+					properties := map[string][]any{
+						name: test.properties,
+					}
+
+					// Act
+					value, err := values.NewDatetime(nil, properties)
+
+					// Assert
 					suite.Nil(value)
 					suite.Require().ErrorContains(err, "cannot add validator "+name)
 
@@ -190,42 +236,62 @@ func (suite *DatetimeTestSuite) TestSubvalidatorErrors() {
 		})
 	}
 
-	value, err := values.NewDatetime(nil, map[string][]any{"unknown": {"1h"}})
+	// Act
+	value, err := values.NewDatetime(nil, map[string][]any{
+		"unknown": {"1h"},
+	})
+
+	// Assert
 	suite.Nil(value)
 	suite.Require().ErrorIs(err, values.ErrUnknownSubvalidator)
 }
 
 func (suite *DatetimeTestSuite) TestAbsoluteBounds() {
-	for _, format := range []string{"iso8601", "unix", "unix-ms", "custom:2006-01-02T15:04:05Z07:00"} {
+	for _, format := range []string{
+		"iso8601",
+		"unix",
+		"unix-ms",
+		"custom:2006-01-02T15:04:05Z07:00",
+	} {
 		suite.Run(format, func() {
+			// Arrange
 			bound := time.Date(2026, time.October, 12, 13, 14, 15, 0, time.UTC)
 			formatTime := datetimeTestFormatter(format)
 
-			for _, relation := range []string{"before", "after"} {
+			for _, relation := range []string{
+				"before",
+				"after",
+			} {
 				suite.Run(relation, func() {
 					name := "date-" + relation
-					value, err := values.NewDatetime(map[string]any{"format": format},
-						map[string][]any{name: {formatTime(bound)}})
+					value, err := values.NewDatetime(map[string]any{
+						"format": format,
+					}, map[string][]any{
+						name: {formatTime(bound)},
+					})
 					suite.Require().NoError(err)
 					suite.Equal("datetime("+name+":"+formatTime(bound)+")", value.String())
 
 					for _, offset := range []time.Duration{-time.Second, 0, time.Second} {
 						input := bound.Add(offset)
+
+						// Act
 						err = value.Validate(formatTime(input))
 
+						// Assert
 						if (relation == "before" && offset < 0) || (relation == "after" && offset > 0) {
 							suite.Require().NoError(err)
 
 							continue
 						}
 
-						var constraintError *values.DatetimeConstraintError
+						var constraintError *values.ErrDatetimeConstraint
 
 						suite.Require().ErrorAs(err, &constraintError)
 						suite.True(input.Equal(constraintError.Value))
 						suite.True(bound.Equal(constraintError.Bound))
 						suite.Equal(relation, constraintError.Relation)
-						suite.Equal(values.NewDatetimeConstraintError(input, bound, relation).Error(),
+						suite.Equal(values.NewErrDatetimeConstraint(input, bound, relation).Error(),
 							constraintError.Error())
 					}
 				})
@@ -235,12 +301,22 @@ func (suite *DatetimeTestSuite) TestAbsoluteBounds() {
 }
 
 func (suite *DatetimeTestSuite) TestRelativeBounds() {
-	for _, relation := range []string{"before", "after"} {
+	for _, relation := range []string{
+		"before",
+		"after",
+	} {
 		suite.Run(relation, func() {
-			for _, duration := range []string{"1h", "-1h", "0s"} {
+			for _, duration := range []string{
+				"1h",
+				"-1h",
+				"0s",
+			} {
 				suite.Run(duration, func() {
+					// Arrange
 					started := time.Now()
-					value, err := values.NewDatetime(nil, map[string][]any{relation: {duration}})
+					value, err := values.NewDatetime(nil, map[string][]any{
+						relation: {duration},
+					})
 					suite.Require().NoError(err)
 
 					finished := time.Now()
@@ -256,12 +332,15 @@ func (suite *DatetimeTestSuite) TestRelativeBounds() {
 						accepted, rejected = future, past
 					}
 
-					suite.Require().NoError(value.Validate(accepted.Format(time.RFC3339Nano)))
+					var constraintError *values.ErrDatetimeConstraint
 
-					var constraintError *values.DatetimeConstraintError
+					// Act
+					acceptedError := value.Validate(accepted.Format(time.RFC3339Nano))
+					rejectedError := value.Validate(rejected.Format(time.RFC3339Nano))
 
-					suite.Require().ErrorAs(value.Validate(rejected.Format(time.RFC3339Nano)),
-						&constraintError)
+					// Assert
+					suite.Require().NoError(acceptedError)
+					suite.Require().ErrorAs(rejectedError, &constraintError)
 					suite.False(constraintError.Bound.Before(started.Add(shift)))
 					suite.False(constraintError.Bound.After(finished.Add(shift)))
 				})
@@ -271,7 +350,10 @@ func (suite *DatetimeTestSuite) TestRelativeBounds() {
 }
 
 func (suite *DatetimeTestSuite) TestCombinedBoundsAndCompletion() {
-	value, err := values.NewDatetime(map[string]any{"format": "unix"}, map[string][]any{
+	// Arrange
+	value, err := values.NewDatetime(map[string]any{
+		"format": "unix",
+	}, map[string][]any{
 		"date-after":  {"-200"},
 		"date-before": {"-100"},
 	})
@@ -281,21 +363,36 @@ func (suite *DatetimeTestSuite) TestCombinedBoundsAndCompletion() {
 	suite.Require().Error(value.Validate("-100"))
 	suite.Equal("datetime(date-after:-200, date-before:-100)", value.String())
 
+	// Act
 	choices, directive := value.Complete("-")
-	suite.Equal([]cobra.Completion{"-100", "-200"}, choices)
+
+	// Assert
+	suite.Equal([]cobra.Completion{
+		"-100",
+		"-200",
+	}, choices)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 
+	// Act
 	choices, directive = value.Complete("-1")
+
+	// Assert
 	suite.Equal([]cobra.Completion{"-100"}, choices)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 
-	value, err = values.NewDatetime(map[string]any{"format": "unix-ms"}, map[string][]any{
+	// Arrange
+	value, err = values.NewDatetime(map[string]any{
+		"format": "unix-ms",
+	}, map[string][]any{
 		"date-before": {"-1001"},
 		"date-after":  {"-1001"},
 	})
 	suite.Require().NoError(err)
 
+	// Act
 	choices, directive = value.Complete("-")
+
+	// Assert
 	suite.Equal([]cobra.Completion{"-1001"}, choices)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 }

@@ -77,11 +77,15 @@ func (suite *IPTestSuite) TestParsing() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.New("ip", nil, nil)
 			suite.Require().NoError(err)
 			suite.Equal("ip(classifiers)", value.String())
 
+			// Act
 			err = value.Validate(test.input)
+
+			// Assert
 			if test.valid {
 				suite.Require().NoError(err)
 			} else {
@@ -100,25 +104,41 @@ func (suite *IPTestSuite) TestTypes() {
 		{
 			name:     "v4",
 			accepted: []string{"192.0.2.1"},
-			rejected: []string{"2001:db8::1", "::ffff:192.0.2.1"},
+			rejected: []string{
+				"2001:db8::1",
+				"::ffff:192.0.2.1",
+			},
 		},
 		{
-			name:     "v6",
-			accepted: []string{"2001:db8::1", "::ffff:192.0.2.1"},
+			name: "v6",
+			accepted: []string{
+				"2001:db8::1",
+				"::ffff:192.0.2.1",
+			},
 			rejected: []string{"192.0.2.1"},
 		},
 		{
 			name:     "v4-in-v6",
 			accepted: []string{"::ffff:192.0.2.1"},
-			rejected: []string{"192.0.2.1", "2001:db8::1"},
+			rejected: []string{
+				"192.0.2.1",
+				"2001:db8::1",
+			},
 		},
 		{
-			name:     "v6-only",
-			accepted: []string{"2001:db8::1", "fe80::1%eth0"},
-			rejected: []string{"192.0.2.1", "::ffff:192.0.2.1"},
+			name: "v6-only",
+			accepted: []string{
+				"2001:db8::1",
+				"fe80::1%eth0",
+			},
+			rejected: []string{
+				"192.0.2.1",
+				"::ffff:192.0.2.1",
+			},
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewIP(nil, map[string][]any{
 				"type": {test.name},
 			})
@@ -126,15 +146,22 @@ func (suite *IPTestSuite) TestTypes() {
 			suite.Equal("ip(classifiers, type:"+test.name+")", value.String())
 
 			for _, address := range test.accepted {
-				suite.Require().NoError(value.Validate(address))
+				// Act
+				err := value.Validate(address)
+
+				// Assert
+				suite.Require().NoError(err)
 			}
 
 			for _, address := range test.rejected {
-				var typeError *values.IPTypeError
+				var typeError *values.ErrIPType
 
+				// Act
 				err := value.Validate(address)
+
+				// Assert
 				suite.Require().ErrorAs(err, &typeError)
-				suite.Equal(*values.NewIPTypeError(netip.MustParseAddr(address), test.name), *typeError)
+				suite.Equal(*values.NewErrIPType(netip.MustParseAddr(address), test.name), *typeError)
 				suite.Require().ErrorContains(err, "is not of type "+test.name)
 			}
 		})
@@ -190,6 +217,7 @@ func (suite *IPTestSuite) TestClassifiers() {
 	} {
 		suite.Run(test.name, func() {
 			for _, expected := range []bool{true, false} {
+				// Arrange
 				value, err := values.NewIP(nil, map[string][]any{
 					test.name: {expected},
 				})
@@ -200,13 +228,16 @@ func (suite *IPTestSuite) TestClassifiers() {
 					accepted, rejected = rejected, accepted
 				}
 
-				suite.Require().NoError(value.Validate(accepted))
+				var classifierError *values.ErrIPClassifier
 
-				var classifierError *values.IPClassifierError
-
+				// Act
+				acceptedError := value.Validate(accepted)
 				err = value.Validate(rejected)
+
+				// Assert
+				suite.Require().NoError(acceptedError)
 				suite.Require().ErrorAs(err, &classifierError)
-				suite.Equal(*values.NewIPClassifierError(netip.MustParseAddr(rejected),
+				suite.Equal(*values.NewErrIPClassifier(netip.MustParseAddr(rejected),
 					test.name, expected), *classifierError)
 				suite.Equal(classifierError.Error(), err.Error())
 			}
@@ -222,10 +253,21 @@ func (suite *IPTestSuite) TestSubnets() {
 		rejected []string
 	}{
 		{
-			name:     "multiple families and boundaries",
-			subnets:  []any{"192.0.2.19/24", "2001:db8::/32"},
-			accepted: []string{"192.0.2.0", "192.0.2.255", "2001:db8:ffff::1"},
-			rejected: []string{"192.0.3.0", "2001:db9::1", "::ffff:192.0.2.1"},
+			name: "multiple families and boundaries",
+			subnets: []any{
+				"192.0.2.19/24",
+				"2001:db8::/32",
+			},
+			accepted: []string{
+				"192.0.2.0",
+				"192.0.2.255",
+				"2001:db8:ffff::1",
+			},
+			rejected: []string{
+				"192.0.3.0",
+				"2001:db9::1",
+				"::ffff:192.0.2.1",
+			},
 		},
 		{
 			name:     "mapped prefix is not IPv4",
@@ -247,19 +289,27 @@ func (suite *IPTestSuite) TestSubnets() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewIP(nil, map[string][]any{
 				"subnets": test.subnets,
 			})
 			suite.Require().NoError(err)
 
 			for _, address := range test.accepted {
-				suite.Require().NoError(value.Validate(address))
+				// Act
+				err := value.Validate(address)
+
+				// Assert
+				suite.Require().NoError(err)
 			}
 
 			for _, address := range test.rejected {
-				var subnetError *values.IPSubnetError
+				var subnetError *values.ErrIPSubnet
 
+				// Act
 				err := value.Validate(address)
+
+				// Assert
 				suite.Require().ErrorAs(err, &subnetError)
 				suite.Equal(netip.MustParseAddr(address), subnetError.Address)
 				suite.Require().Len(subnetError.Subnets, len(test.subnets))
@@ -288,10 +338,13 @@ func (suite *IPTestSuite) TestInvalidProperties() {
 			want:     utils.ErrEmpty,
 		},
 		{
-			name:      "multiple types",
-			property:  "type",
-			arguments: []any{"v4", "v6"},
-			want:      utils.ErrSingleArgumentExpected,
+			name:     "multiple types",
+			property: "type",
+			arguments: []any{
+				"v4",
+				"v6",
+			},
+			want: utils.ErrSingleArgumentExpected,
 		},
 		{
 			name:      "unknown type",
@@ -324,9 +377,15 @@ func (suite *IPTestSuite) TestInvalidProperties() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewIP(nil, map[string][]any{
+			// Arrange
+			properties := map[string][]any{
 				test.property: test.arguments,
-			})
+			}
+
+			// Act
+			value, err := values.NewIP(nil, properties)
+
+			// Assert
 			suite.Require().ErrorContains(err, "cannot add validator "+test.property+":")
 			suite.Nil(value)
 
@@ -337,7 +396,7 @@ func (suite *IPTestSuite) TestInvalidProperties() {
 			}
 
 			if test.property == "type" && test.name == "unknown type" {
-				var typeError *values.IPTypeError
+				var typeError *values.ErrIPType
 
 				suite.Require().ErrorAs(err, &typeError)
 				suite.False(typeError.Address.IsValid())
@@ -349,8 +408,14 @@ func (suite *IPTestSuite) TestInvalidProperties() {
 
 func (suite *IPTestSuite) TestClassifierArguments() {
 	for _, property := range []string{
-		"global-unicast", "iflocal-multicast", "linklocal-unicast", "linklocal-multicast",
-		"loopback", "multicast", "private", "unspecified",
+		"global-unicast",
+		"iflocal-multicast",
+		"linklocal-unicast",
+		"linklocal-multicast",
+		"loopback",
+		"multicast",
+		"private",
+		"unspecified",
 	} {
 		suite.Run(property, func() {
 			for _, test := range []struct {
@@ -373,9 +438,15 @@ func (suite *IPTestSuite) TestClassifierArguments() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewIP(nil, map[string][]any{
+					// Arrange
+					properties := map[string][]any{
 						property: test.arguments,
-					})
+					}
+
+					// Act
+					value, err := values.NewIP(nil, properties)
+
+					// Assert
 					suite.Require().Error(err)
 					suite.Nil(value)
 
@@ -394,34 +465,73 @@ func (suite *IPTestSuite) TestClassifierArguments() {
 }
 
 func (suite *IPTestSuite) TestCombinedConstraints() {
+	// Arrange
 	value, err := values.NewIP(nil, map[string][]any{
 		"type":     {"v4"},
 		"private":  {true},
 		"loopback": {false},
-		"subnets":  {"10.0.0.0/8", "192.168.0.0/16"},
+		"subnets": {
+			"10.0.0.0/8",
+			"192.168.0.0/16",
+		},
 	})
 	suite.Require().NoError(err)
-	suite.Equal("ip(classifiers, subnets:10.0.0.0/8,192.168.0.0/16, type:v4)",
-		value.String())
-	suite.Require().NoError(value.Validate("10.1.2.3"))
-	suite.Require().NoError(value.Validate("192.168.1.10"))
-	suite.Require().Error(value.Validate("172.16.1.10"))
-	suite.Require().Error(value.Validate("192.0.2.1"))
-	suite.Require().Error(value.Validate("::ffff:10.1.2.3"))
+
+	for _, test := range []struct {
+		input string
+		valid bool
+	}{
+		{
+			input: "10.1.2.3",
+			valid: true,
+		},
+		{
+			input: "192.168.1.10",
+			valid: true,
+		},
+		{
+			input: "172.16.1.10",
+		},
+		{
+			input: "192.0.2.1",
+		},
+		{
+			input: "::ffff:10.1.2.3",
+		},
+	} {
+		suite.Run(test.input, func() {
+			// Act
+			err := value.Validate(test.input)
+
+			// Assert
+			suite.Equal("ip(classifiers, subnets:10.0.0.0/8,192.168.0.0/16, type:v4)", value.String())
+
+			if test.valid {
+				suite.Require().NoError(err)
+			} else {
+				suite.Require().Error(err)
+			}
+		})
+	}
 }
 
 func (suite *IPTestSuite) TestSubnetErrorCopiesPrefixes() {
+	// Arrange
 	prefixes := []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
 	address := netip.MustParseAddr("198.51.100.1")
-	err := values.NewIPSubnetError(address, prefixes)
+
+	// Act
+	err := values.NewErrIPSubnet(address, prefixes)
 	prefixes[0] = netip.MustParsePrefix("198.51.100.0/24")
 
+	// Assert
 	suite.Equal(address, err.Address)
 	suite.Equal([]netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}, err.Subnets)
 	suite.Equal("IP address 198.51.100.1 does not belong to any configured subnet", err.Error())
 }
 
 func (suite *IPTestSuite) TestEveryClassifierIsChecked() {
+	// Arrange
 	value, err := values.NewIP(nil, map[string][]any{
 		"private":   {true},
 		"loopback":  {false},
@@ -431,12 +541,20 @@ func (suite *IPTestSuite) TestEveryClassifierIsChecked() {
 	suite.Require().NoError(value.Validate("10.1.2.3"))
 
 	// Repeat to exercise map iteration orders with matching and failing subvalidators.
-	for _, address := range []string{"192.0.2.1", "127.0.0.1", "239.1.1.1"} {
+	for _, address := range []string{
+		"192.0.2.1",
+		"127.0.0.1",
+		"239.1.1.1",
+	} {
 		suite.Run(address, func() {
 			for range 32 {
-				var classifierError *values.IPClassifierError
+				var classifierError *values.ErrIPClassifier
 
-				suite.Require().ErrorAs(value.Validate(address), &classifierError)
+				// Act
+				err := value.Validate(address)
+
+				// Assert
+				suite.Require().ErrorAs(err, &classifierError)
 			}
 		})
 	}
@@ -453,10 +571,16 @@ func (suite *IPTestSuite) TestCompletion() {
 		{
 			name: "family filter without classifiers",
 			properties: map[string][]any{
-				"subnets": {"192.0.2.0/24", "2001:db8::/32"},
-				"type":    {"v6-only"},
+				"subnets": {
+					"192.0.2.0/24",
+					"2001:db8::/32",
+				},
+				"type": {"v6-only"},
 			},
-			want:      []cobra.Completion{"2001:0db8:0000:0000:0000:0000:0000:000", "2001:db8:"},
+			want: []cobra.Completion{
+				"2001:0db8:0000:0000:0000:0000:0000:000",
+				"2001:db8:",
+			},
 			directive: cobra.ShellCompDirectiveNoSpace,
 		},
 		{
@@ -467,7 +591,11 @@ func (suite *IPTestSuite) TestCompletion() {
 		{
 			name: "IPv4 prefix suggestions are deduplicated",
 			properties: map[string][]any{
-				"subnets": {"192.0.2.1/32", "192.0.2.1/32", "192.0.2.19/24"},
+				"subnets": {
+					"192.0.2.1/32",
+					"192.0.2.1/32",
+					"192.0.2.19/24",
+				},
 			},
 			input:     "192.0.2.",
 			want:      []cobra.Completion{"192.0.2."},
@@ -478,13 +606,20 @@ func (suite *IPTestSuite) TestCompletion() {
 			properties: map[string][]any{
 				"subnets": {"2001:db8::/32"},
 			},
-			want:      []cobra.Completion{"2001:0db8:0000:0000:0000:0000:0000:000", "2001:db8:"},
+			want: []cobra.Completion{
+				"2001:0db8:0000:0000:0000:0000:0000:000",
+				"2001:db8:",
+			},
 			directive: cobra.ShellCompDirectiveNoSpace,
 		},
 		{
 			name: "type and classifier filter candidates",
 			properties: map[string][]any{
-				"subnets":  {"127.0.0.0/8", "192.0.2.0/24", "2001:db8::/32"},
+				"subnets": {
+					"127.0.0.0/8",
+					"192.0.2.0/24",
+					"2001:db8::/32",
+				},
 				"type":     {"v4"},
 				"loopback": {false},
 			},
@@ -517,10 +652,14 @@ func (suite *IPTestSuite) TestCompletion() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewIP(nil, test.properties)
 			suite.Require().NoError(err)
 
+			// Act
 			candidates, directive := value.Complete(test.input)
+
+			// Assert
 			suite.Equal(test.want, candidates)
 			suite.Equal(test.directive, directive)
 		})

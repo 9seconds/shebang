@@ -9,11 +9,11 @@ import (
 )
 
 type baseValue[T any] struct {
-	valueType string
-	subvalidators map[string]func(T) error
+	valueType           string
+	subvalidators       map[string]func(T) error
 	subvalidatorDetails map[string]string
-	toValue func(string) (T, error)
-	toComplete func(string) ([]string, cobra.ShellCompDirective)
+	toValue             func(string) (T, error)
+	toComplete          func(string) ([]string, cobra.ShellCompDirective)
 }
 
 func (b *baseValue[T]) Validate(value string) error {
@@ -38,7 +38,7 @@ func (b *baseValue[T]) String() string {
 		if detail == "" {
 			details = append(details, name)
 		} else {
-			details = append(details, name + ":" + detail)
+			details = append(details, name+":"+detail)
 		}
 	}
 
@@ -62,14 +62,14 @@ func (b *baseValue[T]) Complete(value string) ([]cobra.Completion, cobra.ShellCo
 }
 
 func (b *baseValue[T]) setSubvalidator(name, detail string, validator func(T) error) {
-	b.subvalidatorDetails[name] =  detail
+	b.subvalidatorDetails[name] = detail
 	b.subvalidators[name] = validator
 }
 
 func newBase[T any](valueType string, subvalidatorsLen int) baseValue[T] {
 	return baseValue[T]{
-		valueType: valueType,
-		subvalidators: make(map[string]func(T) error, subvalidatorsLen),
+		valueType:           valueType,
+		subvalidators:       make(map[string]func(T) error, subvalidatorsLen),
 		subvalidatorDetails: make(map[string]string, subvalidatorsLen),
 		toComplete: func(_ string) ([]cobra.Completion, cobra.ShellCompDirective) {
 			return nil, cobra.ShellCompDirectiveNoFileComp

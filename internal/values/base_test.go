@@ -39,28 +39,33 @@ func (suite *BaseTestSuite) TestValidate() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			prepareCalls := 0
 			subvalidatorCalls := 0
+
+			var raw, prepared string
+
 			value := baseValue[string]{
 				toValue: func(input string) (string, error) {
 					prepareCalls++
-
-					suite.Equal("привет", input)
+					raw = input
 
 					return strings.ToUpper(input), test.prepareError
 				},
 				subvalidators: map[string]func(string) error{
 					"subvalidator": func(input string) error {
 						subvalidatorCalls++
-
-						suite.Equal("ПРИВЕТ", input)
+						prepared = input
 
 						return test.subvalidatorError
 					},
 				},
 			}
 
+			// Act
 			err := value.Validate("привет")
+
+			// Assert
 			if test.want != nil {
 				suite.Require().ErrorIs(err, test.want)
 			} else {
@@ -69,11 +74,17 @@ func (suite *BaseTestSuite) TestValidate() {
 
 			suite.Equal(1, prepareCalls)
 			suite.Equal(test.subvalidatorsCalled, subvalidatorCalls)
+			suite.Equal("привет", raw)
+
+			if subvalidatorCalls > 0 {
+				suite.Equal("ПРИВЕТ", prepared)
+			}
 		})
 	}
 }
 
 func (suite *BaseTestSuite) TestAllSubvalidatorsRun() {
+	// Arrange
 	called := make(map[string]bool)
 	value := baseValue[string]{
 		toValue: func(input string) (string, error) {
@@ -92,7 +103,12 @@ func (suite *BaseTestSuite) TestAllSubvalidatorsRun() {
 			},
 		},
 	}
-	suite.Require().NoError(value.Validate("привет"))
+
+	// Act
+	err := value.Validate("привет")
+
+	// Assert
+	suite.Require().NoError(err)
 	suite.Equal(map[string]bool{
 		"first":  true,
 		"second": true,
@@ -133,49 +149,77 @@ func (suite *BaseTestSuite) TestComplete() {
 		{
 			name:         "sort and deduplicate callback candidates",
 			prepareError: errors.New("partial input"),
-			candidates:   []string{"привет2", "привет1", "привет2", "привет1"},
-			want:         []cobra.Completion{"привет1", "привет2"},
-			directive:    cobra.ShellCompDirectiveNoSpace,
-			calls:        1,
+			candidates: []string{
+				"привет2",
+				"привет1",
+				"привет2",
+				"привет1",
+			},
+			want: []cobra.Completion{
+				"привет1",
+				"привет2",
+			},
+			directive: cobra.ShellCompDirectiveNoSpace,
+			calls:     1,
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			calls := 0
 			prepareCalls := 0
+
+			var raw, prepared, completionInput string
+
 			value := baseValue[string]{
 				toValue: func(input string) (string, error) {
 					prepareCalls++
-
-					suite.Equal("привет", input)
+					raw = input
 
 					return strings.ToUpper(input), test.prepareError
 				},
 				subvalidators: map[string]func(string) error{
 					"constraint": func(input string) error {
-						suite.Equal("ПРИВЕТ", input)
+						prepared = input
 
 						return test.subvalidatorError
 					},
 				},
 				toComplete: func(input string) ([]string, cobra.ShellCompDirective) {
 					calls++
-
-					suite.Equal("привет", input)
+					completionInput = input
 
 					return test.candidates, cobra.ShellCompDirectiveNoSpace
 				},
 			}
+
+			// Act
 			completions, directive := value.Complete("привет")
+
+			// Assert
 			suite.Equal(test.want, completions)
 			suite.Equal(test.directive, directive)
 			suite.Equal(test.calls, calls)
 			suite.Equal(1, prepareCalls)
+			suite.Equal("привет", raw)
+
+			if test.prepareError == nil {
+				suite.Equal("ПРИВЕТ", prepared)
+			}
+
+			if calls > 0 {
+				suite.Equal("привет", completionInput)
+			}
 		})
 	}
 }
 
 func (suite *BaseTestSuite) TestCompletionSortsWithKeepOrder() {
-	candidates := []string{"b", "a", "b"}
+	// Arrange
+	candidates := []string{
+		"b",
+		"a",
+		"b",
+	}
 	value := baseValue[string]{
 		toValue: func(string) (string, error) {
 			return "", errors.New("partial input")
@@ -184,25 +228,43 @@ func (suite *BaseTestSuite) TestCompletionSortsWithKeepOrder() {
 			return candidates, cobra.ShellCompDirectiveKeepOrder
 		},
 	}
+
+	// Act
 	completed, directive := value.Complete("привет")
-	suite.Equal([]cobra.Completion{"a", "b"}, completed)
+
+	// Assert
+	suite.Equal([]cobra.Completion{
+		"a",
+		"b",
+	}, completed)
 	suite.Equal(cobra.ShellCompDirectiveKeepOrder, directive)
 }
 
 func (suite *BaseTestSuite) TestNewBase() {
+	// Act
 	value := newBase[string]("str", 2)
+
+	// Assert
 	suite.Equal("str()", value.String())
 	suite.NotNil(value.subvalidators)
 	suite.NotNil(value.subvalidatorDetails)
+}
+
+func (suite *BaseTestSuite) TestDefaultCompletion() {
+	// Arrange
+	value := newBase[string]("str", 1)
 	value.toValue = func(input string) (string, error) {
 		return input, nil
 	}
-	suite.Require().NoError(value.Validate("привет"))
 
 	value.setSubvalidator("reject", "", func(string) error {
 		return errors.New("invalid input")
 	})
+
+	// Act
 	completions, directive := value.Complete("привет")
+
+	// Assert
 	suite.Nil(completions)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 }
@@ -235,38 +297,49 @@ func (suite *BaseTestSuite) TestString() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value := newBase[string]("str", len(test.details))
 			value.subvalidatorDetails = test.details
-			suite.Equal(test.want, value.String())
+
+			// Act
+			description := value.String()
+
+			// Assert
+			suite.Equal(test.want, description)
 		})
 	}
 }
 
 func (suite *BaseTestSuite) TestSetSubvalidatorReplacesDetailsAndValidation() {
-	value := newBase[string]("str", 1)
-	value.toValue = func(input string) (string, error) {
-		return input, nil
+	for _, detail := range []string{
+		"^привет$",
+		"",
+	} {
+		suite.Run(detail, func() {
+			// Arrange
+			value := newBase[string]("str", 1)
+			value.toValue = func(input string) (string, error) { return input, nil }
+			value.setSubvalidator("re", "old", func(string) error {
+				return errors.New("old validator")
+			})
+
+			var received string
+
+			// Act
+			value.setSubvalidator("re", detail, func(input string) error {
+				received = input
+
+				return nil
+			})
+			err := value.Validate("привет")
+
+			// Assert
+			suite.Require().NoError(err)
+			suite.Equal("привет", received)
+			suite.Equal(detail, value.subvalidatorDetails["re"])
+			suite.Len(value.subvalidators, 1)
+		})
 	}
-	want := errors.New("invalid input")
-
-	value.setSubvalidator("re", "old", func(string) error {
-		return want
-	})
-	suite.Equal("str(re:old)", value.String())
-	suite.Require().ErrorIs(value.Validate("привет"), want)
-
-	value.setSubvalidator("re", "^привет$", func(input string) error {
-		suite.Equal("привет", input)
-
-		return nil
-	})
-	suite.Equal("str(re:^привет$)", value.String())
-	suite.Require().NoError(value.Validate("привет"))
-
-	value.setSubvalidator("re", "", func(string) error {
-		return nil
-	})
-	suite.Equal("str(re)", value.String())
 }
 
 func TestBase(t *testing.T) {

@@ -59,19 +59,32 @@ func (suite *MainTestSuite) TestWantsReadme() {
 		},
 		{
 			name: "script help",
-			args: []string{"script", "--help"},
+			args: []string{
+				"script",
+				"--help",
+			},
 		},
 		{
 			name: "short help with extra argument",
-			args: []string{"-h", "привет"},
+			args: []string{
+				"-h",
+				"привет",
+			},
 		},
 		{
 			name: "long help with extra argument",
-			args: []string{"--help", "привет"},
+			args: []string{
+				"--help",
+				"привет",
+			},
 		},
 	} {
 		suite.Run(test.name, func() {
-			suite.Equal(test.want, wantsReadme(test.args))
+			// Act
+			wanted := wantsReadme(test.args)
+
+			// Assert
+			suite.Equal(test.want, wanted)
 		})
 	}
 }
@@ -109,13 +122,16 @@ echo привет
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			path := filepath.Join(suite.T().TempDir(), "script")
 			if !test.missing {
 				suite.Require().NoError(os.WriteFile(path, []byte(test.doc), 0o600))
 			}
 
+			// Act
 			conf, err := parseConfig(path)
 
+			// Assert
 			if test.message != "" {
 				suite.Require().ErrorContains(err, test.message)
 				suite.Nil(conf)
@@ -165,6 +181,7 @@ func (suite *MainTestSuite) TestGetScript() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			path := filepath.Join(suite.T().TempDir(), "script")
 			if !test.missing {
 				suite.Require().NoError(os.WriteFile(path, []byte("#!/bin/sh\n"), test.mode))
@@ -180,11 +197,17 @@ func (suite *MainTestSuite) TestGetScript() {
 			}
 
 			previous := os.Args
-			os.Args = []string{"shebang", input}
+			os.Args = []string{
+				"shebang",
+				input,
+			}
 
 			defer func() { os.Args = previous }()
 
+			// Act
 			got, err := getScript()
+
+			// Assert
 			if test.missing || test.mode&0o111 == 0 {
 				suite.Require().Error(err)
 				suite.Empty(got)
@@ -247,6 +270,7 @@ func (suite *MainTestSuite) TestRunCompletion() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.T().Setenv("SHEBANG_COMPLETION", test.shell)
 			suite.T().Setenv("SHELL", test.fallback)
 
@@ -257,7 +281,12 @@ func (suite *MainTestSuite) TestRunCompletion() {
 			var output bytes.Buffer
 
 			cmd.SetOut(&output)
-			suite.Require().NoError(runCompletion(cmd))
+
+			// Act
+			err := runCompletion(cmd)
+
+			// Assert
+			suite.Require().NoError(err)
 			suite.Contains(output.String(), test.marker)
 			suite.Contains(output.String(), "script")
 		})
@@ -304,6 +333,7 @@ func (suite *MainTestSuite) TestUnsupportedCompletionShells() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.T().Setenv("SHEBANG_COMPLETION", test.shell)
 			suite.T().Setenv("SHELL", test.fallback)
 
@@ -314,7 +344,11 @@ func (suite *MainTestSuite) TestUnsupportedCompletionShells() {
 			var output bytes.Buffer
 
 			cmd.SetOut(&output)
+
+			// Act
 			err := runCompletion(cmd)
+
+			// Assert
 			suite.Require().ErrorIs(err, errUnsupportedShell)
 			suite.Require().EqualError(err, test.want)
 			suite.Empty(output.String())
@@ -325,20 +359,34 @@ func (suite *MainTestSuite) TestUnsupportedCompletionShells() {
 func (suite *MainTestSuite) TestCompletionWriterErrors() {
 	want := errors.New("write failed")
 
-	for _, shell := range []string{"bash", "zsh", "fish", "pwsh"} {
+	for _, shell := range []string{
+		"bash",
+		"zsh",
+		"fish",
+		"pwsh",
+	} {
 		suite.Run(shell, func() {
+			// Arrange
 			suite.T().Setenv("SHEBANG_COMPLETION", shell)
 
 			cmd := &cobra.Command{
 				Use: "script",
 			}
-			cmd.SetOut(mainErrorWriter{err: want})
-			suite.ErrorIs(runCompletion(cmd), want)
+			cmd.SetOut(mainErrorWriter{
+				err: want,
+			})
+
+			// Act
+			err := runCompletion(cmd)
+
+			// Assert
+			suite.ErrorIs(err, want)
 		})
 	}
 }
 
 func (suite *MainTestSuite) TestRunDebug() {
+	// Arrange
 	suite.T().Setenv("SHEBANG_TEST_VALUE", "привет=world")
 	suite.T().Setenv("OTHER_TEST_VALUE", "do not print")
 
@@ -346,7 +394,16 @@ func (suite *MainTestSuite) TestRunDebug() {
 
 	cmd := &cobra.Command{}
 	cmd.SetOut(&output)
-	suite.Require().NoError(runDebug(cmd, []string{"runner", "script", "привет"}))
+
+	// Act
+	err := runDebug(cmd, []string{
+		"runner",
+		"script",
+		"привет",
+	})
+
+	// Assert
+	suite.Require().NoError(err)
 	suite.Contains(output.String(), `Argv: [runner script привет]
 Environment:
 `)
@@ -355,8 +412,14 @@ Environment:
 }
 
 func (suite *MainTestSuite) TestRunExecveError() {
+	// Arrange
 	path := filepath.Join(suite.T().TempDir(), "missing")
-	suite.Require().ErrorIs(runExecve(&cobra.Command{}, []string{path}), os.ErrNotExist)
+
+	// Act
+	err := runExecve(&cobra.Command{}, []string{path})
+
+	// Assert
+	suite.Require().ErrorIs(err, os.ErrNotExist)
 }
 
 type mainTestCase struct {
@@ -374,6 +437,7 @@ type mainTestCase struct {
 	readme     bool
 }
 
+//nolint:maintidx // Keep declarative subprocess cases together with one value per line.
 func mainTestCases() []mainTestCase {
 	return []mainTestCase{
 		{
@@ -396,23 +460,32 @@ func mainTestCases() []mainTestCase {
 		{
 			name:     "short help flag with another argument is a script path",
 			noScript: true,
-			args:     []string{"-h", "extra"},
-			exit:     1,
-			stderr:   "cannot detect a script -h:",
+			args: []string{
+				"-h",
+				"extra",
+			},
+			exit:   1,
+			stderr: "cannot detect a script -h:",
 		},
 		{
 			name:     "long help flag with another argument is a script path",
 			noScript: true,
-			args:     []string{"--help", "extra"},
-			exit:     1,
-			stderr:   "cannot detect a script --help:",
+			args: []string{
+				"--help",
+				"extra",
+			},
+			exit:   1,
+			stderr: "cannot detect a script --help:",
 		},
 		{
 			name:     "two help flags do not select README help",
 			noScript: true,
-			args:     []string{"-h", "--help"},
-			exit:     1,
-			stderr:   "cannot detect a script -h:",
+			args: []string{
+				"-h",
+				"--help",
+			},
+			exit:   1,
+			stderr: "cannot detect a script -h:",
 		},
 		{
 			name:    "missing script",
@@ -447,7 +520,12 @@ func mainTestCases() []mainTestCase {
 printf '%s|%s|%s|%s' "$1" "$SHEBANG_OL_OUTPUT" \
   "$SHEBANG_FL_VERBOSE" "$SHEBANG_TEST_INHERITED"
 `,
-			args:    []string{"-o", "привет", "-v", "word"},
+			args: []string{
+				"-o",
+				"привет",
+				"-v",
+				"word",
+			},
 			environ: []string{"SHEBANG_TEST_INHERITED=привет"},
 			stdout:  "word|привет|true|привет",
 		},
@@ -460,7 +538,12 @@ printf '%s|%s|%s|%s' "$1" "$SHEBANG_OL_OUTPUT" \
 printf '%s|%s|%s|%s' "$1" "$SHEBANG_OL_ARCHIVE_NAME" \
   "$SHEBANG_OS_A" "$SHEBANG_FL_LOCAL_ONLY"
 `,
-			args:   []string{"--archive-name", "привет", "--local-only", "source"},
+			args: []string{
+				"--archive-name",
+				"привет",
+				"--local-only",
+				"source",
+			},
 			stdout: "source|привет|привет|true",
 		},
 		{
@@ -474,7 +557,14 @@ printf '%s|%s|%s|%s' "$1" "$SHEBANG_OL_ARCHIVE_NAME" \
 
 printf '%s|%s|%s|%s' "$SHEBANG_OL_LIMIT" "$1" "$2" "$3"
 `,
-			args:   []string{"--limit", "+0012", "--", "0002", "-3", "04"},
+			args: []string{
+				"--limit",
+				"+0012",
+				"--",
+				"0002",
+				"-3",
+				"04",
+			},
 			stdout: "+0012|0002|-3|04",
 		},
 		{
@@ -483,7 +573,10 @@ printf '%s|%s|%s|%s' "$SHEBANG_OL_LIMIT" "$1" "$2" "$3"
 
 printf 'SCRIPT RAN'
 `,
-			args:   []string{"--limit", "0"},
+			args: []string{
+				"--limit",
+				"0",
+			},
 			exit:   1,
 			stderr: "number must be at least 1, got 0",
 		},
@@ -496,7 +589,14 @@ printf 'SCRIPT RAN'
 
 printf '%s|%s|%s|%s' "$SHEBANG_OL_RATIO" "$1" "$2" "$3"
 `,
-			args:   []string{"--ratio", "+05e-1", "--", "-1.25", ".5", "2.00"},
+			args: []string{
+				"--ratio",
+				"+05e-1",
+				"--",
+				"-1.25",
+				".5",
+				"2.00",
+			},
 			stdout: "+05e-1|-1.25|.5|2.00",
 		},
 		{
@@ -505,7 +605,10 @@ printf '%s|%s|%s|%s' "$SHEBANG_OL_RATIO" "$1" "$2" "$3"
 
 printf 'SCRIPT RAN'
 `,
-			args:   []string{"--ratio", "NaN"},
+			args: []string{
+				"--ratio",
+				"NaN",
+			},
 			exit:   1,
 			stderr: "float must be finite",
 		},
@@ -516,7 +619,11 @@ printf 'SCRIPT RAN'
 
 printf '%s|%s' "$SHEBANG_OL_ADDRESS" "$1"
 `,
-			args:   []string{"--address", "2001:DB8:0:0:0:0:0:1", "10.1.2.3"},
+			args: []string{
+				"--address",
+				"2001:DB8:0:0:0:0:0:1",
+				"10.1.2.3",
+			},
 			stdout: "2001:DB8:0:0:0:0:0:1|10.1.2.3",
 		},
 		{
@@ -536,7 +643,11 @@ printf 'SCRIPT RAN'
 
 printf '%s|%s' "$SHEBANG_OL_PORT" "$1"
 `,
-			args:   []string{"--port", "08080", "00080"},
+			args: []string{
+				"--port",
+				"08080",
+				"00080",
+			},
 			stdout: "08080|00080",
 		},
 		{
@@ -545,7 +656,10 @@ printf '%s|%s' "$SHEBANG_OL_PORT" "$1"
 
 printf 'SCRIPT RAN'
 `,
-			args:   []string{"--port", "80"},
+			args: []string{
+				"--port",
+				"80",
+			},
 			exit:   1,
 			stderr: "port 80 is well-known",
 		},
@@ -556,7 +670,11 @@ printf 'SCRIPT RAN'
 
 printf '%s|%s' "$SHEBANG_OL_MODE" "$1"
 `,
-			args:   []string{"--mode", "prod", "привет"},
+			args: []string{
+				"--mode",
+				"prod",
+				"привет",
+			},
 			stdout: "prod|привет",
 		},
 		{
@@ -565,7 +683,10 @@ printf '%s|%s' "$SHEBANG_OL_MODE" "$1"
 
 printf 'SCRIPT RAN'
 `,
-			args:   []string{"--mode", "preview"},
+			args: []string{
+				"--mode",
+				"preview",
+			},
 			exit:   1,
 			stderr: "unknown choice",
 		},
@@ -575,7 +696,11 @@ printf 'SCRIPT RAN'
 
 printf 'SCRIPT RAN'
 `,
-			args: []string{"__complete", "--mode", "pr"},
+			args: []string{
+				"__complete",
+				"--mode",
+				"pr",
+			},
 			stdout: `preview
 production
 :4
@@ -595,7 +720,11 @@ exit 7
 
 printf '%s|%s' "$SHEBANG_OL_INPUT" "$1"
 `,
-			args:   []string{"--input", "./привет.txt", "."},
+			args: []string{
+				"--input",
+				"./привет.txt",
+				".",
+			},
 			stdout: "./привет.txt|.",
 		},
 		{
@@ -644,7 +773,10 @@ printf 'SCRIPT RAN'
 			doc: `
 printf 'SCRIPT RAN'
 `,
-			environ:    []string{"SHEBANG_COMPLETION=", "SHELL=/bin/bash"},
+			environ: []string{
+				"SHEBANG_COMPLETION=",
+				"SHELL=/bin/bash",
+			},
 			completion: true,
 		},
 		{
@@ -671,6 +803,7 @@ func (suite *MainTestSuite) TestMain() {
 
 	for _, test := range mainTestCases() {
 		suite.Run(test.name, func() {
+			// Arrange
 			path := filepath.Join(suite.T().TempDir(), "script")
 
 			if !test.missing && !test.noScript {
@@ -693,7 +826,10 @@ func (suite *MainTestSuite) TestMain() {
 			executable, err := os.Executable()
 			suite.Require().NoError(err)
 
-			processArgs := append([]string{"-test.run=^TestMainProcess$", "--"}, args...)
+			processArgs := append([]string{
+				"-test.run=^TestMainProcess$",
+				"--",
+			}, args...)
 			cmd := exec.CommandContext(ctx, executable, processArgs...)
 
 			for _, entry := range os.Environ() {
@@ -711,8 +847,11 @@ func (suite *MainTestSuite) TestMain() {
 
 			cmd.Stdout = &stdout
 			cmd.Stderr = &stderr
+
+			// Act
 			err = cmd.Run()
 
+			// Assert
 			suite.Require().NoError(ctx.Err(), "subprocess timed out")
 
 			suite.checkMainResult(

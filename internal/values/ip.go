@@ -41,8 +41,8 @@ type valueIP struct {
 //nolint:ireturn // IP validators expose the shared Value interface.
 func NewIP(properties map[string]any, subvalidators map[string][]any) (Value, error) {
 	val := &valueIP{
-		baseValue: newBase[netip.Addr]("ip", len(subvalidators)),
-		classifiers:   make(map[string]bool, len(ipClassifiers)),
+		baseValue:   newBase[netip.Addr]("ip", len(subvalidators)),
+		classifiers: make(map[string]bool, len(ipClassifiers)),
 	}
 	val.toValue = netip.ParseAddr
 	val.toComplete = val.genCompletions
@@ -60,7 +60,7 @@ func NewIP(properties map[string]any, subvalidators map[string][]any) (Value, er
 	val.setSubvalidator("classifiers", "", func(input netip.Addr) error {
 		for name, expected := range val.classifiers {
 			if ipClassifiers[name](input) != expected {
-				return NewIPClassifierError(input, name, expected)
+				return NewErrIPClassifier(input, name, expected)
 			}
 		}
 
@@ -129,7 +129,7 @@ func (v *valueIP) addSubnets(properties []any) error {
 			}
 		}
 
-		return NewIPSubnetError(input, v.prefixes)
+		return NewErrIPSubnet(input, v.prefixes)
 	})
 
 	return nil
@@ -143,12 +143,12 @@ func (v *valueIP) addType(properties []any) error {
 
 	subvalidator, ok := ipTypes[name]
 	if !ok {
-		return NewIPTypeError(netip.Addr{}, name)
+		return NewErrIPType(netip.Addr{}, name)
 	}
 
 	v.setSubvalidator("type", name, func(input netip.Addr) error {
 		if !subvalidator(input) {
-			return NewIPTypeError(input, name)
+			return NewErrIPType(input, name)
 		}
 
 		return nil

@@ -42,7 +42,12 @@ func (suite *ParseTestSuite) TestMetadata() {
 		{
 			name: "execute arguments",
 			doc:  "execute \"bash\" \"-eu\" \"-o\" \"pipefail\"\n",
-			argv: []string{"bash", "-eu", "-o", "pipefail"},
+			argv: []string{
+				"bash",
+				"-eu",
+				"-o",
+				"pipefail",
+			},
 		},
 		{
 			name: "last scalar wins",
@@ -69,7 +74,13 @@ func (suite *ParseTestSuite) TestMetadata() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			conf, err := v1.Parse(strings.NewReader(test.doc))
+			// Arrange
+			input := strings.NewReader(test.doc)
+
+			// Act
+			conf, err := v1.Parse(input)
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 			suite.Equal(test.description, conf.Description)
@@ -192,7 +203,13 @@ func (suite *ParseTestSuite) TestOptionsAndFlags() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			conf, err := v1.Parse(strings.NewReader(test.doc))
+			// Arrange
+			input := strings.NewReader(test.doc)
+
+			// Act
+			conf, err := v1.Parse(input)
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 			suite.Equal(test.options, conf.Options)
@@ -285,7 +302,13 @@ func (suite *ParseTestSuite) TestPositionalArguments() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			conf, err := v1.Parse(strings.NewReader(test.doc))
+			// Arrange
+			input := strings.NewReader(test.doc)
+
+			// Act
+			conf, err := v1.Parse(input)
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 			suite.Equal(test.first, conf.FirstArgs)
@@ -366,8 +389,13 @@ func (suite *ParseTestSuite) TestVarArgCounts() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			doc := "vararg \"items\" {\n" + test.doc + "}\n"
+
+			// Act
 			conf, err := v1.Parse(strings.NewReader(doc))
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 			suite.Equal(&v1.VarArg{
@@ -471,7 +499,13 @@ func (suite *ParseTestSuite) TestVarArgBoundsLimit() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			conf, err := v1.Parse(strings.NewReader("vararg \"items\" {\n" + test.doc + "}\n"))
+			// Arrange
+			input := strings.NewReader("vararg \"items\" {\n" + test.doc + "}\n")
+
+			// Act
+			conf, err := v1.Parse(input)
+
+			// Assert
 			if test.message != "" {
 				suite.Require().Error(err)
 				suite.Require().ErrorContains(err, "cannot process node vararg:")
@@ -498,7 +532,11 @@ func (suite *ParseTestSuite) TestVarArgBoundsLimit() {
 }
 
 func (suite *ParseTestSuite) TestValues() {
-	for _, node := range []string{"option", "arg", "vararg"} {
+	for _, node := range []string{
+		"option",
+		"arg",
+		"vararg",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name string
@@ -528,7 +566,14 @@ func (suite *ParseTestSuite) TestValues() {
 						Type:       "custom",
 						Properties: map[string]any{},
 						Subvalidators: map[string][]any{
-							"mixed": {"text", int64(2), float64(1.5), true, false, nil},
+							"mixed": {
+								"text",
+								int64(2),
+								float64(1.5),
+								true,
+								false,
+								nil,
+							},
 							"empty": {},
 						},
 					},
@@ -540,7 +585,10 @@ func (suite *ParseTestSuite) TestValues() {
 						Type:       "str",
 						Properties: map[string]any{},
 						Subvalidators: map[string][]any{
-							"re": {"new", "other"},
+							"re": {
+								"new",
+								"other",
+							},
 						},
 					},
 				},
@@ -653,8 +701,13 @@ value "str" {
 				},
 			} {
 				suite.Run(test.name, func() {
+					// Arrange
 					doc := node + " \"item\" {\ndescription \"Item\"\n" + test.doc + "}\n"
+
+					// Act
 					conf, err := v1.Parse(strings.NewReader(doc))
+
+					// Assert
 					suite.Require().NoError(err)
 					suite.Require().NotNil(conf)
 
@@ -679,7 +732,11 @@ value "str" {
 }
 
 func (suite *ParseTestSuite) TestEmptyValueType() {
-	for _, node := range []string{"option", "arg", "vararg"} {
+	for _, node := range []string{
+		"option",
+		"arg",
+		"vararg",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name string
@@ -703,8 +760,13 @@ func (suite *ParseTestSuite) TestEmptyValueType() {
 				},
 			} {
 				suite.Run(test.name, func() {
+					// Arrange
 					doc := node + " \"item\" {\n" + test.doc + "}\n"
+
+					// Act
 					conf, err := v1.Parse(strings.NewReader(doc))
+
+					// Assert
 					suite.Require().Error(err)
 					suite.Require().ErrorContains(err, "cannot process node "+node+":")
 					suite.Require().ErrorIs(err, v1.ErrNoValueType)
@@ -791,7 +853,13 @@ func (suite *ParseTestSuite) TestErrors() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			conf, err := v1.Parse(strings.NewReader(test.doc))
+			// Arrange
+			input := strings.NewReader(test.doc)
+
+			// Act
+			conf, err := v1.Parse(input)
+
+			// Assert
 			suite.Require().Error(err)
 			suite.Nil(conf)
 
@@ -807,8 +875,14 @@ func (suite *ParseTestSuite) TestErrors() {
 }
 
 func (suite *ParseTestSuite) TestDuplicateNames() {
-	for _, first := range []string{"option", "flag"} {
-		for _, second := range []string{"option", "flag"} {
+	for _, first := range []string{
+		"option",
+		"flag",
+	} {
+		for _, second := range []string{
+			"option",
+			"flag",
+		} {
 			suite.Run(first+" then "+second, func() {
 				for _, test := range []struct {
 					name    string
@@ -833,8 +907,13 @@ func (suite *ParseTestSuite) TestDuplicateNames() {
 					},
 				} {
 					suite.Run(test.name, func() {
+						// Arrange
 						doc := first + " " + test.first + second + " " + test.second
+
+						// Act
 						conf, err := v1.Parse(strings.NewReader(doc))
+
+						// Assert
 						suite.Require().Error(err)
 						suite.Require().ErrorContains(err, test.message)
 						suite.Require().ErrorIs(err, test.want)
@@ -847,8 +926,14 @@ func (suite *ParseTestSuite) TestDuplicateNames() {
 }
 
 func (suite *ParseTestSuite) TestCaseInsensitiveDuplicateNames() {
-	for _, first := range []string{"option", "flag"} {
-		for _, second := range []string{"option", "flag"} {
+	for _, first := range []string{
+		"option",
+		"flag",
+	} {
+		for _, second := range []string{
+			"option",
+			"flag",
+		} {
 			suite.Run(first+" then "+second, func() {
 				for _, test := range []struct {
 					name    string
@@ -887,8 +972,13 @@ func (suite *ParseTestSuite) TestCaseInsensitiveDuplicateNames() {
 					},
 				} {
 					suite.Run(test.name, func() {
+						// Arrange
 						doc := first + " " + test.first + second + " " + test.second
+
+						// Act
 						conf, err := v1.Parse(strings.NewReader(doc))
+
+						// Assert
 						suite.Require().Error(err)
 						suite.Require().ErrorContains(err, test.message)
 						suite.Require().ErrorIs(err, test.want)
@@ -901,7 +991,12 @@ func (suite *ParseTestSuite) TestCaseInsensitiveDuplicateNames() {
 }
 
 func (suite *ParseTestSuite) TestReservedNames() {
-	for _, node := range []string{"option", "flag", "arg", "vararg"} {
+	for _, node := range []string{
+		"option",
+		"flag",
+		"arg",
+		"vararg",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name     string
@@ -933,7 +1028,13 @@ func (suite *ParseTestSuite) TestReservedNames() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
+					// Arrange
+					input := strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value))
+
+					// Act
+					conf, err := v1.Parse(input)
+
+					// Assert
 					if test.reserved {
 						suite.Require().Error(err)
 						suite.Require().ErrorIs(err, v1.ErrReservedName)
@@ -950,7 +1051,10 @@ func (suite *ParseTestSuite) TestReservedNames() {
 }
 
 func (suite *ParseTestSuite) TestReservedShorts() {
-	for _, node := range []string{"option", "flag"} {
+	for _, node := range []string{
+		"option",
+		"flag",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name     string
@@ -973,9 +1077,13 @@ func (suite *ParseTestSuite) TestReservedShorts() {
 				},
 			} {
 				suite.Run(test.name, func() {
+					// Arrange
 					doc := fmt.Sprintf("%s \"item\" { short %q; }\n", node, test.value)
 
+					// Act
 					conf, err := v1.Parse(strings.NewReader(doc))
+
+					// Assert
 					if test.reserved {
 						suite.Require().Error(err)
 						suite.Require().ErrorIs(err, v1.ErrReservedShort)
@@ -992,9 +1100,18 @@ func (suite *ParseTestSuite) TestReservedShorts() {
 }
 
 func (suite *ParseTestSuite) TestShortNameNormalization() {
-	for _, node := range []string{"option", "flag"} {
+	for _, node := range []string{
+		"option",
+		"flag",
+	} {
 		suite.Run(node, func() {
-			conf, err := v1.Parse(strings.NewReader(node + " \"OuTpUt\" { short \"O\"; }\n"))
+			// Arrange
+			input := strings.NewReader(node + " \"OuTpUt\" { short \"O\"; }\n")
+
+			// Act
+			conf, err := v1.Parse(input)
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 
@@ -1150,8 +1267,13 @@ func (suite *ParseTestSuite) TestInvalidScalarArguments() {
 				},
 			} {
 				suite.Run(test.name, func() {
+					// Arrange
 					doc := node.prefix + " " + test.args + "\n" + node.suffix
+
+					// Act
 					conf, err := v1.Parse(strings.NewReader(doc))
+
+					// Assert
 					suite.Require().Error(err)
 					suite.Nil(conf)
 
@@ -1169,7 +1291,12 @@ func (suite *ParseTestSuite) TestInvalidScalarArguments() {
 }
 
 func (suite *ParseTestSuite) TestInvalidNames() {
-	for _, node := range []string{"option", "flag", "arg", "vararg"} {
+	for _, node := range []string{
+		"option",
+		"flag",
+		"arg",
+		"vararg",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name  string
@@ -1220,7 +1347,13 @@ func (suite *ParseTestSuite) TestInvalidNames() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
+					// Arrange
+					input := strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value))
+
+					// Act
+					conf, err := v1.Parse(input)
+
+					// Assert
 					suite.Require().Error(err)
 					suite.Require().ErrorContains(err, "cannot set a name:")
 					suite.Require().ErrorContains(err, "does not match regex")
@@ -1240,7 +1373,12 @@ func (suite *ParseTestSuite) TestInvalidNames() {
 }
 
 func (suite *ParseTestSuite) TestNameControlCharacters() {
-	for _, node := range []string{"option", "flag", "arg", "vararg"} {
+	for _, node := range []string{
+		"option",
+		"flag",
+		"arg",
+		"vararg",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name  string
@@ -1264,7 +1402,13 @@ func (suite *ParseTestSuite) TestNameControlCharacters() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					conf, err := v1.Parse(strings.NewReader(node + " " + test.value + "\n"))
+					// Arrange
+					input := strings.NewReader(node + " " + test.value + "\n")
+
+					// Act
+					conf, err := v1.Parse(input)
+
+					// Assert
 					suite.Require().Error(err)
 					suite.Require().ErrorContains(err, "cannot set a name:")
 					suite.Require().ErrorContains(err, "does not match regex")
@@ -1276,7 +1420,12 @@ func (suite *ParseTestSuite) TestNameControlCharacters() {
 }
 
 func (suite *ParseTestSuite) TestValidNames() {
-	for _, node := range []string{"option", "flag", "arg", "vararg"} {
+	for _, node := range []string{
+		"option",
+		"flag",
+		"arg",
+		"vararg",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name  string
@@ -1304,7 +1453,13 @@ func (suite *ParseTestSuite) TestValidNames() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					conf, err := v1.Parse(strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value)))
+					// Arrange
+					input := strings.NewReader(fmt.Sprintf("%s %q\n", node, test.value))
+
+					// Act
+					conf, err := v1.Parse(input)
+
+					// Assert
 					suite.Require().NoError(err)
 					suite.Require().NotNil(conf)
 
@@ -1331,7 +1486,10 @@ func (suite *ParseTestSuite) TestValidNames() {
 }
 
 func (suite *ParseTestSuite) TestInvalidShorts() {
-	for _, node := range []string{"option", "flag"} {
+	for _, node := range []string{
+		"option",
+		"flag",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name  string
@@ -1353,8 +1511,13 @@ func (suite *ParseTestSuite) TestInvalidShorts() {
 				},
 			} {
 				suite.Run(test.name, func() {
+					// Arrange
 					doc := fmt.Sprintf("%s \"item\" { short %q; }\n", node, test.value)
+
+					// Act
 					conf, err := v1.Parse(strings.NewReader(doc))
+
+					// Assert
 					suite.Require().Error(err)
 					suite.Require().ErrorContains(err,
 						fmt.Sprintf("short must contain 1 character, not %d", test.count))
@@ -1376,7 +1539,10 @@ func (suite *ParseTestSuite) TestInvalidShorts() {
 }
 
 func (suite *ParseTestSuite) TestShortNameCharacters() {
-	for _, node := range []string{"option", "flag"} {
+	for _, node := range []string{
+		"option",
+		"flag",
+	} {
 		suite.Run(node, func() {
 			for _, test := range []struct {
 				name  string
@@ -1420,9 +1586,13 @@ func (suite *ParseTestSuite) TestShortNameCharacters() {
 				},
 			} {
 				suite.Run(test.name, func() {
+					// Arrange
 					doc := fmt.Sprintf("%s \"item\" { short %q; }\n", node, test.value)
 
+					// Act
 					conf, err := v1.Parse(strings.NewReader(doc))
+
+					// Assert
 					if !test.valid {
 						suite.Require().Error(err)
 						suite.Require().ErrorContains(err, "cannot process "+node+" short:")
@@ -1476,7 +1646,10 @@ func (suite *ParseTestSuite) TestReaders() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Act
 			conf, err := v1.Parse(test.input)
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().NotNil(conf)
 			suite.Equal("привет", conf.Description)

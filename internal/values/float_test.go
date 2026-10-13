@@ -87,25 +87,29 @@ func (suite *FloatTestSuite) TestParsing() {
 		{
 			name:  "NaN",
 			input: "NaN",
-			want:  values.ErrNonFiniteFloat,
+			want:  values.ErrFloatNonFinite,
 		},
 		{
 			name:  "positive infinity",
 			input: "+Inf",
-			want:  values.ErrNonFiniteFloat,
+			want:  values.ErrFloatNonFinite,
 		},
 		{
 			name:  "negative infinity",
 			input: "-Infinity",
-			want:  values.ErrNonFiniteFloat,
+			want:  values.ErrFloatNonFinite,
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewFloat(nil, nil)
 			suite.Require().NoError(err)
 			suite.Equal("float()", value.String())
 
+			// Act
 			err = value.Validate(test.input)
+
+			// Assert
 			if test.want == nil {
 				suite.Require().NoError(err)
 
@@ -123,7 +127,7 @@ func (suite *FloatTestSuite) TestBounds() {
 		property string
 		bound    float64
 		input    string
-		want     *values.NumConstraintError[float64]
+		want     *values.ErrNumConstraint[float64]
 		message  string
 	}{
 		{
@@ -137,7 +141,7 @@ func (suite *FloatTestSuite) TestBounds() {
 			property: "min",
 			bound:    -1.25,
 			input:    "-1.5",
-			want:     values.NewNumConstraintError(values.NumConstraintMin, -1.25, -1.5),
+			want:     values.NewErrNumConstraint(values.NumConstraintMin, -1.25, -1.5),
 			message:  "number must be at least -1.25, got -1.5",
 		},
 		{
@@ -151,7 +155,7 @@ func (suite *FloatTestSuite) TestBounds() {
 			property: "max",
 			bound:    1.25,
 			input:    "1.5",
-			want:     values.NewNumConstraintError(values.NumConstraintMax, 1.25, 1.5),
+			want:     values.NewErrNumConstraint(values.NumConstraintMax, 1.25, 1.5),
 			message:  "number must be at most 1.25, got 1.5",
 		},
 		{
@@ -164,25 +168,29 @@ func (suite *FloatTestSuite) TestBounds() {
 			property: "min",
 			bound:    math.SmallestNonzeroFloat64,
 			input:    "1e-4000",
-			want: values.NewNumConstraintError(
+			want: values.NewErrNumConstraint(
 				values.NumConstraintMin, math.SmallestNonzeroFloat64, 0.0),
 			message: "number must be at least 5e-324, got 0",
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.NewFloat(nil, map[string][]any{
 				test.property: {test.bound},
 			})
 			suite.Require().NoError(err)
 
+			// Act
 			err = value.Validate(test.input)
+
+			// Assert
 			if test.want == nil {
 				suite.Require().NoError(err)
 
 				return
 			}
 
-			var constraintError *values.NumConstraintError[float64]
+			var constraintError *values.ErrNumConstraint[float64]
 
 			suite.Require().ErrorAs(err, &constraintError)
 			suite.Require().EqualError(err, test.message)
@@ -193,7 +201,10 @@ func (suite *FloatTestSuite) TestBounds() {
 }
 
 func (suite *FloatTestSuite) TestProperties() {
-	for _, property := range []string{"min", "max"} {
+	for _, property := range []string{
+		"min",
+		"max",
+	} {
 		suite.Run(property, func() {
 			for _, test := range []struct {
 				name      string
@@ -223,23 +234,29 @@ func (suite *FloatTestSuite) TestProperties() {
 				{
 					name: "NaN bound",
 					args: []any{math.NaN()},
-					want: values.ErrNonFiniteFloat,
+					want: values.ErrFloatNonFinite,
 				},
 				{
 					name: "positive infinite bound",
 					args: []any{math.Inf(1)},
-					want: values.ErrNonFiniteFloat,
+					want: values.ErrFloatNonFinite,
 				},
 				{
 					name: "negative infinite bound",
 					args: []any{math.Inf(-1)},
-					want: values.ErrNonFiniteFloat,
+					want: values.ErrFloatNonFinite,
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewFloat(nil, map[string][]any{
+					// Arrange
+					properties := map[string][]any{
 						property: test.args,
-					})
+					}
+
+					// Act
+					value, err := values.NewFloat(nil, properties)
+
+					// Assert
 					suite.Require().ErrorContains(err, "cannot add validator "+property+":")
 					suite.Nil(value)
 
@@ -256,27 +273,71 @@ func (suite *FloatTestSuite) TestProperties() {
 		})
 	}
 
-	value, err := values.NewFloat(nil, map[string][]any{
+	// Arrange
+	properties := map[string][]any{
 		"unknown": {1.0},
-	})
+	}
+
+	// Act
+	value, err := values.NewFloat(nil, properties)
+
+	// Assert
 	suite.Require().ErrorIs(err, values.ErrUnknownSubvalidator)
 	suite.Nil(value)
 }
 
 func (suite *FloatTestSuite) TestCombinedBoundsAndCompletion() {
+	// Arrange
 	value, err := values.New("float", nil, map[string][]any{
 		"min": {0.5},
 		"max": {0.5},
 	})
 	suite.Require().NoError(err)
-	suite.Equal("float(max:0.5, min:0.5)", value.String())
-	suite.Require().NoError(value.Validate("5e-1"))
-	suite.Require().Error(value.Validate("0.49"))
-	suite.Require().Error(value.Validate("0.51"))
-	suite.Require().ErrorIs(value.Validate("NaN"), values.ErrNonFiniteFloat)
 
-	for _, prefix := range []string{"", "привет", "1.5", "NaN", "-"} {
+	for _, test := range []struct {
+		input string
+		valid bool
+	}{
+		{
+			input: "5e-1",
+			valid: true,
+		},
+		{
+			input: "0.49",
+		},
+		{
+			input: "0.51",
+		},
+		{
+			input: "NaN",
+		},
+	} {
+		suite.Run(test.input, func() {
+			// Act
+			err := value.Validate(test.input)
+
+			// Assert
+			suite.Equal("float(max:0.5, min:0.5)", value.String())
+
+			if test.valid {
+				suite.Require().NoError(err)
+			} else {
+				suite.Require().Error(err)
+			}
+		})
+	}
+
+	for _, prefix := range []string{
+		"",
+		"привет",
+		"1.5",
+		"NaN",
+		"-",
+	} {
+		// Act
 		completions, directive := value.Complete(prefix)
+
+		// Assert
 		suite.Nil(completions)
 		suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 	}

@@ -28,12 +28,12 @@ func NewPort(properties map[string]any, subvalidators map[string][]any) (Value, 
 		baseValue: newBase[uint16]("port", len(subvalidators)),
 	}
 	val.toValue = func(input string) (uint16, error) {
-			port, err := strconv.ParseUint(input, 10, 16)
-			if err != nil {
-				return 0, err
-			}
+		port, err := strconv.ParseUint(input, 10, 16)
+		if err != nil {
+			return 0, err
+		}
 
-			return uint16(port), nil
+		return uint16(port), nil
 	}
 
 	if len(properties) > 0 {
@@ -90,6 +90,6 @@ func (v *valuePort) addRangeSubvalidator(name string, first, last uint16, expect
 			return nil
 		}
 
-		return NewPortRangeError(input, name, expected)
+		return NewErrPortRange(input, name, expected)
 	})
 }

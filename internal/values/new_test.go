@@ -64,7 +64,13 @@ func (suite *NewTestSuite) TestNew() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.New(test.valueType, nil, test.properties)
+			// Arrange
+			properties := test.properties
+
+			// Act
+			value, err := values.New(test.valueType, nil, properties)
+
+			// Assert
 			if test.err != nil {
 				suite.Require().ErrorIs(err, test.err)
 				suite.Nil(value)
@@ -109,10 +115,14 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.New(test.name, nil, nil)
 			suite.Require().NoError(err)
 
+			// Act
 			candidates, directive := value.Complete(test.input)
+
+			// Assert
 			suite.Equal([]cobra.Completion{test.input}, candidates)
 			suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 		})
@@ -120,24 +130,80 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 }
 
 func (suite *NewTestSuite) TestDatetimeConfiguration() {
-	value, err := values.New("datetime", map[string]any{"format": "unix"}, map[string][]any{
+	// Arrange
+	value, err := values.New("datetime", map[string]any{
+		"format": "unix",
+	}, map[string][]any{
 		"date-after":  {"100"},
 		"date-before": {"200"},
 	})
 	suite.Require().NoError(err)
-	suite.Equal("datetime(date-after:100, date-before:200)", value.String())
-	suite.Require().NoError(value.Validate("+00150"))
-	suite.Require().Error(value.Validate("100"))
-	suite.Require().Error(value.Validate("200"))
-	suite.Require().Error(value.Validate("2026-10-12"))
 
-	value, err = values.New("datetime", map[string]any{"unknown": true}, nil)
-	suite.Nil(value)
-	suite.Require().ErrorIs(err, values.ErrUnknownProperty)
+	for _, test := range []struct {
+		input string
+		valid bool
+	}{
+		{
+			input: "+00150",
+			valid: true,
+		},
+		{
+			input: "100",
+		},
+		{
+			input: "200",
+		},
+		{
+			input: "2026-10-12",
+		},
+	} {
+		suite.Run(test.input, func() {
+			// Act
+			err := value.Validate(test.input)
 
-	value, err = values.New("datetime", nil, map[string][]any{"unknown": {"1h"}})
-	suite.Nil(value)
-	suite.Require().ErrorIs(err, values.ErrUnknownSubvalidator)
+			// Assert
+			suite.Equal("datetime(date-after:100, date-before:200)", value.String())
+
+			if test.valid {
+				suite.Require().NoError(err)
+			} else {
+				suite.Require().Error(err)
+			}
+		})
+	}
+}
+
+func (suite *NewTestSuite) TestDatetimeConfigurationErrors() {
+	for _, test := range []struct {
+		name          string
+		properties    map[string]any
+		subvalidators map[string][]any
+		want          error
+	}{
+		{
+			name: "property",
+			properties: map[string]any{
+				"unknown": true,
+			},
+			want: values.ErrUnknownProperty,
+		},
+		{
+			name: "subvalidator",
+			subvalidators: map[string][]any{
+				"unknown": {"1h"},
+			},
+			want: values.ErrUnknownSubvalidator,
+		},
+	} {
+		suite.Run(test.name, func() {
+			// Act
+			value, err := values.New("datetime", test.properties, test.subvalidators)
+
+			// Assert
+			suite.Nil(value)
+			suite.Require().ErrorIs(err, test.want)
+		})
+	}
 }
 
 func (suite *NewTestSuite) TestNodeProperties() {
@@ -169,23 +235,37 @@ func (suite *NewTestSuite) TestNodeProperties() {
 			name:        "enum",
 			constructor: values.NewEnum,
 		},
+		{
+			name:        "filepath",
+			constructor: values.NewFilepath,
+		},
 	} {
 		suite.Run(test.name, func() {
 			for _, properties := range []map[string]any{nil, {}} {
+				// Act
 				value, err := test.constructor(properties, nil)
+
+				// Assert
 				suite.Require().NoError(err)
 				suite.NotNil(value)
 			}
 
 			for _, property := range []any{true, false, nil} {
-				properties := map[string]any{"xx": property}
+				// Arrange
+				properties := map[string]any{
+					"xx": property,
+				}
+
+				// Act
 				value, err := test.constructor(properties, nil)
+				factoryValue, factoryError := values.New(test.name, properties, nil)
+
+				// Assert
 				suite.Require().ErrorIs(err, values.ErrNoProperties)
 				suite.Nil(value)
 
-				value, err = values.New(test.name, properties, nil)
-				suite.Require().ErrorIs(err, values.ErrNoProperties)
-				suite.Nil(value)
+				suite.Require().ErrorIs(factoryError, values.ErrNoProperties)
+				suite.Nil(factoryValue)
 			}
 		})
 	}

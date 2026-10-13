@@ -37,12 +37,18 @@ func (suite *ArgsTestSuite) TestValidate() {
 		{
 			name: "fixed arguments",
 			doc:  "arg \"source\"\narg \"dest\"\n",
-			args: []string{"source", "dest"},
+			args: []string{
+				"source",
+				"dest",
+			},
 		},
 		{
-			name:    "too many fixed arguments",
-			doc:     "arg \"source\"\n",
-			args:    []string{"source", "extra"},
+			name: "too many fixed arguments",
+			doc:  "arg \"source\"\n",
+			args: []string{
+				"source",
+				"extra",
+			},
 			message: "expected 0 variadic arguments, got 1",
 		},
 		{
@@ -52,28 +58,48 @@ func (suite *ArgsTestSuite) TestValidate() {
 		{
 			name: "unlimited vararg",
 			doc:  "vararg \"items\"\n",
-			args: []string{"one", "two", "three"},
+			args: []string{
+				"one",
+				"two",
+				"three",
+			},
 		},
 		{
-			name:    "minimum not met",
-			doc:     "arg \"source\"\nvararg \"items\" { min-count 2; }\narg \"dest\"\n",
-			args:    []string{"source", "one", "dest"},
+			name: "minimum not met",
+			doc:  "arg \"source\"\nvararg \"items\" { min-count 2; }\narg \"dest\"\n",
+			args: []string{
+				"source",
+				"one",
+				"dest",
+			},
 			message: "there must be at least 4 arguments, got 3",
 		},
 		{
 			name: "minimum met",
 			doc:  "vararg \"items\" { min-count 2; }\n",
-			args: []string{"one", "two"},
+			args: []string{
+				"one",
+				"two",
+			},
 		},
 		{
 			name: "maximum met with required items",
 			doc:  "arg \"source\"\nvararg \"items\" {\nmin-count 1\nmax-count 2\n}\narg \"dest\"\n",
-			args: []string{"source", "one", "two", "dest"},
+			args: []string{
+				"source",
+				"one",
+				"two",
+				"dest",
+			},
 		},
 		{
-			name:    "maximum includes required items",
-			doc:     "vararg \"items\" {\nmin-count 1\nmax-count 2\n}\n",
-			args:    []string{"one", "two", "three"},
+			name: "maximum includes required items",
+			doc:  "vararg \"items\" {\nmin-count 1\nmax-count 2\n}\n",
+			args: []string{
+				"one",
+				"two",
+				"three",
+			},
 			message: "there must be at most 2 variadic arguments, got 3",
 		},
 		{
@@ -89,7 +115,11 @@ func (suite *ArgsTestSuite) TestValidate() {
 		{
 			name: "negative counts impose no limits",
 			doc:  "vararg \"items\" {\nmin-count -2\nmax-count -1\n}\n",
-			args: []string{"one", "two", "three"},
+			args: []string{
+				"one",
+				"two",
+				"three",
+			},
 		},
 		{
 			name:    "missing trailing argument",
@@ -117,7 +147,13 @@ func (suite *ArgsTestSuite) TestValidate() {
 				value "str" { re "^end$"; }
 			}
 			`,
-			args: []string{"source", "привет", "привет", "dest", "end"},
+			args: []string{
+				"source",
+				"привет",
+				"привет",
+				"dest",
+				"end",
+			},
 		},
 		{
 			name:    "leading validation error",
@@ -126,27 +162,41 @@ func (suite *ArgsTestSuite) TestValidate() {
 			message: "invalid argument WORD: bad does not match ^ok$",
 		},
 		{
-			name:    "trailing validation error",
-			doc:     "vararg \"items\"\narg \"dest\" { value \"str\" { re \"^ok$\"; }; }\n",
-			args:    []string{"one", "bad"},
+			name: "trailing validation error",
+			doc:  "vararg \"items\"\narg \"dest\" { value \"str\" { re \"^ok$\"; }; }\n",
+			args: []string{
+				"one",
+				"bad",
+			},
 			message: "invalid argument DEST: bad does not match ^ok$",
 		},
 		{
-			name:    "required vararg validation error",
-			doc:     "vararg \"items\" {\nmin-count 2\nvalue \"str\" { re \"^ok$\"; }\n}\n",
-			args:    []string{"ok", "bad"},
+			name: "required vararg validation error",
+			doc:  "vararg \"items\" {\nmin-count 2\nvalue \"str\" { re \"^ok$\"; }\n}\n",
+			args: []string{
+				"ok",
+				"bad",
+			},
 			message: "invalid argument ITEMS2: bad does not match ^ok$",
 		},
 		{
-			name:    "optional vararg validation error",
-			doc:     "vararg \"items\" { value \"str\" { re \"^ok$\"; }; }\n",
-			args:    []string{"ok", "bad"},
+			name: "optional vararg validation error",
+			doc:  "vararg \"items\" { value \"str\" { re \"^ok$\"; }; }\n",
+			args: []string{
+				"ok",
+				"bad",
+			},
 			message: "invalid argument ITEMS2: bad does not match ^ok$",
 		},
 		{
-			name:    "optional vararg numbering includes minimum",
-			doc:     "vararg \"items\" {\nmin-count 2\nvalue \"str\" { re \"^ok$\"; }\n}\n",
-			args:    []string{"ok", "ok", "ok", "bad"},
+			name: "optional vararg numbering includes minimum",
+			doc:  "vararg \"items\" {\nmin-count 2\nvalue \"str\" { re \"^ok$\"; }\n}\n",
+			args: []string{
+				"ok",
+				"ok",
+				"ok",
+				"bad",
+			},
 			message: "invalid argument ITEMS4: bad does not match ^ok$",
 		},
 		{
@@ -156,14 +206,17 @@ func (suite *ArgsTestSuite) TestValidate() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			conf, err := Parse(strings.NewReader(test.doc))
 			suite.Require().NoError(err)
 
 			validators, err := newArgValidators(conf)
 			suite.Require().NoError(err)
 
+			// Act
 			err = validators.Validate(test.args)
 
+			// Assert
 			if test.message == "" {
 				suite.NoError(err)
 			} else {
@@ -228,7 +281,10 @@ func (suite *ArgsTestSuite) TestValidationErrorWrapping() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Act
 			err := test.validators.Validate(test.args)
+
+			// Assert
 			suite.Require().ErrorIs(err, want)
 			suite.ErrorContains(err, test.message)
 		})
@@ -264,39 +320,60 @@ func (suite *ArgsTestSuite) TestComplete() {
 		{
 			name: "fixed capacity exceeded",
 			doc:  "arg \"first\"\n",
-			args: []string{"one", "two"},
+			args: []string{
+				"one",
+				"two",
+			},
 		},
 		{
-			name:     "required vararg item",
-			doc:      "arg \"first\"\nvararg \"items\" { min-count 2; }\n",
-			args:     []string{"one", "two"},
+			name: "required vararg item",
+			doc:  "arg \"first\"\nvararg \"items\" { min-count 2; }\n",
+			args: []string{
+				"one",
+				"two",
+			},
 			selected: "ITEMS2",
 		},
 		{
-			name:     "unlimited vararg",
-			doc:      "vararg \"items\"\n",
-			args:     []string{"one", "two", "three"},
+			name: "unlimited vararg",
+			doc:  "vararg \"items\"\n",
+			args: []string{
+				"one",
+				"two",
+				"three",
+			},
 			selected: "ITEMS",
 		},
 		{
-			name:     "optional bounded vararg",
-			doc:      "vararg \"items\" {\nmin-count 1\nmax-count 3\n}\n",
-			args:     []string{"one", "two"},
+			name: "optional bounded vararg",
+			doc:  "vararg \"items\" {\nmin-count 1\nmax-count 3\n}\n",
+			args: []string{
+				"one",
+				"two",
+			},
 			selected: "ITEMS",
 		},
 		{
 			name: "bounded vararg capacity reached",
 			doc:  "vararg \"items\" {\nmin-count 1\nmax-count 3\n}\n",
-			args: []string{"one", "two", "three"},
+			args: []string{
+				"one",
+				"two",
+				"three",
+			},
 		},
 		{
 			name: "zero vararg capacity",
 			doc:  "vararg \"items\" { max-count 0; }\n",
 		},
 		{
-			name:     "negative maximum is unlimited after required items",
-			doc:      "vararg \"items\" {\nmin-count 1\nmax-count -1\n}\n",
-			args:     []string{"one", "two", "three"},
+			name: "negative maximum is unlimited after required items",
+			doc:  "vararg \"items\" {\nmin-count 1\nmax-count -1\n}\n",
+			args: []string{
+				"one",
+				"two",
+				"three",
+			},
 			selected: "ITEMS",
 		},
 		{
@@ -308,7 +385,10 @@ func (suite *ArgsTestSuite) TestComplete() {
 		{
 			name: "normalized finite capacity reached",
 			doc:  "vararg \"items\" {\nmin-count -1\nmax-count 2\n}\n",
-			args: []string{"one", "two"},
+			args: []string{
+				"one",
+				"two",
+			},
 		},
 		{
 			name:     "first trailing argument preferred",
@@ -317,15 +397,23 @@ func (suite *ArgsTestSuite) TestComplete() {
 			selected: "DEST",
 		},
 		{
-			name:     "next trailing argument",
-			doc:      "arg \"first\"\nvararg \"items\"\narg \"dest\"\narg \"end\"\n",
-			args:     []string{"one", "two"},
+			name: "next trailing argument",
+			doc:  "arg \"first\"\nvararg \"items\"\narg \"dest\"\narg \"end\"\n",
+			args: []string{
+				"one",
+				"two",
+			},
 			selected: "END",
 		},
 		{
-			name:     "last trailing validator reused",
-			doc:      "vararg \"items\"\narg \"dest\"\narg \"end\"\n",
-			args:     []string{"one", "two", "three", "four"},
+			name: "last trailing validator reused",
+			doc:  "vararg \"items\"\narg \"dest\"\narg \"end\"\n",
+			args: []string{
+				"one",
+				"two",
+				"three",
+				"four",
+			},
 			selected: "END",
 		},
 		{
@@ -335,18 +423,28 @@ func (suite *ArgsTestSuite) TestComplete() {
 			selected: "DEST",
 		},
 		{
-			name:     "bounded total capacity includes trailing arguments",
-			doc:      "arg \"first\"\nvararg \"items\" {\nmin-count 1\nmax-count 2\n}\narg \"dest\"\n",
-			args:     []string{"one", "two", "three"},
+			name: "bounded total capacity includes trailing arguments",
+			doc:  "arg \"first\"\nvararg \"items\" {\nmin-count 1\nmax-count 2\n}\narg \"dest\"\n",
+			args: []string{
+				"one",
+				"two",
+				"three",
+			},
 			selected: "DEST",
 		},
 		{
 			name: "bounded total capacity reached",
 			doc:  "arg \"first\"\nvararg \"items\" {\nmin-count 1\nmax-count 2\n}\narg \"dest\"\n",
-			args: []string{"one", "two", "three", "four"},
+			args: []string{
+				"one",
+				"two",
+				"three",
+				"four",
+			},
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			conf, err := Parse(strings.NewReader(test.doc))
 			suite.Require().NoError(err)
 
@@ -375,8 +473,10 @@ func (suite *ArgsTestSuite) TestComplete() {
 				}
 			}
 
+			// Act
 			completions, directive := validators.Complete(test.args, "привет")
 
+			// Assert
 			if test.selected == "" {
 				suite.Nil(completions)
 				suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
@@ -404,9 +504,12 @@ func (suite *ArgsTestSuite) TestNewArgValidators() {
 			name: "empty configuration",
 		},
 		{
-			name:  "fixed argument order",
-			doc:   "arg \"second\"\narg \"first\"\n",
-			first: []string{"SECOND", "FIRST"},
+			name: "fixed argument order",
+			doc:  "arg \"second\"\narg \"first\"\n",
+			first: []string{
+				"SECOND",
+				"FIRST",
+			},
 		},
 		{
 			name:   "unbounded vararg defaults",
@@ -418,8 +521,15 @@ func (suite *ArgsTestSuite) TestNewArgValidators() {
 			name: "required items follow leading arguments",
 			doc: "arg \"source\"\nvararg \"items\" {\nmin-count 2\nmax-count 4\n}\n" +
 				"arg \"dest\"\narg \"end\"\n",
-			first:  []string{"SOURCE", "ITEMS1", "ITEMS2"},
-			last:   []string{"DEST", "END"},
+			first: []string{
+				"SOURCE",
+				"ITEMS1",
+				"ITEMS2",
+			},
+			last: []string{
+				"DEST",
+				"END",
+			},
 			vararg: "ITEMS",
 			min:    2,
 			max:    4,
@@ -437,10 +547,14 @@ func (suite *ArgsTestSuite) TestNewArgValidators() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			conf, err := Parse(strings.NewReader(test.doc))
 			suite.Require().NoError(err)
 
+			// Act
 			validators, err := newArgValidators(conf)
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().NotNil(validators)
 
@@ -512,10 +626,14 @@ func (suite *ArgsTestSuite) TestNewArgValidatorsErrors() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			conf, err := Parse(strings.NewReader(test.doc))
 			suite.Require().NoError(err)
 
+			// Act
 			validators, err := newArgValidators(conf)
+
+			// Assert
 			suite.Require().Error(err)
 			suite.Require().ErrorContains(err, test.message)
 			suite.Require().ErrorIs(err, test.want)

@@ -83,11 +83,15 @@ func (suite *PortTestSuite) TestParsing() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			value, err := values.New("port", nil, nil)
 			suite.Require().NoError(err)
 			suite.Equal("port()", value.String())
 
+			// Act
 			err = value.Validate(test.input)
+
+			// Assert
 			if test.want == nil {
 				suite.Require().NoError(err)
 
@@ -131,6 +135,7 @@ func (suite *PortTestSuite) TestRanges() {
 	} {
 		suite.Run(test.name, func() {
 			for _, expected := range []bool{true, false} {
+				// Arrange
 				value, err := values.NewPort(nil, map[string][]any{
 					test.name: {expected},
 				})
@@ -138,8 +143,10 @@ func (suite *PortTestSuite) TestRanges() {
 				suite.Equal("port("+test.category+")", value.String())
 
 				for _, port := range []uint16{0, 1023, 1024, 49151, 49152, math.MaxUint16} {
+					// Act
 					err := value.Validate(strconv.FormatUint(uint64(port), 10))
 
+					// Assert
 					inside := test.first <= port && port <= test.last
 					if inside == expected {
 						suite.Require().NoError(err)
@@ -147,9 +154,9 @@ func (suite *PortTestSuite) TestRanges() {
 						continue
 					}
 
-					var rangeError *values.PortRangeError
+					var rangeError *values.ErrPortRange
 
-					constructed := values.NewPortRangeError(port, test.category, expected)
+					constructed := values.NewErrPortRange(port, test.category, expected)
 
 					suite.Require().ErrorAs(err, &rangeError)
 					suite.Equal(*constructed, *rangeError)
@@ -168,7 +175,11 @@ func (suite *PortTestSuite) TestRanges() {
 }
 
 func (suite *PortTestSuite) TestProperties() {
-	for _, property := range []string{"well-known", "registered", "ephemeral"} {
+	for _, property := range []string{
+		"well-known",
+		"registered",
+		"ephemeral",
+	} {
 		suite.Run(property, func() {
 			for _, test := range []struct {
 				name      string
@@ -190,9 +201,15 @@ func (suite *PortTestSuite) TestProperties() {
 				},
 			} {
 				suite.Run(test.name, func() {
-					value, err := values.NewPort(nil, map[string][]any{
+					// Arrange
+					properties := map[string][]any{
 						property: test.arguments,
-					})
+					}
+
+					// Act
+					value, err := values.NewPort(nil, properties)
+
+					// Assert
 					suite.Require().ErrorContains(err, "cannot add validator "+property+":")
 					suite.Nil(value)
 
@@ -209,25 +226,64 @@ func (suite *PortTestSuite) TestProperties() {
 		})
 	}
 
-	value, err := values.NewPort(nil, map[string][]any{
+	// Arrange
+	properties := map[string][]any{
 		"unknown": {true},
-	})
+	}
+
+	// Act
+	value, err := values.NewPort(nil, properties)
+
+	// Assert
 	suite.Require().ErrorIs(err, values.ErrUnknownSubvalidator)
 	suite.Nil(value)
 }
 
 func (suite *PortTestSuite) TestCombinedConstraintsAndCompletion() {
+	// Arrange
 	value, err := values.NewPort(nil, map[string][]any{
 		"well-known": {false},
 		"ephemeral":  {false},
 	})
 	suite.Require().NoError(err)
-	suite.Require().NoError(value.Validate("8080"))
-	suite.Require().Error(value.Validate("80"))
-	suite.Require().Error(value.Validate("65535"))
 
-	for _, input := range []string{"", "80", "привет"} {
+	for _, test := range []struct {
+		input string
+		valid bool
+	}{
+		{
+			input: "8080",
+			valid: true,
+		},
+		{
+			input: "80",
+		},
+		{
+			input: "65535",
+		},
+	} {
+		suite.Run(test.input, func() {
+			// Act
+			err := value.Validate(test.input)
+
+			// Assert
+			if test.valid {
+				suite.Require().NoError(err)
+			} else {
+				suite.Require().Error(err)
+			}
+		})
+	}
+
+	for _, input := range []string{
+		"",
+		"80",
+		"привет",
+	} {
+		// Act
 		candidates, directive := value.Complete(input)
+
+		// Assert
 		suite.Nil(candidates)
 		suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 	}

@@ -47,7 +47,11 @@ func (suite *ReaderTestSuite) TestExtractConfig() {
 			doc:     "#!shebang.1\n",
 			version: 1,
 		},
-		{name: "multiple digit version", doc: "#!shebang.12\n", version: 12},
+		{
+			name:    "multiple digit version",
+			doc:     "#!shebang.12\n",
+			version: 12,
+		},
 		{
 			name:    "case insensitive marker",
 			doc:     "#!ShEbAnG.1\n",
@@ -119,7 +123,13 @@ func (suite *ReaderTestSuite) TestExtractConfig() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			version, reader, err := config.NewReader(strings.NewReader(test.doc))
+			// Arrange
+			input := strings.NewReader(test.doc)
+
+			// Act
+			version, reader, err := config.NewReader(input)
+
+			// Assert
 			suite.Require().NoError(err)
 			suite.Require().NotNil(reader)
 			suite.Equal(test.version, version)
@@ -151,9 +161,13 @@ func (suite *ReaderTestSuite) TestReadErrors() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			input := io.MultiReader(strings.NewReader(test.prefix), iotest.ErrReader(want))
+
+			// Act
 			version, reader, err := config.NewReader(input)
 
+			// Assert
 			suite.Require().ErrorIs(err, want)
 			suite.Zero(version)
 			suite.Nil(reader)
@@ -176,7 +190,13 @@ func (suite *ReaderTestSuite) TestOversizedLines() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			version, reader, err := config.NewReader(strings.NewReader(test.doc))
+			// Arrange
+			input := strings.NewReader(test.doc)
+
+			// Act
+			version, reader, err := config.NewReader(input)
+
+			// Assert
 			suite.Require().Error(err)
 			suite.Require().ErrorContains(err, "token too long")
 			suite.Zero(version)

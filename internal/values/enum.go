@@ -1,7 +1,6 @@
 package values
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -9,9 +8,6 @@ import (
 	"github.com/9seconds/shebang/internal/utils"
 	"github.com/spf13/cobra"
 )
-
-// ErrUnknownChoice indicates a value outside the configured enum choices.
-var ErrUnknownChoice = errors.New("unknown choice")
 
 type valueEnum struct {
 	baseValue[string]
@@ -43,7 +39,7 @@ func NewEnum(properties map[string]any, subvalidators map[string][]any) (Value, 
 
 	val.setSubvalidator("choices", "", func(input string) error {
 		if !val.choices[input] {
-			return ErrUnknownChoice
+			return ErrEnumUnknownChoice
 		}
 
 		return nil

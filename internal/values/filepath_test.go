@@ -22,6 +22,7 @@ type FilepathTestSuite struct {
 }
 
 func (suite *FilepathTestSuite) TestDirectoryNavigation() {
+	// Arrange
 	root := suite.T().TempDir()
 	directory := filepath.Join(root, "привет")
 	suite.Require().NoError(os.Mkdir(directory, 0o755))
@@ -61,7 +62,10 @@ func (suite *FilepathTestSuite) TestDirectoryNavigation() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Act
 			paths, directive := value.Complete(test.input)
+
+			// Assert
 			suite.Equal(test.want, paths)
 			suite.Equal(test.directive, directive)
 		})
@@ -69,6 +73,7 @@ func (suite *FilepathTestSuite) TestDirectoryNavigation() {
 }
 
 func (suite *FilepathTestSuite) TestTypes() {
+	// Arrange
 	root := suite.T().TempDir()
 	file := filepath.Join(root, "привет.txt")
 	missing := filepath.Join(root, "missing")
@@ -138,16 +143,32 @@ func (suite *FilepathTestSuite) TestTypes() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.New("filepath", nil, map[string][]any{"type": {test.name}})
+			// Arrange
+			value, err := values.New("filepath", nil, map[string][]any{
+				"type": {test.name},
+			})
 			suite.Require().NoError(err)
-			suite.Require().NoError(value.Validate(test.accepted))
-			suite.Require().ErrorIs(value.Validate(test.rejected), values.ErrFilepathNoSuitableType)
+
+			// Act
+			acceptedError := value.Validate(test.accepted)
+			rejectedError := value.Validate(test.rejected)
+
+			// Assert
+			suite.Require().NoError(acceptedError)
+			suite.Require().ErrorIs(rejectedError, values.ErrFilepathNoSuitableType)
 		})
 	}
 
+	// Act
 	value, err := values.NewFilepath(nil, map[string][]any{
-		"type": {"regular", "directory", "regular"},
+		"type": {
+			"regular",
+			"directory",
+			"regular",
+		},
 	})
+
+	// Assert
 	suite.Require().NoError(err)
 	suite.Equal("filepath(type:directory,regular)", value.String())
 	suite.Require().NoError(value.Validate(file))
@@ -155,44 +176,189 @@ func (suite *FilepathTestSuite) TestTypes() {
 }
 
 func (suite *FilepathTestSuite) TestPathsAndConstraints() {
+	// Arrange
 	root := suite.T().TempDir()
 	file := filepath.Join(root, " привет.txt ")
 	suite.Require().NoError(os.WriteFile(file, nil, 0o600))
 	suite.Require().NoError(os.Chmod(file, 0o600))
 
-	value, err := values.NewFilepath(nil, nil)
-	suite.Require().NoError(err)
-	suite.Require().ErrorIs(value.Validate(""), values.ErrFilepathNotSet)
-	suite.Require().NoError(value.Validate("привет"))
-	suite.Require().NoError(value.Validate(" "))
+	for _, test := range []struct {
+		name          string
+		subvalidators map[string][]any
+		input         string
+		want          error
+	}{
+		{
+			name: "empty path",
+			want: values.ErrFilepathNotSet,
+		},
+		{
+			name:  "unconstrained missing path",
+			input: "привет",
+		},
+		{
+			name:  "space is a filename",
+			input: " ",
+		},
+		{
+			name: "preserves filename spaces",
+			subvalidators: map[string][]any{
+				"type": {"exists"},
+			},
+			input: file,
+		},
+		{
+			name: "trimmed filename is different",
+			subvalidators: map[string][]any{
+				"type": {"exists"},
+			},
+			input: filepath.Join(root, "привет.txt"),
+			want:  values.ErrFilepathNoSuitableType,
+		},
+		{
+			name: "root itself",
+			subvalidators: map[string][]any{
+				"root": {root},
+			},
+			input: root,
+		},
+		{
+			name: "new file inside root",
+			subvalidators: map[string][]any{
+				"root": {root},
+			},
+			input: filepath.Join(root, "new.txt"),
+		},
+		{
+			name: "sibling prefix is outside root",
+			subvalidators: map[string][]any{
+				"root": {root},
+			},
+			input: root + "-other/new.txt",
+			want:  values.ErrFilepathOutsideRoot,
+		},
+		{
+			name: "parent is outside root",
+			subvalidators: map[string][]any{
+				"root": {root},
+			},
+			input: filepath.Join(root, "..", "outside"),
+			want:  values.ErrFilepathOutsideRoot,
+		},
+		{
+			name: "matching permissions",
+			subvalidators: map[string][]any{
+				"permissions": {int64(0o600)},
+			},
+			input: file,
+		},
+		{
+			name: "permissions must match exactly",
+			subvalidators: map[string][]any{
+				"permissions": {int64(0o644)},
+			},
+			input: file,
+			want:  values.ErrFilepathIncorrectPermissions,
+		},
+		{
+			name: "missing permissions target",
+			subvalidators: map[string][]any{
+				"permissions": {int64(0o644)},
+			},
+			input: filepath.Join(root, "missing"),
+			want:  fs.ErrNotExist,
+		},
+	} {
+		suite.Run(test.name, func() {
+			// Arrange
+			value, err := values.NewFilepath(nil, test.subvalidators)
+			suite.Require().NoError(err)
 
-	value, err = values.NewFilepath(nil, map[string][]any{"type": {"exists"}})
-	suite.Require().NoError(err)
-	suite.Require().NoError(value.Validate(file))
-	suite.Require().Error(value.Validate(filepath.Join(root, "привет.txt")))
+			// Act
+			err = value.Validate(test.input)
 
-	value, err = values.NewFilepath(nil, map[string][]any{"root": {root}})
-	suite.Require().NoError(err)
-	suite.Require().NoError(value.Validate(root))
-	suite.Require().NoError(value.Validate(filepath.Join(root, "new.txt")))
-	suite.Require().Error(value.Validate(root + "-other/new.txt"))
-	suite.Require().Error(value.Validate(filepath.Join(root, "..", "outside")))
+			// Assert
+			suite.Require().ErrorIs(err, test.want)
+		})
+	}
+}
 
-	value, err = values.NewFilepath(nil, map[string][]any{"file-extensions": {"txt", ".json", "txt"}})
-	suite.Require().NoError(err)
-	suite.Equal("filepath(file-extensions:.json,.txt)", value.String())
-	suite.Require().NoError(value.Validate("привет.txt"))
-	suite.Require().NoError(value.Validate("report.json"))
-	suite.Require().Error(value.Validate("report.TXT"))
-	suite.Require().Error(value.Validate("report.txt.gz"))
+func (suite *FilepathTestSuite) TestExtensions() {
+	for _, test := range []struct {
+		name       string
+		extensions []any
+		input      string
+		valid      bool
+	}{
+		{
+			name: "normalized duplicate extensions",
+			extensions: []any{
+				"txt",
+				".json",
+				"txt",
+			},
+			input: "привет.txt",
+			valid: true,
+		},
+		{
+			name: "second alternative",
+			extensions: []any{
+				"txt",
+				".json",
+			},
+			input: "report.json",
+			valid: true,
+		},
+		{
+			name:       "case sensitive",
+			extensions: []any{"txt"},
+			input:      "report.TXT",
+		},
+		{
+			name:       "final extension only",
+			extensions: []any{"txt"},
+			input:      "report.txt.gz",
+		},
+		{
+			name:       "dotfile",
+			extensions: []any{"env"},
+			input:      ".env",
+			valid:      true,
+		},
+		{
+			name:       "empty extension becomes dot",
+			extensions: []any{""},
+			input:      "report.",
+			valid:      true,
+		},
+		{
+			name:       "extensionless file",
+			extensions: []any{""},
+			input:      "report",
+		},
+		{
+			name:  "empty list",
+			input: "report.txt",
+		},
+	} {
+		suite.Run(test.name, func() {
+			// Arrange
+			value, err := values.NewFilepath(nil, map[string][]any{
+				"file-extensions": test.extensions,
+			})
+			suite.Require().NoError(err)
 
-	value, err = values.NewFilepath(nil, map[string][]any{"permissions": {int64(0o600)}})
-	suite.Require().NoError(err)
-	suite.Require().NoError(value.Validate(file))
-	value, err = values.NewFilepath(nil, map[string][]any{"permissions": {int64(0o644)}})
-	suite.Require().NoError(err)
-	suite.Require().ErrorContains(value.Validate(file), "incorrect permissions")
-	suite.Require().ErrorIs(value.Validate(filepath.Join(root, "missing")), fs.ErrNotExist)
+			// Act
+			err = value.Validate(test.input)
+
+			// Assert
+			if test.valid {
+				suite.Require().NoError(err)
+			} else {
+				suite.Require().ErrorIs(err, values.ErrFilepathUnsupportedExtension)
+			}
+		})
+	}
 }
 
 func (suite *FilepathTestSuite) TestConfigurationErrors() {
@@ -225,42 +391,83 @@ func (suite *FilepathTestSuite) TestConfigurationErrors() {
 			want:      values.ErrFilepathIncorrectUID,
 		},
 		{
+			name:      "owner-id",
+			arguments: []any{int64(math.MaxUint32) + 1},
+			want:      values.ErrFilepathIncorrectUID,
+		},
+		{
+			name:      "group-id",
+			arguments: []any{int64(-1)},
+			want:      values.ErrFilepathIncorrectGID,
+		},
+		{
 			name:      "group-id",
 			arguments: []any{int64(math.MaxUint32) + 1},
 			want:      values.ErrFilepathIncorrectGID,
 		},
 	} {
 		suite.Run(test.name, func() {
-			value, err := values.NewFilepath(nil, map[string][]any{test.name: test.arguments})
+			// Arrange
+			properties := map[string][]any{
+				test.name: test.arguments,
+			}
+
+			// Act
+			value, err := values.NewFilepath(nil, properties)
+
+			// Assert
 			suite.Nil(value)
 			suite.Require().ErrorIs(err, test.want)
 		})
 	}
 
 	for _, name := range []string{
-		"root", "type", "file-extensions", "permissions",
-		"owner-name", "owner-id", "owner-me", "group-name", "group-id", "group-me",
-		"readable", "writable", "executable",
+		"root",
+		"type",
+		"file-extensions",
+		"permissions",
+		"owner-name",
+		"owner-id",
+		"owner-me",
+		"group-name",
+		"group-id",
+		"group-me",
+		"readable",
+		"writable",
+		"executable",
 	} {
 		suite.Run(name+" wrong argument type", func() {
-			value, err := values.NewFilepath(nil, map[string][]any{name: {1.5}})
-			suite.Nil(value)
-
+			// Arrange
 			var typeError *utils.ArgumentTypeError
 
+			// Act
+			value, err := values.NewFilepath(nil, map[string][]any{
+				name: {1.5},
+			})
+
+			// Assert
+			suite.Nil(value)
 			suite.Require().ErrorAs(err, &typeError)
 		})
 	}
 
-	value, err := values.New("filepath", map[string]any{"unknown": true}, nil)
+	// Act
+	value, err := values.New("filepath", map[string]any{
+		"unknown": true,
+	}, nil)
+	unknownType, typeError := values.NewFilepath(nil, map[string][]any{
+		"type": {"unknown"},
+	})
+
+	// Assert
 	suite.Nil(value)
 	suite.Require().ErrorIs(err, values.ErrNoProperties)
-	value, err = values.NewFilepath(nil, map[string][]any{"type": {"unknown"}})
-	suite.Nil(value)
-	suite.Require().ErrorContains(err, "unknown type unknown")
+	suite.Nil(unknownType)
+	suite.Require().ErrorIs(typeError, values.ErrFilepathUnknownType)
 }
 
 func (suite *FilepathTestSuite) TestOwnershipAndAccess() {
+	// Arrange
 	file := filepath.Join(suite.T().TempDir(), "привет")
 	suite.Require().NoError(os.WriteFile(file, nil, 0o700))
 	suite.Require().NoError(os.Chmod(file, 0o700))
@@ -290,10 +497,19 @@ func (suite *FilepathTestSuite) TestOwnershipAndAccess() {
 		"executable": true,
 	} {
 		suite.Run(name, func() {
-			value, err := values.NewFilepath(nil, map[string][]any{name: {argument}})
+			// Arrange
+			value, err := values.NewFilepath(nil, map[string][]any{
+				name: {argument},
+			})
 			suite.Require().NoError(err)
-			suite.Require().NoError(value.Validate(file))
-			suite.Require().ErrorIs(value.Validate(file+"-missing"), fs.ErrNotExist)
+
+			// Act
+			err = value.Validate(file)
+			missingError := value.Validate(file + "-missing")
+
+			// Assert
+			suite.Require().NoError(err)
+			suite.Require().ErrorIs(missingError, fs.ErrNotExist)
 		})
 	}
 
@@ -303,34 +519,133 @@ func (suite *FilepathTestSuite) TestOwnershipAndAccess() {
 		"executable": values.ErrFilepathIsExecutable,
 	} {
 		suite.Run(name+" false", func() {
-			value, err := values.NewFilepath(nil, map[string][]any{name: {false}})
+			// Arrange
+			value, err := values.NewFilepath(nil, map[string][]any{
+				name: {false},
+			})
 			suite.Require().NoError(err)
-			suite.Require().ErrorIs(value.Validate(file), want)
+
+			// Act
+			err = value.Validate(file)
+
+			// Assert
+			suite.Require().ErrorIs(err, want)
 		})
 	}
 
-	for _, name := range []string{"owner-me", "group-me"} {
-		value, err := values.NewFilepath(nil, map[string][]any{name: {false}})
+	for _, name := range []string{
+		"owner-me",
+		"group-me",
+	} {
+		// Arrange
+		value, err := values.NewFilepath(nil, map[string][]any{
+			name: {false},
+		})
 		suite.Require().NoError(err)
-		suite.Require().Error(value.Validate(file))
+
+		// Act
+		err = value.Validate(file)
+
+		// Assert
+		suite.Require().Error(err)
 	}
 }
 
 func (suite *FilepathTestSuite) TestCompletionErrorsAndFiltering() {
+	// Arrange
 	root := suite.T().TempDir()
-	for _, name := range []string{"a.txt", "ab.txt", "ba.txt", "a.json"} {
+	for _, name := range []string{
+		"a.txt",
+		"ab.txt",
+		"ba.txt",
+		"a.json",
+	} {
 		suite.Require().NoError(os.WriteFile(filepath.Join(root, name), nil, 0o600))
 	}
 
-	value, err := values.New("filepath", nil, map[string][]any{"file-extensions": {"txt"}})
+	value, err := values.New("filepath", nil, map[string][]any{
+		"file-extensions": {"txt"},
+	})
 	suite.Require().NoError(err)
 
+	// Act
 	paths, directive := value.Complete(filepath.Join(root, "a"))
-	suite.Equal([]string{filepath.Join(root, "a.txt"), filepath.Join(root, "ab.txt")}, paths)
+	missing, missingDirective := value.Complete(filepath.Join(root, "missing", "a"))
+
+	// Assert
+	suite.Equal([]string{
+		filepath.Join(root, "a.txt"),
+		filepath.Join(root, "ab.txt"),
+	}, paths)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
-	paths, directive = value.Complete(filepath.Join(root, "missing", "a"))
-	suite.Nil(paths)
-	suite.Equal(cobra.ShellCompDirectiveError, directive)
+	suite.Nil(missing)
+	suite.Equal(cobra.ShellCompDirectiveError, missingDirective)
+}
+
+func (suite *FilepathTestSuite) TestConfigurationBoundaries() {
+	for _, test := range []struct {
+		name    string
+		minimum int64
+		maximum int64
+	}{
+		{
+			name:    "owner-id",
+			maximum: math.MaxUint32,
+		},
+		{
+			name:    "group-id",
+			maximum: math.MaxUint32,
+		},
+		{
+			name:    "permissions",
+			maximum: 0o777,
+		},
+	} {
+		suite.Run(test.name, func() {
+			for _, bound := range []int64{test.minimum, test.maximum} {
+				suite.Run(strconv.FormatInt(bound, 10), func() {
+					// Arrange
+					properties := map[string][]any{
+						test.name: {bound},
+					}
+
+					// Act
+					value, err := values.NewFilepath(nil, properties)
+
+					// Assert
+					suite.Require().NoError(err)
+					suite.NotNil(value)
+				})
+			}
+		})
+	}
+}
+
+func (suite *FilepathTestSuite) TestExecutePermissionDenied() {
+	// Arrange
+	file := filepath.Join(suite.T().TempDir(), "привет")
+	suite.Require().NoError(os.WriteFile(file, nil, 0o600))
+	suite.Require().NoError(os.Chmod(file, 0o600))
+
+	for _, expected := range []bool{true, false} {
+		suite.Run(strconv.FormatBool(expected), func() {
+			// Arrange
+			value, err := values.NewFilepath(nil, map[string][]any{
+				"executable": {expected},
+			})
+			suite.Require().NoError(err)
+
+			// Act
+			err = value.Validate(file)
+
+			// Assert
+			if expected {
+				suite.Require().ErrorIs(err, values.ErrFilepathIsNotExecutable)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
 }
 
 func TestFilepath(t *testing.T) {

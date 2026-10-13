@@ -81,7 +81,11 @@ func (suite *EnvTestSuite) TestVar() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			suite.Equal(test.want, env.Var(test.input))
+			// Act
+			name := env.Var(test.input)
+
+			// Assert
+			suite.Equal(test.want, name)
 		})
 	}
 }
@@ -135,11 +139,14 @@ func (suite *EnvTestSuite) TestSet() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			suite.T().Setenv(test.key, "old")
 
+			// Act
 			env.Set(test.input, test.value)
 			value, ok := os.LookupEnv(test.key)
 
+			// Assert
 			suite.True(ok)
 			suite.Equal(test.value, value)
 		})
@@ -194,6 +201,7 @@ func (suite *EnvTestSuite) TestDebugInitialization() {
 		},
 	} {
 		suite.Run(test.name, func() {
+			// Arrange
 			cmd := suite.process("debug")
 			cmd.Env = append(cmd.Env, processDebug+"="+test.want)
 
@@ -201,7 +209,10 @@ func (suite *EnvTestSuite) TestDebugInitialization() {
 				cmd.Env = append(cmd.Env, "SHEBANG_DEBUG="+test.value)
 			}
 
+			// Act
 			output, err := cmd.CombinedOutput()
+
+			// Assert
 			suite.NoError(err, string(output))
 		})
 	}
@@ -230,10 +241,15 @@ func (suite *EnvTestSuite) TestSetErrors() {
 		},
 	} {
 		suite.Run(test.name, func() {
-			output, err := suite.process(test.mode).CombinedOutput()
+			// Arrange
+			cmd := suite.process(test.mode)
 
 			var exitError *exec.ExitError
 
+			// Act
+			output, err := cmd.CombinedOutput()
+
+			// Assert
 			suite.Require().ErrorAs(err, &exitError)
 			suite.Equal(1, exitError.ExitCode())
 			suite.Contains(string(output), test.message)
