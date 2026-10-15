@@ -714,6 +714,77 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "semver preserves original option and positional values",
+			doc: `# option "release" {
+#   short "r"
+#   value "semver" { constraint ">= 1.2.0 < 2.0.0"; }
+# }
+# arg "baseline" { value "semver"; }
+
+printf '%s|%s|%s' "$SHEBANG_OL_RELEASE" "$SHEBANG_OS_R" "$1"
+`,
+			args: []string{
+				"--release",
+				"v01.02.003+build.1",
+				"v1.2",
+			},
+			stdout: "v01.02.003+build.1|v01.02.003+build.1|v1.2",
+		},
+		{
+			name: "semver constraint prevents execution",
+			doc: `# arg "release" { value "semver" { constraint "< 2.0.0"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"2.0.0"},
+			exit:   1,
+			stderr: `"2.0.0" is greater than or equal to "2.0.0"`,
+		},
+		{
+			name: "invalid semver prevents execution",
+			doc: `# arg "release" { value "semver"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"привет"},
+			exit:   1,
+			stderr: "invalid semantic version",
+		},
+		{
+			name: "invalid semver constraint prevents configuration",
+			doc: `# arg "release" { value "semver" { constraint "garbage"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "incorrect constraint:",
+		},
+		{
+			name: "semver completion preserves shorthand",
+			doc: `# option "release" { value "semver" { constraint "^1.0.0"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"--release",
+				"v1.2",
+			},
+			stdout: "v1.2\n:4\n",
+		},
+		{
+			name: "semver constrained completion has no invalid suggestions",
+			doc: `# arg "release" { value "semver" { constraint "^1.0.0"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"2.0.0",
+			},
+			stdout: ":4\n",
+		},
+		{
 			name: "JSON option and scalar arguments preserve original text",
 			doc: `# option "payload" { short "p"; value "json"; }
 # arg "first" { value "json"; }

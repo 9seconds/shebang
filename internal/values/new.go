@@ -18,6 +18,7 @@ var newFactories = map[string]func(map[string]any, map[string][]any) (Value, err
 	"mac-addr": NewMacAddr,
 	"email":    NewEmail,
 	"json":     NewJSON,
+	"semver":   NewSemver,
 }
 
 // Value validates input, provides shell completions, and describes its subvalidators.

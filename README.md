@@ -1638,8 +1638,53 @@ your-script --payload '1'
 The script reads the unchanged JSON text from `SHEBANG_OL_PAYLOAD` or
 `SHEBANG_OS_P`.
 
+### `semver` value
+
+`semver` parses semantic versions based on [Semantic Versions
+2.0](https://semver.org/spec/v2.0.0.html) specifications.
+
+It accepts full versions such as `1.2.3`, an optional lowercase `v` prefix, and
+abbreviated versions such as `1` or `v1.2`. Missing minor and patch components
+are treated as zero for comparisons. Leading zeros in major, minor, and patch
+components are accepted. Prerelease and build metadata are supported, for
+example `1.2.3-beta.1+build.123`.
+
+The optional `constraint` child takes exactly one quoted constraint string:
+
+| Constraint | Meaning |
+| ---------- | ------- |
+| `>= 1.2.3, < 2.0.0` | Both comparisons must pass; spaces can also separate comparisons. |
+| `< 1.0.0 || >= 2.0.0` | Either comparison group may pass. |
+| `= 1.2.3` | Exact version precedence; build metadata is ignored. |
+| `!= 1.2.3` | Excludes that version. |
+| `1.2.x` | Allows versions from `1.2.0` up to, but not including, `1.3.0`. |
+| `~1.2.3` | Allows versions from `1.2.3` up to, but not including, `1.3.0`. |
+| `^1.2.3` | Allows versions from `1.2.3` up to, but not including, `2.0.0`. |
+| `^0.2.3` | Allows versions from `0.2.3` up to, but not including, `0.3.0`. |
+| `^0.0.3` | Allows versions from `0.0.3` up to, but not including, `0.0.4`. |
+| `1.2.3 - 2.0.0` | Inclusive range; spaces around the hyphen are significant. |
+
+This is a common notation from
+[node.js](https://flaviocopes.com/npm-semantic-versioning/) or
+[composer](https://getcomposer.org/doc/articles/versions.md#writing-version-constraints).
+
+#### Example
+
+```kdl
+option "release" {
+  description "Release in the supported major version"
+  short "r"
+  value "semver" {
+    constraint ">= 1.2.0 < 2.0.0"
+  }
+}
+```
+
+This accepts `--release v1.2` and `--release 1.9.0+build.1`, but rejects
+`2.0.0` and prereleases such as `1.3.0-beta.1`. The script reads the unchanged
+version from `SHEBANG_OL_RELEASE` or `SHEBANG_OS_R`.
+
 # TODO
 
 - url
 - git-ref
-- semver
