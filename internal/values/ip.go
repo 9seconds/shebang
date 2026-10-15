@@ -74,7 +74,7 @@ func (v *valueIP) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "subnets":
 		return v.addSubnets(properties)
-	case "type":
+	case "type": //nolint:goconst // Keep subvalidator names explicit in switch cases.
 		return v.addType(properties)
 	}
 
@@ -143,12 +143,12 @@ func (v *valueIP) addType(properties []any) error {
 
 	subvalidator, ok := ipTypes[name]
 	if !ok {
-		return NewErrIPType(netip.Addr{}, name)
+		return NewErrAddressType(netip.Addr{}, name)
 	}
 
 	v.setSubvalidator("type", name, func(input netip.Addr) error {
 		if !subvalidator(input) {
-			return NewErrIPType(input, name)
+			return NewErrAddressType(input, name)
 		}
 
 		return nil

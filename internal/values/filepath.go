@@ -154,7 +154,7 @@ func (v *valueFilepath) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "root":
 		return v.addRoot(properties)
-	case "type":
+	case "type": //nolint:goconst // Keep subvalidator names explicit in switch cases.
 		return v.addType(properties)
 	case "file-extensions":
 		return v.addFileExtensions(properties)

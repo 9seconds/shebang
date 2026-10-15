@@ -714,6 +714,85 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "subnet preserves original option and positional input",
+			doc: `# option "network" {
+#   short "n"
+#   value "subnet" {
+#     type "v4"
+#     overlaps "10.0.0.0/8" "192.168.0.0/16"
+#     not-overlaps "10.1.0.0/16"
+#   }
+# }
+# arg "peer" { value "subnet"; }
+
+printf '%s|%s|%s' "$SHEBANG_OL_NETWORK" "$SHEBANG_OS_N" "$1"
+`,
+			args: []string{
+				"--network",
+				"192.168.1.19/24",
+				"2001:DB8::1/32",
+			},
+			stdout: "192.168.1.19/24|192.168.1.19/24|2001:DB8::1/32",
+		},
+		{
+			name: "subnet exclusion prevents execution",
+			doc: `# arg "network" { value "subnet" { not-overlaps "10.0.0.0/8"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"10.1.2.3/24"},
+			exit:   1,
+			stderr: "must not overlap",
+		},
+		{
+			name: "subnet overlap rejection prevents execution",
+			doc: `# arg "network" { value "subnet" { overlaps "10.0.0.0/8"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"192.0.2.0/24"},
+			exit:   1,
+			stderr: "must overlap with at least one subnet",
+		},
+		{
+			name: "subnet empty overlaps prevents configuration",
+			doc: `# arg "network" { value "subnet" { overlaps; }; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "no elements were defined",
+		},
+		{
+			name: "subnet option completion masks and filters family",
+			doc: `# option "network" {
+#   value "subnet" { type "v4"; overlaps "192.0.2.19/24" "2001:db8::/32"; }
+# }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"--network",
+				"",
+			},
+			stdout: "192.0.2.0/\n:2\n",
+		},
+		{
+			name: "subnet exclusions disable partial positional suggestions",
+			doc: `# arg "network" {
+#   value "subnet" { overlaps "10.0.0.0/8"; not-overlaps "10.1.0.0/16"; }
+# }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"10.",
+			},
+			stdout: ":4\n",
+		},
+		{
 			name: "URL preserves option and positional spelling with combined constraints",
 			doc: `# option "endpoint" {
 #   short "e"

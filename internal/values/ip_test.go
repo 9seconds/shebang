@@ -154,14 +154,14 @@ func (suite *IPTestSuite) TestTypes() {
 			}
 
 			for _, address := range test.rejected {
-				var typeError *values.ErrIPType
+				var typeError *values.ErrAddressType
 
 				// Act
 				err := value.Validate(address)
 
 				// Assert
 				suite.Require().ErrorAs(err, &typeError)
-				suite.Equal(*values.NewErrIPType(netip.MustParseAddr(address), test.name), *typeError)
+				suite.Equal(*values.NewErrAddressType(netip.MustParseAddr(address), test.name), *typeError)
 				suite.Require().ErrorContains(err, "is not of type "+test.name)
 			}
 		})
@@ -396,7 +396,7 @@ func (suite *IPTestSuite) TestInvalidProperties() {
 			}
 
 			if test.property == "type" && test.name == "unknown type" {
-				var typeError *values.ErrIPType
+				var typeError *values.ErrAddressType
 
 				suite.Require().ErrorAs(err, &typeError)
 				suite.False(typeError.Address.IsValid())

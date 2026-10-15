@@ -138,6 +138,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			input: "HTTPS://EXAMPLE.COM/a%2Fb",
 		},
 		{
+			name:  "subnet",
+			input: "2001:DB8::1/32",
+		},
+		{
 			name:  "datetime",
 			input: "2026-10-12T13:14:15.123+02:00",
 		},
@@ -312,6 +316,10 @@ func (suite *NewTestSuite) TestNodeProperties() {
 		{
 			name:        "url",
 			constructor: values.NewURL,
+		},
+		{
+			name:        "subnet",
+			constructor: values.NewSubnet,
 		},
 	} {
 		suite.Run(test.name, func() {

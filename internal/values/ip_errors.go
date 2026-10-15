@@ -6,32 +6,6 @@ import (
 	"slices"
 )
 
-// ErrIPType describes an unknown family constraint or an address of the wrong family.
-//
-//nolint:errname // Project convention requires Err<Stem> names for all errors.
-type ErrIPType struct {
-	Address netip.Addr
-	Type    string
-}
-
-// NewErrIPType constructs an error for a family constraint.
-// An invalid address indicates an unknown configured type.
-func NewErrIPType(address netip.Addr, family string) *ErrIPType {
-	return &ErrIPType{
-		Address: address,
-		Type:    family,
-	}
-}
-
-// Error describes the unknown type or rejected address.
-func (e *ErrIPType) Error() string {
-	if !e.Address.IsValid() {
-		return "unknown IP type " + e.Type
-	}
-
-	return fmt.Sprintf("IP address %s is not of type %s", e.Address, e.Type)
-}
-
 // ErrIPClassifier describes an address with an unexpected classification.
 //
 //nolint:errname // Project convention requires Err<Stem> names for all errors.

@@ -1089,6 +1089,51 @@ This accepts `--peer 10.1.2.3` and `-p 192.168.1.10`. `172.16.1.10` is private
 but fails the subnet restriction; `2001:db8::1` fails the family restriction.
 The script reads the original value from `SHEBANG_OL_PEER` or `SHEBANG_OS_P`.
 
+### `subnet` value
+
+`subnet` accepts IPv4 and IPv6 CIDR prefixes, such as `192.0.2.0/24` or
+`2001:db8::/32`. Prefix lengths range from 0 to 32 for IPv4 and 0 to 128 for
+IPv6. Bare addresses, dotted netmasks, zone identifiers, and surrounding
+whitespace are rejected.
+
+Host bits are accepted: `192.0.2.19/24` represents the same network as
+`192.0.2.0/24` for overlap checks.
+
+| Subvalidator | Example definition | Description |
+| ------------ | ------------------ | ----------- |
+| `type` | `type "v4"` | Restricts the input address family. |
+| `overlaps` | `overlaps "10.0.0.0/8" "192.168.0.0/16"` | Requires overlap with at least one listed subnet. |
+| `not-overlaps` | `not-overlaps "10.1.0.0/16"` | Rejects overlap with any listed subnet. |
+
+`type` takes one of `"v4"`, `"v6"`, `"v4-in-v6"`, or `"v6-only"`, with the same
+address-family meanings as the `ip` value. Both overlap children take one or
+more quoted CIDR prefixes; empty lists and malformed prefixes are rejected
+during configuration. Node properties are not supported.
+
+Overlap means sharing any address, not necessarily containment: both a smaller
+subnet inside a listed subnet and a larger subnet containing it overlap. For
+example, `0.0.0.0/0` overlaps every IPv4 subnet. _All configured constraints
+must pass._ IPv4 and IPv4-mapped IPv6 prefixes are separate address families
+for overlap checks; they are not automatically converted into one another.
+
+#### Example
+
+```kdl
+option "network" {
+  description "IPv4 subnet overlapping an approved network"
+  short "n"
+  value "subnet" {
+    type "v4"
+    overlaps "10.0.0.0/8" "192.168.0.0/16"
+    not-overlaps "10.1.0.0/16"
+  }
+}
+```
+
+This accepts `--network 192.168.1.19/24` and `--network 10.2.0.0/16`, but
+rejects `10.0.0.0/8` because it also overlaps the excluded subnet. The script
+reads the unchanged value from `SHEBANG_OL_NETWORK` or `SHEBANG_OS_N`.
+
 ### `port` value
 
 `port` accepts unsigned decimal port numbers from 0 through 65,535.
