@@ -1,8 +1,10 @@
 [tools]
-go = "latest"
-"go:mvdan.cc/gofumpt" = "latest"
-"go:golang.org/x/tools/gopls" = "latest"
 "github:golangci/golangci-lint" = "latest"
+"github:goreleaser/goreleaser" = "latest"
+"github:sharkdp/fd" = "latest"
+"go:golang.org/x/tools/gopls" = "latest"
+"go:mvdan.cc/gofumpt" = "latest"
+go = "latest"
 
 [tasks.build]
 description = "Build a binary"
@@ -12,4 +14,15 @@ outputs = ["shebang"]
 
 [tasks.lint]
 description = "Run a static analysis"
+sources = ["**/*.go", "go.mod", "go.sum"]
 run = "golangci-lint run"
+
+[tasks.release]
+description = "Create release tarballs"
+sources = ["**/*.go", "go.mod", "go.sum", ".goreleaser.yml", "README.md"]
+run = [
+    "goreleaser --snapshot --clean",
+    "fd --type directory . ./dist -X rm -rf",
+    "rm ./dist/config.yaml",
+    "rm ./dist/*.json",
+]
