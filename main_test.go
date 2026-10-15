@@ -714,6 +714,87 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "URL preserves option and positional spelling with combined constraints",
+			doc: `# option "endpoint" {
+#   short "e"
+#   value "url" {
+#     scheme "https"
+#     domain "EXAMPLE.COM"
+#     user "alice"
+#     password #false
+#     path-glob "/api/**"
+#     query "mode" "safe"
+#     query-re "id" "^[0-9]+$"
+#     fragment-re "^done$"
+#   }
+# }
+# arg "reference" { value "url"; }
+
+printf '%s|%s|%s' "$SHEBANG_OL_ENDPOINT" "$SHEBANG_OS_E" "$1"
+`,
+			args: []string{
+				"--endpoint",
+				"HTTPS://%61lice@EXAMPLE.COM:443/api/a%2Fb?mode=safe&id=01&id=02#done",
+				"../привет",
+			},
+			stdout: "HTTPS://%61lice@EXAMPLE.COM:443/api/a%2Fb?mode=safe&id=01&id=02#done|" +
+				"HTTPS://%61lice@EXAMPLE.COM:443/api/a%2Fb?mode=safe&id=01&id=02#done|../привет",
+		},
+		{
+			name: "URL rejects mismatching repeated query values before execution",
+			doc: `# arg "endpoint" { value "url" { query "mode" "safe"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"https://example.com?mode=safe&mode=unsafe"},
+			exit:   1,
+			stderr: `URL query mode must equal "safe", got "unsafe"`,
+		},
+		{
+			name: "URL malformed escape prevents execution",
+			doc: `# arg "endpoint" { value "url"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"/%zz"},
+			exit:   1,
+			stderr: "invalid URL escape",
+		},
+		{
+			name: "URL duplicate query keys prevent configuration",
+			doc: `# arg "endpoint" { value "url" { query "x" "1" "x" "2"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "duplicate query parameter",
+		},
+		{
+			name: "URL option completion preserves original text",
+			doc: `# option "endpoint" { value "url" { scheme "https"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"--endpoint",
+				"HTTPS://EXAMPLE.COM/a%2Fb",
+			},
+			stdout: "HTTPS://EXAMPLE.COM/a%2Fb\n:4\n",
+		},
+		{
+			name: "URL rejected positional completion has no suggestions",
+			doc: `# arg "endpoint" { value "url" { scheme "https"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			args: []string{
+				"__complete",
+				"http://example.com",
+			},
+			stdout: ":4\n",
+		},
+		{
 			name: "semver preserves original option and positional values",
 			doc: `# option "release" {
 #   short "r"

@@ -134,6 +134,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			input: "v01.2",
 		},
 		{
+			name:  "url",
+			input: "HTTPS://EXAMPLE.COM/a%2Fb",
+		},
+		{
 			name:  "datetime",
 			input: "2026-10-12T13:14:15.123+02:00",
 		},
@@ -304,6 +308,10 @@ func (suite *NewTestSuite) TestNodeProperties() {
 		{
 			name:        "semver",
 			constructor: values.NewSemver,
+		},
+		{
+			name:        "url",
+			constructor: values.NewURL,
 		},
 	} {
 		suite.Run(test.name, func() {

@@ -1684,7 +1684,65 @@ This accepts `--release v1.2` and `--release 1.9.0+build.1`, but rejects
 `2.0.0` and prereleases such as `1.3.0-beta.1`. The script reads the unchanged
 version from `SHEBANG_OL_RELEASE` or `SHEBANG_OS_R`.
 
+### `url` value
+
+`url` accepts URL references as they are defined by
+[RFC 3986](https://www.rfc-editor.org/rfc/rfc3986.html).
+
+| Subvalidator | Example definition | Description |
+| ------------ | ------------------ | ----------- |
+| `scheme` | `scheme "https"` | Exact match against the parsed, lowercased scheme. |
+| `user` | `user "alice"` | Exact match against the decoded username. |
+| `user-re` | `user-re "^alice$"` | Regex match against the decoded username. |
+| `password` | `password #false` | Requires (`#true`) or excludes (`#false`) password userinfo. |
+| `domain` | `domain "example.com"` | Exact, case-sensitive hostname match, excluding port and IPv6 brackets. |
+| `domain-re` | `domain-re "(^|[.])example[.]com$"` | Regex match against the hostname. |
+| `path-re` | `path-re "^/api/"` | Regex match against the decoded path. |
+| `path-glob` | `path-glob "/api/**/*.json"` | Whole-path glob match, using `/` separators and recursive `**`. |
+| `query` | `query "mode" "safe" "format" "json"` | Requires each key; every occurrence must equal its configured value. |
+| `query-re` | `query-re "id" "^[0-9]+$"` | Requires each key; every occurrence must match its configured regex. |
+| `fragment-re` | `fragment-re "^section-"` | Regex match against the decoded fragment. |
+
+Except for `query` and `query-re`, each child takes exactly one argument:
+a boolean for `password`, a quoted string for every other child. Query
+constraints take one or more key/value pairs of quoted strings. Odd argument
+counts and duplicate keys within a query constraint are rejected. Properties
+on the `value` node are not supported. Invalid regexes and globs fail during
+configuration. All configured constraints must pass.
+
+Regexes are case-sensitive and unanchored unless the expression specifies
+otherwise. Usernames, paths, fragments, and query keys/values are percent-decoded
+before matching. For example, `/a%2Fb` matches the path `/a/b`, and query
+`q=a+b` matches the value `a b`. Extra query parameters are allowed. When a
+query constraint is configured, malformed query escapes or unescaped semicolons
+fail validation, even in extra parameters.
+
+Missing userinfo behaves as an empty username and absent password. An explicitly
+empty password (`https://alice:@example.com`) counts as present. Domain names
+are not lowercased; use a case-insensitive regex such as `(?i)^example[.]com$`
+if needed. A scheme constraint alone does not require a host:
+`https:opaque` also has scheme `https`. Opaque URLs generally have an empty path.
+
+#### Example
+
+```kdl
+option "endpoint" {
+  description "HTTPS API endpoint in the expected domain"
+  short "e"
+  value "url" {
+    scheme "https"
+    domain "example.com"
+    password #false
+    path-glob "/api/**"
+    query "mode" "safe"
+    query-re "id" "^[0-9]+$"
+  }
+}
+```
+
+This accepts `--endpoint 'https://example.com/api/items?mode=safe&id=01&id=02'`.
+The script reads the unchanged URL from `SHEBANG_OL_ENDPOINT` or `SHEBANG_OS_E`.
+
 # TODO
 
-- url
 - git-ref
