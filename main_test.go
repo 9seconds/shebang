@@ -709,7 +709,7 @@ func mainTestCases() []mainTestCase {
 			name:   "argument validation failure",
 			doc:    "# arg \"word\"\n",
 			exit:   1,
-			stderr: "cannot execute command:",
+			stderr: "Error: there must be at least 1 arguments, got 0",
 		},
 		{
 			name: "exec preserves arguments and environment",

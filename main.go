@@ -34,7 +34,7 @@ func main() {
 	}
 }
 
-func execute(debugMode bool)  {
+func execute(debugMode bool) {
 	scriptPath, err := getScript()
 	if err != nil {
 		log.Dief("cannot detect a script %s: %s", os.Args[1], err.Error())
@@ -65,7 +65,7 @@ func execute(debugMode bool)  {
 		}
 	} else {
 		if err := cmd.Cmd.Execute(); err != nil {
-			log.Dief("cannot execute command: %s", err)
+			os.Exit(1)
 		}
 	}
 }
