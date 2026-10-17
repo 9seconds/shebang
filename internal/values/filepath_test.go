@@ -30,8 +30,7 @@ func (suite *FilepathTestSuite) TestDirectoryNavigation() {
 	suite.Require().NoError(os.WriteFile(filepath.Join(directory, "report.json"), nil, 0o600))
 
 	value, err := values.NewFilepath(nil, map[string][]any{
-		"type":            {"regular"},
-		"file-extensions": {"txt"},
+		"type": {"regular"},
 	})
 	suite.Require().NoError(err)
 	suite.Require().Error(value.Validate(directory))
@@ -55,9 +54,12 @@ func (suite *FilepathTestSuite) TestDirectoryNavigation() {
 			directive: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
-			name:      "files inside directory remain filtered",
-			input:     filepath.Join(directory, "rep"),
-			want:      []string{filepath.Join(directory, "report.txt")},
+			name:  "files inside directory match prefix",
+			input: filepath.Join(directory, "rep"),
+			want: []string{
+				filepath.Join(directory, "report.json"),
+				filepath.Join(directory, "report.txt"),
+			},
 			directive: cobra.ShellCompDirectiveNoFileComp,
 		},
 	} {
@@ -216,34 +218,34 @@ func (suite *FilepathTestSuite) TestPathsAndConstraints() {
 			want:  values.ErrFilepathNoSuitableType,
 		},
 		{
-			name: "root itself",
+			name: "glob accepts directory itself",
 			subvalidators: map[string][]any{
-				"root": {root},
+				"glob": {filepath.Join(root, "**")},
 			},
 			input: root,
 		},
 		{
-			name: "new file inside root",
+			name: "glob accepts new file in directory",
 			subvalidators: map[string][]any{
-				"root": {root},
+				"glob": {filepath.Join(root, "**")},
 			},
 			input: filepath.Join(root, "new.txt"),
 		},
 		{
-			name: "sibling prefix is outside root",
+			name: "glob excludes sibling directory",
 			subvalidators: map[string][]any{
-				"root": {root},
+				"glob": {filepath.Join(root, "**")},
 			},
 			input: root + "-other/new.txt",
-			want:  values.ErrFilepathOutsideRoot,
+			want:  values.ErrFilepathGlobMismatch,
 		},
 		{
-			name: "parent is outside root",
+			name: "glob excludes parent directory",
 			subvalidators: map[string][]any{
-				"root": {root},
+				"glob": {filepath.Join(root, "**")},
 			},
 			input: filepath.Join(root, "..", "outside"),
-			want:  values.ErrFilepathOutsideRoot,
+			want:  values.ErrFilepathGlobMismatch,
 		},
 		{
 			name: "matching permissions",
@@ -283,68 +285,62 @@ func (suite *FilepathTestSuite) TestPathsAndConstraints() {
 	}
 }
 
-func (suite *FilepathTestSuite) TestExtensions() {
+func (suite *FilepathTestSuite) TestGlobValidation() {
 	for _, test := range []struct {
-		name       string
-		extensions []any
-		input      string
-		valid      bool
+		name    string
+		pattern string
+		input   string
+		valid   bool
 	}{
 		{
-			name: "normalized duplicate extensions",
-			extensions: []any{
-				"txt",
-				".json",
-				"txt",
-			},
-			input: "привет.txt",
-			valid: true,
+			name:    "extension alternatives",
+			pattern: "*.{txt,json}",
+			input:   "привет.txt",
+			valid:   true,
 		},
 		{
-			name: "second alternative",
-			extensions: []any{
-				"txt",
-				".json",
-			},
-			input: "report.json",
-			valid: true,
+			name:    "second alternative",
+			pattern: "*.{txt,json}",
+			input:   "report.json",
+			valid:   true,
 		},
 		{
-			name:       "case sensitive",
-			extensions: []any{"txt"},
-			input:      "report.TXT",
+			name:    "case sensitive",
+			pattern: "*.txt",
+			input:   "report.TXT",
 		},
 		{
-			name:       "final extension only",
-			extensions: []any{"txt"},
-			input:      "report.txt.gz",
+			name:    "final extension only",
+			pattern: "*.txt",
+			input:   "report.txt.gz",
 		},
 		{
-			name:       "dotfile",
-			extensions: []any{"env"},
-			input:      ".env",
-			valid:      true,
+			name:    "dotfile",
+			pattern: ".env",
+			input:   ".env",
+			valid:   true,
 		},
 		{
-			name:       "empty extension becomes dot",
-			extensions: []any{""},
-			input:      "report.",
-			valid:      true,
+			name:    "literal trailing dot",
+			pattern: "*.",
+			input:   "report.",
+			valid:   true,
 		},
 		{
-			name:       "extensionless file",
-			extensions: []any{""},
-			input:      "report",
+			name:    "extensionless file",
+			pattern: "*.",
+			input:   "report",
 		},
 		{
-			name:  "empty list",
-			input: "report.txt",
+			name:    "nonmatching literal",
+			pattern: "other",
+			input:   "report.txt",
 		},
 	} {
 		suite.Run(test.name, func() {
 			// Arrange
 			value, err := values.NewFilepath(nil, map[string][]any{
-				"file-extensions": test.extensions,
+				"glob": {test.pattern},
 			})
 			suite.Require().NoError(err)
 
@@ -355,7 +351,7 @@ func (suite *FilepathTestSuite) TestExtensions() {
 			if test.valid {
 				suite.Require().NoError(err)
 			} else {
-				suite.Require().ErrorIs(err, values.ErrFilepathUnsupportedExtension)
+				suite.Require().ErrorIs(err, values.ErrFilepathGlobMismatch)
 			}
 		})
 	}
@@ -372,8 +368,21 @@ func (suite *FilepathTestSuite) TestConfigurationErrors() {
 			want: values.ErrUnknownSubvalidator,
 		},
 		{
-			name: "root",
+			name: "glob",
 			want: utils.ErrEmpty,
+		},
+		{
+			name: "root",
+			want: values.ErrUnknownSubvalidator,
+		},
+		{
+			name: "file-extensions",
+			want: values.ErrUnknownSubvalidator,
+		},
+		{
+			name:      "glob",
+			arguments: []any{"["},
+			want:      values.ErrFilepathInvalidGlob,
 		},
 		{
 			name:      "permissions",
@@ -422,9 +431,8 @@ func (suite *FilepathTestSuite) TestConfigurationErrors() {
 	}
 
 	for _, name := range []string{
-		"root",
+		"glob",
 		"type",
-		"file-extensions",
 		"permissions",
 		"owner-name",
 		"owner-id",
@@ -563,9 +571,7 @@ func (suite *FilepathTestSuite) TestCompletionErrorsAndFiltering() {
 		suite.Require().NoError(os.WriteFile(filepath.Join(root, name), nil, 0o600))
 	}
 
-	value, err := values.New("filepath", nil, map[string][]any{
-		"file-extensions": {"txt"},
-	})
+	value, err := values.New("filepath", nil, nil)
 	suite.Require().NoError(err)
 
 	// Act
@@ -574,6 +580,7 @@ func (suite *FilepathTestSuite) TestCompletionErrorsAndFiltering() {
 
 	// Assert
 	suite.Equal([]string{
+		filepath.Join(root, "a.json"),
 		filepath.Join(root, "a.txt"),
 		filepath.Join(root, "ab.txt"),
 	}, paths)

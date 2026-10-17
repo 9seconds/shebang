@@ -1296,11 +1296,16 @@ value from `SHEBANG_OL_SCHEDULED_AT` or `SHEBANG_OS_S`.
 the command's working directory; the script receives the original string.
 Spaces and Unicode in filenames are preserved.
 
+The `glob` child accepts a filesystem glob, including recursive `**` patterns.
+For example, `glob "**/*.json"` restricts paths to matching JSON filenames.
+With a glob configured, completion returns matching paths relative to the
+current directory, filtered by the typed prefix and all configured validators.
+Both relative and absolute glob patterns produce relative completion paths.
+
 | Subvalidator | Example definition | Passes | Fails | Description |
 | ------------ | ------------------ | ------ | ----- | ----------- |
-| `root` | `root "/srv/data"` | `/srv/data/report.txt` | `/srv/other/report.txt` | Requires lexical containment within the root, including the root itself. |
+| `glob` | `glob "**/*.json"` | `config.json` | `config.txt` | Requires the path to match a filesystem glob. |
 | `type` | `type "regular" "directory"` | An existing file or directory. | A missing path. | Accepts any of the listed filesystem types. |
-| `file-extensions` | `file-extensions "txt" ".json"` | `report.txt`, `report.json` | `report.TXT`, `report.txt.gz` | Checks the final extension, case-sensitively. |
 | `permissions` | `permissions 0o600` | A file with mode `0600`. | A file with mode `0644`. | Requires exactly these permission bits. |
 | `owner-name` | `owner-name "alice"` | A file owned by Alice. | A file owned by another user. | Looks up a user by name. |
 | `owner-id` | `owner-id 1000` | A file with UID 1000. | A file with UID 1001. | Requires the numeric owner UID. |
@@ -1311,17 +1316,6 @@ Spaces and Unicode in filenames are preserved.
 | `readable` | `readable #true` | A readable file. | A file denied read access. | Checks OS read access. |
 | `writable` | `writable #true` | A writable file. | A file denied write access. | Checks OS write access. |
 | `executable` | `executable #true` | An executable file or searchable directory. | A file denied execute access. | Checks OS execute/search access. |
-
-#### `root` subvalidator
-
-`root` takes exactly one quoted path and requires the input to be lexically
-within that directory. The root itself passes: with `root "/srv/data"`, both
-`/srv/data` and `/srv/data/report.txt` pass, while `/srv/data-other/report.txt`
-fails.
-
-Relative roots are interpreted from the command's working directory. Neither
-the root nor the input must exist unless another subvalidator requires it. This
-check does not resolve symlinks; a link inside the root may point outside it.
 
 #### `type` subvalidator
 
@@ -1364,25 +1358,21 @@ pass. Except for `"symlink"`, type checks follow symbolic links; permissions
 and ownership checks also inspect the target. Consequently, a dangling symlink
 passes both `type "symlink"` and `type "absent"`, but fails `type "exists"`.
 
-#### `file-extensions` subvalidator
+#### `glob` subvalidator
 
-`file-extensions` takes quoted extension strings. The extensions are
-alternatives: `file-extensions "txt" ".json"` accepts either `.txt` or `.json`.
-A leading dot is added when omitted, so `"txt"` and `".txt"` are equivalent.
-Duplicates have no additional effect. Matching is exact and case-sensitive:
-`report.txt` passes, but `report.TXT` fails unless `"TXT"` is also listed. The
-arguments are literal extensions, not glob patterns; use `"txt"` rather than
-`"*.txt"`.
-
-Only the suffix beginning at the final dot in the last path component is
-checked. For `archive.tar.gz`, the extension is `.gz`, so configure `"gz"`, not
-`"tar.gz"`. Dots in parent directory names do not count. A dotfile such as
-`.env` has extension `.env`, while a name without a dot has no extension.
+`glob` takes exactly one quoted filesystem pattern. Matching is case-sensitive;
+`*` matches within a path component, `**` can span directories, and braces
+allow alternatives. Relative patterns are interpreted from the current
+directory. For example, `glob "/srv/data/**"` restricts paths to that directory
+tree, while `glob "**/*.{json,yaml,yml}"` selects suffixes anywhere below the
+current directory. Validation matches path names without resolving symlinks or
+requiring existence; add `type "regular"` or another type constraint when
+needed.
 
 ```kdl
 value "filepath" {
   type "regular"
-  file-extensions "json" "yaml" "yml"
+  glob "**/*.{json,yaml,yml}"
   readable #true
 }
 ```
@@ -1390,8 +1380,8 @@ value "filepath" {
 This accepts a readable regular file named `config.json`, `config.yaml`, or
 `config.yml`. Renaming another kind of file to one of those extensions is
 enough to pass the extension check; parsing the contents remains the script's
-responsibility. Completion filters file suggestions by extension, while
-keeping directories available for navigation.
+responsibility. Glob completion returns existing matches relative to the current
+directory, filtered by all configured constraints.
 
 #### `permissions` subvalidator
 
@@ -1488,7 +1478,7 @@ option "input" {
   short "i"
   value "filepath" {
     type "regular"
-    file-extensions "json"
+    glob "**/*.json"
     readable #true
   }
 }

@@ -1385,7 +1385,7 @@ printf 'SCRIPT RAN'
 		},
 		{
 			name: "filepath option and positional preserve original paths",
-			doc: `# option "input" { value "filepath" { file-extensions "txt"; }; }
+			doc: `# option "input" { value "filepath" { glob "*.txt"; }; }
 # arg "directory" { value "filepath" { type "directory"; }; }
 
 printf '%s|%s' "$SHEBANG_OL_INPUT" "$1"

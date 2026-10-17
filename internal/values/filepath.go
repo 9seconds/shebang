@@ -13,64 +13,66 @@ import (
 	"syscall"
 
 	"github.com/9seconds/shebang/internal/utils"
+	"github.com/9seconds/shebang/internal/world"
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/spf13/cobra"
 )
 
 var filepathTypeTests = map[string]func(string) bool{
 	"exists": func(input string) bool {
-		_, err := utils.World.Stat(input)
+		_, err := world.World.Files.Stat(input)
 
 		return err == nil
 	},
 	"absent": func(input string) bool {
-		_, err := utils.World.Stat(input)
+		_, err := world.World.Files.Stat(input)
 
 		return errors.Is(err, fs.ErrNotExist)
 	},
 	"regular": func(input string) bool {
-		if info, err := utils.World.Stat(input); err == nil {
+		if info, err := world.World.Files.Stat(input); err == nil {
 			return info.Mode().IsRegular()
 		}
 
 		return false
 	},
 	"directory": func(input string) bool {
-		if info, err := utils.World.Stat(input); err == nil {
+		if info, err := world.World.Files.Stat(input); err == nil {
 			return info.Mode().Type()&fs.ModeDir != 0
 		}
 
 		return false
 	},
 	"symlink": func(input string) bool {
-		if info, err := utils.World.Lstat(input); err == nil {
+		if info, err := world.World.Files.Lstat(input); err == nil {
 			return info.Mode().Type()&fs.ModeSymlink != 0
 		}
 
 		return false
 	},
 	"pipe": func(input string) bool {
-		if info, err := utils.World.Stat(input); err == nil {
+		if info, err := world.World.Files.Stat(input); err == nil {
 			return info.Mode().Type()&fs.ModeNamedPipe != 0
 		}
 
 		return false
 	},
 	"socket": func(input string) bool {
-		if info, err := utils.World.Stat(input); err == nil {
+		if info, err := world.World.Files.Stat(input); err == nil {
 			return info.Mode().Type()&fs.ModeSocket != 0
 		}
 
 		return false
 	},
 	"device": func(input string) bool {
-		if info, err := utils.World.Stat(input); err == nil {
+		if info, err := world.World.Files.Stat(input); err == nil {
 			return info.Mode().Type()&fs.ModeDevice != 0
 		}
 
 		return false
 	},
 	"char-device": func(input string) bool {
-		if info, err := utils.World.Stat(input); err == nil {
+		if info, err := world.World.Files.Stat(input); err == nil {
 			return info.Mode().Type()&fs.ModeCharDevice != 0
 		}
 
@@ -80,6 +82,8 @@ var filepathTypeTests = map[string]func(string) bool{
 
 type valueFilepath struct {
 	baseValue[string]
+
+	glob string
 }
 
 // NewFilepath constructs a filesystem path validator with optional constraints.
@@ -115,6 +119,10 @@ func NewFilepath(
 
 // Complete suggests matching files and directories for continued navigation.
 func (v *valueFilepath) Complete(input string) ([]string, cobra.ShellCompDirective) {
+	if v.glob != "" {
+		return v.completeGlob(input)
+	}
+
 	directory, prefix := filepath.Split(input)
 
 	directoryToRead := directory
@@ -149,15 +157,46 @@ func (v *valueFilepath) Complete(input string) ([]string, cobra.ShellCompDirecti
 	return paths, directive
 }
 
+func (v *valueFilepath) completeGlob(input string) ([]string, cobra.ShellCompDirective) {
+	matches, err := doublestar.FilepathGlob(v.glob)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+
+	paths := make([]string, 0, len(matches))
+	for _, match := range matches {
+		absolute, err := filepath.Abs(match)
+		if err != nil {
+			continue
+		}
+
+		relative, err := filepath.Rel(cwd, absolute)
+		if err != nil || !strings.HasPrefix(relative, input) {
+			continue
+		}
+
+		if v.Validate(relative) == nil {
+			paths = append(paths, relative)
+		}
+	}
+
+	slices.Sort(paths)
+
+	return slices.Compact(paths), cobra.ShellCompDirectiveNoFileComp
+}
+
 //nolint:cyclop // Dispatch each supported subvalidator to its configuration helper.
 func (v *valueFilepath) addSubvalidator(name string, properties []any) error {
 	switch name {
-	case "root":
-		return v.addRoot(properties)
+	case "glob":
+		return v.addGlob(properties)
 	case "type": //nolint:goconst // Keep subvalidator names explicit in switch cases.
 		return v.addType(properties)
-	case "file-extensions":
-		return v.addFileExtensions(properties)
 	case "permissions":
 		return v.addPermissions(properties)
 	case "owner-name":
@@ -183,25 +222,26 @@ func (v *valueFilepath) addSubvalidator(name string, properties []any) error {
 	return ErrUnknownSubvalidator
 }
 
-func (v *valueFilepath) addRoot(properties []any) error {
-	path, err := utils.One[string](properties)
+func (v *valueFilepath) addGlob(properties []any) error {
+	expr, err := utils.One[string](properties)
 	if err != nil {
 		return err
 	}
 
-	path, err = v.toValue(path)
+	if !doublestar.ValidatePathPattern(expr) {
+		return ErrFilepathInvalidGlob
+	}
+
+	v.glob = expr
+
+	pattern, err := filepath.Abs(expr)
 	if err != nil {
 		return err
 	}
 
-	v.setSubvalidator("root", path, func(input string) error {
-		relPath, err := filepath.Rel(path, input)
-		if err != nil {
-			return err
-		}
-
-		if !filepath.IsLocal(relPath) {
-			return fmt.Errorf("%w: path %s should belong to %s", ErrFilepathOutsideRoot, input, path)
+	v.setSubvalidator("glob", expr, func(input string) error {
+		if !doublestar.PathMatchUnvalidated(pattern, input) {
+			return fmt.Errorf("%w: %s", ErrFilepathGlobMismatch, expr)
 		}
 
 		return nil
@@ -238,32 +278,6 @@ func (v *valueFilepath) addType(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addFileExtensions(properties []any) error {
-	exts, err := utils.All[string](properties)
-	if err != nil {
-		return err
-	}
-
-	for idx, val := range exts {
-		if !strings.HasPrefix(val, ".") {
-			exts[idx] = "." + val
-		}
-	}
-
-	slices.Sort(exts)
-	exts = slices.Compact(exts)
-
-	v.setSubvalidator("file-extensions", strings.Join(exts, ","), func(input string) error {
-		if ext := filepath.Ext(input); !slices.Contains(exts, ext) {
-			return fmt.Errorf("%w: file extension %s is not supported", ErrFilepathUnsupportedExtension, ext)
-		}
-
-		return nil
-	})
-
-	return nil
-}
-
 func (v *valueFilepath) addPermissions(properties []any) error {
 	permissions, err := utils.One[int64](properties)
 	if err != nil {
@@ -277,7 +291,7 @@ func (v *valueFilepath) addPermissions(properties []any) error {
 	perm := fs.FileMode(permissions)
 
 	v.setSubvalidator("permissions", perm.String(), func(input string) error {
-		info, err := utils.World.Stat(input)
+		info, err := world.World.Files.Stat(input)
 		if err != nil {
 			return err
 		}
@@ -298,7 +312,7 @@ func (v *valueFilepath) addOwnerName(properties []any) error {
 		return err
 	}
 
-	uid, err := utils.World.LookupUser(name)
+	uid, err := world.World.Users.GetUser(name)
 	if err != nil {
 		return fmt.Errorf("cannot find a user: %w", err)
 	}
@@ -335,7 +349,7 @@ func (v *valueFilepath) addOwnerMe(properties []any) error {
 		return err
 	}
 
-	uid, err := utils.World.CurrentUser()
+	uid, err := world.World.Users.CurrentUser()
 	if err != nil {
 		return err
 	}
@@ -355,7 +369,7 @@ func (v *valueFilepath) addGroupName(properties []any) error {
 		return err
 	}
 
-	gid, err := utils.World.LookupGroup(name)
+	gid, err := world.World.Users.GetGroup(name)
 	if err != nil {
 		return err
 	}
@@ -396,7 +410,7 @@ func (v *valueFilepath) addGroupMe(properties []any) error {
 		return err
 	}
 
-	groups, err := utils.World.CurrentGroups()
+	groups, err := world.World.Users.CurrentGroups()
 	if err != nil {
 		return err
 	}
@@ -417,7 +431,7 @@ func (v *valueFilepath) addReadable(properties []any) error {
 	}
 
 	v.setSubvalidator("readable", strconv.FormatBool(isReadable), func(input string) error {
-		err := utils.World.IsReadable(input)
+		err := world.World.Files.Readable(input)
 
 		if err != nil && !errors.Is(err, fs.ErrPermission) {
 			return err
@@ -444,7 +458,7 @@ func (v *valueFilepath) addWritable(properties []any) error {
 	}
 
 	v.setSubvalidator("writable", strconv.FormatBool(isWritable), func(input string) error {
-		err := utils.World.IsWritable(input)
+		err := world.World.Files.Writable(input)
 
 		if err != nil && !errors.Is(err, fs.ErrPermission) {
 			return err
@@ -471,7 +485,7 @@ func (v *valueFilepath) addExecutable(properties []any) error {
 	}
 
 	v.setSubvalidator("executable", strconv.FormatBool(isExecutable), func(input string) error {
-		err := utils.World.IsExecutable(input)
+		err := world.World.Files.Executable(input)
 
 		if err != nil && !errors.Is(err, fs.ErrPermission) {
 			return err
@@ -493,7 +507,7 @@ func (v *valueFilepath) addExecutable(properties []any) error {
 
 func (v *valueFilepath) makeGroupValidator(groups []uint32, equal bool) func(string) error {
 	return func(input string) error {
-		info, err := utils.World.Stat(input)
+		info, err := world.World.Files.Stat(input)
 		if err != nil {
 			return err
 		}
@@ -520,7 +534,7 @@ func (v *valueFilepath) makeGroupValidator(groups []uint32, equal bool) func(str
 
 func (v *valueFilepath) makeOwnerValidator(uid uint32, equal bool) func(string) error {
 	return func(input string) error {
-		info, err := utils.World.Stat(input)
+		info, err := world.World.Files.Stat(input)
 		if err != nil {
 			return err
 		}
