@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	regexpConfigStart = regexp.MustCompile(`(?i)\s*#!\s*shebang\.(\d+)\s*`)
+	regexpConfigStart = regexp.MustCompile(`^(?i)\s*#!\s*shebang\.(\d+)\s*$`)
 	regexpConfigLine  = regexp.MustCompile(`^\s*#(.*?)$`)
 )
 

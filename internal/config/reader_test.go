@@ -38,6 +38,14 @@ func (suite *ReaderTestSuite) TestExtractConfig() {
 			doc:  "#!shebang.one\n# execute \"bash\"\n",
 		},
 		{
+			name: "marker with leading text",
+			doc:  "echo #!shebang.1\n# execute \"bash\"\n",
+		},
+		{
+			name: "marker with trailing text",
+			doc:  "#!shebang.1 extra\n# execute \"bash\"\n",
+		},
+		{
 			name:    "version zero",
 			doc:     "#!shebang.0\n",
 			version: 0,
@@ -100,6 +108,12 @@ func (suite *ReaderTestSuite) TestExtractConfig() {
 		{
 			name:    "stop at script body",
 			doc:     "#!shebang.1\n#execute \"bash\"\necho hello\n#description \"ignored\"\n",
+			version: 1,
+			want:    "execute \"bash\"\n",
+		},
+		{
+			name:    "stop at inline comment after code",
+			doc:     "#!shebang.1\n#execute \"bash\"\necho #description \"x\"\n#description \"ignored\"\n",
 			version: 1,
 			want:    "execute \"bash\"\n",
 		},
