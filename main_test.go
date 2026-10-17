@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -87,6 +88,162 @@ func (suite *MainTestSuite) TestWantsReadme() {
 			suite.Equal(test.want, wanted)
 		})
 	}
+}
+
+func (suite *MainTestSuite) TestWantsVersion() {
+	for _, test := range []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{
+			name: "nil arguments",
+		},
+		{
+			name: "empty arguments",
+			args: []string{},
+		},
+		{
+			name: "short version",
+			args: []string{"-V"},
+			want: true,
+		},
+		{
+			name: "long version",
+			args: []string{"--version"},
+			want: true,
+		},
+		{
+			name: "lowercase v flag",
+			args: []string{"-v"},
+		},
+		{
+			name: "script name",
+			args: []string{"script"},
+		},
+		{
+			name: "unknown flag",
+			args: []string{"--unknown"},
+		},
+		{
+			name: "script version",
+			args: []string{
+				"script",
+				"--version",
+			},
+		},
+		{
+			name: "short version with extra argument",
+			args: []string{
+				"-V",
+				"привет",
+			},
+		},
+		{
+			name: "long version with extra argument",
+			args: []string{
+				"--version",
+				"привет",
+			},
+		},
+	} {
+		suite.Run(test.name, func() {
+			// Act
+			wanted := wantsVersion(test.args)
+
+			// Assert
+			suite.Equal(test.want, wanted)
+		})
+	}
+}
+
+func (suite *MainTestSuite) TestResolveVersion() {
+	for _, test := range []struct {
+		name         string
+		configured   string
+		buildVersion string
+		buildOK      bool
+		nilBuildInfo bool
+		want         string
+	}{
+		{
+			name:         "configured ldflags version takes precedence",
+			configured:   "2026.10.17",
+			buildVersion: "v1.2.3",
+			buildOK:      true,
+			want:         "2026.10.17",
+		},
+		{
+			name:         "default configured version falls back to build info",
+			configured:   "dev",
+			buildVersion: "v1.2.3",
+			buildOK:      true,
+			want:         "v1.2.3",
+		},
+		{
+			name:         "empty configured version falls back to build info",
+			buildVersion: "v1.2.3",
+			buildOK:      true,
+			want:         "v1.2.3",
+		},
+		{
+			name:         "devel build info falls back to default",
+			buildVersion: "(devel)",
+			buildOK:      true,
+			want:         "dev",
+		},
+		{
+			name:    "empty build info version falls back to default",
+			buildOK: true,
+			want:    "dev",
+		},
+		{
+			name:         "nil build info falls back to default",
+			buildOK:      true,
+			nilBuildInfo: true,
+			want:         "dev",
+		},
+		{
+			name:         "unavailable build info falls back to default",
+			buildVersion: "v1.2.3",
+			want:         "dev",
+		},
+	} {
+		suite.Run(test.name, func() {
+			// Arrange
+			readBuildInfo := func() (*debug.BuildInfo, bool) {
+				if test.nilBuildInfo {
+					return nil, test.buildOK
+				}
+
+				return &debug.BuildInfo{
+					Main: debug.Module{
+						Version: test.buildVersion,
+					},
+				}, test.buildOK
+			}
+
+			// Act
+			got := resolveVersion(test.configured, readBuildInfo)
+
+			// Assert
+			suite.Equal(test.want, got)
+		})
+	}
+}
+
+func (suite *MainTestSuite) TestGetVersion() {
+	// Arrange
+	previous := version
+	version = "2026.10.17"
+
+	defer func() { version = previous }()
+
+	// Act
+	got := getVersion()
+
+	// Assert
+	suite.Equal("2026.10.17", got)
 }
 
 func (suite *MainTestSuite) TestParseConfig() {
@@ -435,6 +592,7 @@ type mainTestCase struct {
 	completion bool
 	debug      bool
 	readme     bool
+	version    bool
 }
 
 //nolint:maintidx // Keep declarative subprocess cases together with one value per line.
@@ -456,6 +614,48 @@ func mainTestCases() []mainTestCase {
 			noScript: true,
 			args:     []string{"--help"},
 			readme:   true,
+		},
+		{
+			name:     "version with standalone short version flag",
+			noScript: true,
+			args:     []string{"-V"},
+			version:  true,
+		},
+		{
+			name:     "version with standalone long version flag",
+			noScript: true,
+			args:     []string{"--version"},
+			version:  true,
+		},
+		{
+			name:     "short version flag with another argument is a script path",
+			noScript: true,
+			args: []string{
+				"-V",
+				"extra",
+			},
+			exit:   1,
+			stderr: "cannot detect a script -V:",
+		},
+		{
+			name:     "long version flag with another argument is a script path",
+			noScript: true,
+			args: []string{
+				"--version",
+				"extra",
+			},
+			exit:   1,
+			stderr: "cannot detect a script --version:",
+		},
+		{
+			name:     "two version flags do not select version output",
+			noScript: true,
+			args: []string{
+				"-V",
+				"--version",
+			},
+			exit:   1,
+			stderr: "cannot detect a script -V:",
 		},
 		{
 			name:     "short help flag with another argument is a script path",
@@ -1548,6 +1748,11 @@ func (suite *MainTestSuite) checkMainResult(
 		rendered, renderError := glamour.Render(readmeContent, "notty")
 		suite.Require().NoError(renderError)
 		suite.Equal(rendered+"\n", stdout)
+		suite.Empty(stderr)
+	}
+
+	if test.version {
+		suite.Equal(getVersion()+"\n", stdout)
 		suite.Empty(stderr)
 	}
 

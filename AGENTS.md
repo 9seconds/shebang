@@ -46,6 +46,9 @@ main.go: main
   +--> no arguments / standalone -h or --help
   |      `--> renderReadme -> exit
   |
+  +--> standalone -V or --version
+  |      `--> printVersion -> exit
+  |
   `--> getScript (absolute script path, exec.LookPath)
          -> parseConfig (open script)
          -> config.Parse

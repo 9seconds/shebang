@@ -67,6 +67,9 @@ may differ from the latest version on GitHub.
 
 To view a script's generated CLI help instead, run `your-script --help`.
 
+Run `shebang -V` or `shebang --version` to print the installed `shebang`
+version.
+
 ## Build and develop
 
 Just build and develop it as a generic Go project. It has no specifics. shebang

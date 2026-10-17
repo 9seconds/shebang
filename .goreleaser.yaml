@@ -22,7 +22,7 @@ builds:
       - -trimpath
       - -mod=readonly
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{ .Version }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:

@@ -24,11 +24,17 @@ func main() {
 
 	log.Configure(debugMode)
 
-	if wantsReadme(os.Args[1:]) {
+	switch {
+	case wantsReadme(os.Args[1:]):
 		renderReadme()
-		os.Exit(0)
+	case wantsVersion(os.Args[1:]):
+		printVersion()
+	default:
+		execute(debugMode)
 	}
+}
 
+func execute(debugMode bool)  {
 	scriptPath, err := getScript()
 	if err != nil {
 		log.Dief("cannot detect a script %s: %s", os.Args[1], err.Error())
