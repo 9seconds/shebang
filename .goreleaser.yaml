@@ -37,7 +37,7 @@ gomod:
   proxy: true
 
 snapshot:
-  version_template: '{{ .Version }}'
+  version_template: '{{ .Now.Format "2006.01.02" }}'
 
 source:
   enabled: true
