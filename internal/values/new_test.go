@@ -142,6 +142,10 @@ func (suite *NewTestSuite) TestValidInputCompletion() {
 			input: "2001:DB8::1/32",
 		},
 		{
+			name:  "git",
+			input: "refs/heads/nonexistent",
+		},
+		{
 			name:  "datetime",
 			input: "2026-10-12T13:14:15.123+02:00",
 		},
@@ -320,6 +324,10 @@ func (suite *NewTestSuite) TestNodeProperties() {
 		{
 			name:        "subnet",
 			constructor: values.NewSubnet,
+		},
+		{
+			name:        "git",
+			constructor: values.NewGit,
 		},
 	} {
 		suite.Run(test.name, func() {

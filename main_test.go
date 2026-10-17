@@ -714,6 +714,39 @@ exit 7
 			exit: 7,
 		},
 		{
+			name: "Git syntax validation preserves option and positional values",
+			doc: `# option "revision" { short "r"; value "git"; }
+# arg "branch" { value "git"; }
+
+printf '%s|%s|%s' "$SHEBANG_OL_REVISION" "$SHEBANG_OS_R" "$1"
+`,
+			args: []string{
+				"--revision",
+				"refs/tags/v1.2",
+				"feature/привет",
+			},
+			stdout: "refs/tags/v1.2|refs/tags/v1.2|feature/привет",
+		},
+		{
+			name: "invalid Git reference syntax prevents execution",
+			doc: `# arg "revision" { value "git"; }
+
+printf 'SCRIPT RAN'
+`,
+			args:   []string{"main~1"},
+			exit:   1,
+			stderr: "invalid reference name",
+		},
+		{
+			name: "unknown Git category prevents configuration",
+			doc: `# arg "revision" { value "git" { type "any" "typo"; }; }
+
+printf 'SCRIPT RAN'
+`,
+			exit:   1,
+			stderr: "unknown git ref type: typo",
+		},
+		{
 			name: "subnet preserves original option and positional input",
 			doc: `# option "network" {
 #   short "n"

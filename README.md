@@ -1788,6 +1788,58 @@ option "endpoint" {
 This accepts `--endpoint 'https://example.com/api/items?mode=safe&id=01&id=02'`.
 The script reads the unchanged URL from `SHEBANG_OL_ENDPOINT` or `SHEBANG_OS_E`.
 
-# TODO
+### `git` value
 
-- git-ref
+`git` accepts Git reference names and hexadecimal commit hashes. Without a
+`type` child it checks naming syntax only: names need not exist, and no
+repository is required. Short names such as `main`, `origin/main`, and `v1.2`
+and full references such as `refs/heads/main` are supported. `HEAD` is also
+accepted. Revision expressions such as `HEAD~1` and `main^` are not supported.
+
+shebang uses a library to access git objects, so no command line _git_ is
+required to be installed. The repository is discovered from the current working
+directory or its parents.
+
+To require local existence, specify one or more categories:
+
+| Type | Accepted input |
+| ---- | -------------- |
+| `head` | `HEAD`, when it resolves to an existing commit, attached or detached. |
+| `commit` | Full commit hashes or unambiguous hexadecimal object prefixes of at least four characters. |
+| `local-branch` | `main` or `refs/heads/main`. |
+| `remote-branch` | `origin/main` or `refs/remotes/origin/main`. |
+| `tag` | Lightweight tag names such as `v1.2` or `refs/tags/v1.2`. |
+| `annotated-tag` | Annotated tag names, short or under `refs/tags/`. |
+| `any` | Any of the categories above. |
+
+`type` takes one or more quoted strings; categories are alternatives. Explicit
+namespaces are respected: a `refs/heads/release` input cannot match a tag named
+`release`. Bare remote branch names are not searched across remotes; include
+the remote name. `head` is separate from `commit`.
+
+Commit prefixes may have [odd or even
+lengths](https://git-scm.com/book/en/v2/Git-Tools-Revision-Selection#Short-SHA-1)
+and either hexadecimal case. They must identify one distinct object across all
+object types, and that object must be a commit. An annotated-tag object's hash
+is not a commit hash. Branch and tag categories check reference presence rather
+than whether their targets are checkout-compatible commits. Remote references
+include locally stored symbolic aliases such as `origin/HEAD`. No network
+requests or fetches are performed.
+
+Completion filters the selected categories by the text typed, sorts and
+deduplicates suggestions, and preserves full namespaces when supplied. Commit
+suggestions require at least four hexadecimal characters. Already valid input
+completes to its original spelling, including valid abbreviated hashes.
+
+```kdl
+option "revision" {
+  description "Existing commit, branch, tag, or HEAD in the current repository"
+  short "r"
+  value "git" {
+    type "any"
+  }
+}
+```
+
+The script reads the original revision from `SHEBANG_OL_REVISION` or
+`SHEBANG_OS_R`.
