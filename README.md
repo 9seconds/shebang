@@ -399,8 +399,6 @@ consecutive comments mean the end of the configuration block.
 
 #### Version 1
 
-[The full reference with many comments](https://github.com/9seconds/shebang/blob/master/scheme.v1.kdl).
-
 This configuration is defined by [KDL](https://kdl.dev/), a tiny XML-like
 configuration like that you probably seen in [Zellij](https://zellij.dev/), or
 [Ferron](https://ferron.sh/). It looks and feels like
