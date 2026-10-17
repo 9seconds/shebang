@@ -38,15 +38,15 @@ func NewInt(properties map[string]any, subvalidators map[string][]any) (Value, e
 func (v *valueInt) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "min":
-		return v.addMin(properties)
+		return v.addSubvalidatorMin(properties)
 	case "max":
-		return v.addMax(properties)
+		return v.addSubvalidatorMax(properties)
 	}
 
 	return ErrUnknownSubvalidator
 }
 
-func (v *valueInt) addMin(properties []any) error {
+func (v *valueInt) addSubvalidatorMin(properties []any) error {
 	limit, err := utils.One[int64](properties)
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func (v *valueInt) addMin(properties []any) error {
 	return nil
 }
 
-func (v *valueInt) addMax(properties []any) error {
+func (v *valueInt) addSubvalidatorMax(properties []any) error {
 	limit, err := utils.One[int64](properties)
 	if err != nil {
 		return err

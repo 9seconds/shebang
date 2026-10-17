@@ -117,12 +117,21 @@ func NewFilepath(
 	return val, nil
 }
 
-// Complete suggests matching files and directories for continued navigation.
+// Complete bypasses baseValue's valid-input shortcut: a valid path can still be
+// a partial filename or directory that should expand into completion candidates.
 func (v *valueFilepath) Complete(input string) ([]string, cobra.ShellCompDirective) {
+	return v.genCompletions(input)
+}
+
+func (v *valueFilepath) genCompletions(input string) ([]string, cobra.ShellCompDirective) {
 	if v.glob != "" {
-		return v.completeGlob(input)
+		return v.genCompletionsGlob(input)
 	}
 
+	return v.genCompletionsCwd(input)
+}
+
+func (v *valueFilepath) genCompletionsCwd(input string) ([]string, cobra.ShellCompDirective) {
 	directory, prefix := filepath.Split(input)
 
 	directoryToRead := directory
@@ -157,7 +166,7 @@ func (v *valueFilepath) Complete(input string) ([]string, cobra.ShellCompDirecti
 	return paths, directive
 }
 
-func (v *valueFilepath) completeGlob(input string) ([]string, cobra.ShellCompDirective) {
+func (v *valueFilepath) genCompletionsGlob(input string) ([]string, cobra.ShellCompDirective) {
 	matches, err := doublestar.FilepathGlob(v.glob)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -194,35 +203,35 @@ func (v *valueFilepath) completeGlob(input string) ([]string, cobra.ShellCompDir
 func (v *valueFilepath) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "glob":
-		return v.addGlob(properties)
+		return v.addSubvalidatorGlob(properties)
 	case "type": //nolint:goconst // Keep subvalidator names explicit in switch cases.
-		return v.addType(properties)
+		return v.addSubvalidatorType(properties)
 	case "permissions":
-		return v.addPermissions(properties)
+		return v.addSubvalidatorPermissions(properties)
 	case "owner-name":
-		return v.addOwnerName(properties)
+		return v.addSubvalidatorOwnerName(properties)
 	case "owner-id":
-		return v.addOwnerID(properties)
+		return v.addSubvalidatorOwnerID(properties)
 	case "owner-me":
-		return v.addOwnerMe(properties)
+		return v.addSubvalidatorOwnerMe(properties)
 	case "group-name":
-		return v.addGroupName(properties)
+		return v.addSubvalidatorGroupName(properties)
 	case "group-id":
-		return v.addGroupID(properties)
+		return v.addSubvalidatorGroupID(properties)
 	case "group-me":
-		return v.addGroupMe(properties)
+		return v.addSubvalidatorGroupMe(properties)
 	case "readable":
-		return v.addReadable(properties)
+		return v.addSubvalidatorReadable(properties)
 	case "writable":
-		return v.addWritable(properties)
+		return v.addSubvalidatorWritable(properties)
 	case "executable":
-		return v.addExecutable(properties)
+		return v.addSubvalidatorExecutable(properties)
 	}
 
 	return ErrUnknownSubvalidator
 }
 
-func (v *valueFilepath) addGlob(properties []any) error {
+func (v *valueFilepath) addSubvalidatorGlob(properties []any) error {
 	expr, err := utils.One[string](properties)
 	if err != nil {
 		return err
@@ -250,7 +259,7 @@ func (v *valueFilepath) addGlob(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addType(properties []any) error {
+func (v *valueFilepath) addSubvalidatorType(properties []any) error {
 	types, err := utils.All[string](properties)
 	if err != nil {
 		return err
@@ -278,7 +287,7 @@ func (v *valueFilepath) addType(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addPermissions(properties []any) error {
+func (v *valueFilepath) addSubvalidatorPermissions(properties []any) error {
 	permissions, err := utils.One[int64](properties)
 	if err != nil {
 		return err
@@ -306,7 +315,7 @@ func (v *valueFilepath) addPermissions(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addOwnerName(properties []any) error {
+func (v *valueFilepath) addSubvalidatorOwnerName(properties []any) error {
 	name, err := utils.One[string](properties)
 	if err != nil {
 		return err
@@ -322,7 +331,7 @@ func (v *valueFilepath) addOwnerName(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addOwnerID(properties []any) error {
+func (v *valueFilepath) addSubvalidatorOwnerID(properties []any) error {
 	uidInt, err := utils.One[int64](properties)
 	if err != nil {
 		return err
@@ -343,7 +352,7 @@ func (v *valueFilepath) addOwnerID(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addOwnerMe(properties []any) error {
+func (v *valueFilepath) addSubvalidatorOwnerMe(properties []any) error {
 	isMe, err := utils.One[bool](properties)
 	if err != nil {
 		return err
@@ -363,7 +372,7 @@ func (v *valueFilepath) addOwnerMe(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addGroupName(properties []any) error {
+func (v *valueFilepath) addSubvalidatorGroupName(properties []any) error {
 	name, err := utils.One[string](properties)
 	if err != nil {
 		return err
@@ -383,7 +392,7 @@ func (v *valueFilepath) addGroupName(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addGroupID(properties []any) error {
+func (v *valueFilepath) addSubvalidatorGroupID(properties []any) error {
 	gidInt, err := utils.One[int64](properties)
 	if err != nil {
 		return err
@@ -404,7 +413,7 @@ func (v *valueFilepath) addGroupID(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addGroupMe(properties []any) error {
+func (v *valueFilepath) addSubvalidatorGroupMe(properties []any) error {
 	isMe, err := utils.One[bool](properties)
 	if err != nil {
 		return err
@@ -424,7 +433,7 @@ func (v *valueFilepath) addGroupMe(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addReadable(properties []any) error {
+func (v *valueFilepath) addSubvalidatorReadable(properties []any) error {
 	isReadable, err := utils.One[bool](properties)
 	if err != nil {
 		return err
@@ -451,7 +460,7 @@ func (v *valueFilepath) addReadable(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addWritable(properties []any) error {
+func (v *valueFilepath) addSubvalidatorWritable(properties []any) error {
 	isWritable, err := utils.One[bool](properties)
 	if err != nil {
 		return err
@@ -478,7 +487,7 @@ func (v *valueFilepath) addWritable(properties []any) error {
 	return nil
 }
 
-func (v *valueFilepath) addExecutable(properties []any) error {
+func (v *valueFilepath) addSubvalidatorExecutable(properties []any) error {
 	isExecutable, err := utils.One[bool](properties)
 	if err != nil {
 		return err

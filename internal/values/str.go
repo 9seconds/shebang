@@ -48,17 +48,17 @@ func NewStr(properties map[string]any, subvalidators map[string][]any) (Value, e
 func (v *valueStr) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "min-length":
-		return v.addMinLength(properties)
+		return v.addSubvalidatorMinLength(properties)
 	case "max-length":
-		return v.addMaxLength(properties)
+		return v.addSubvalidatorMaxLength(properties)
 	case "re":
-		return v.addRe(properties)
+		return v.addSubvalidatorRe(properties)
 	}
 
 	return ErrUnknownSubvalidator
 }
 
-func (v *valueStr) addMinLength(properties []any) error {
+func (v *valueStr) addSubvalidatorMinLength(properties []any) error {
 	length, err := utils.One[int64](properties)
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func (v *valueStr) addMinLength(properties []any) error {
 	return nil
 }
 
-func (v *valueStr) addMaxLength(properties []any) error {
+func (v *valueStr) addSubvalidatorMaxLength(properties []any) error {
 	length, err := utils.One[int64](properties)
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func (v *valueStr) addMaxLength(properties []any) error {
 	return nil
 }
 
-func (v *valueStr) addRe(properties []any) error {
+func (v *valueStr) addSubvalidatorRe(properties []any) error {
 	strExpr, err := utils.One[string](properties)
 	if err != nil {
 		return err

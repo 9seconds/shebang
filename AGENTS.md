@@ -171,10 +171,13 @@ the script's `RunE`. Subvalidators execute in unspecified map order; `String()`
 sorts their diagnostic details. Filepath completion overrides the base
 valid-input shortcut so partial paths can still be expanded.
 
-Filesystem validators use `internal/utils/world.go`: `Stat` follows symlinks,
-`Lstat` inspects the link, and access checks use OS access rules. `utils.World`
-caches successes and errors for the process; use fresh `worldView` instances in
+Filesystem validators use `internal/world/files.go`: `Stat` follows symlinks,
+`Lstat` inspects the link, and access checks use OS access rules. `world.World`
+caches successes and errors for the process; use fresh `world.Files` and `world.Users` instances in
 internal cache tests and unique temporary paths in validator tests.
+Git caches use fresh `world.Git` instances and temporary repositories. Tests that
+change the working directory must remain serial. Run `go test -race ./internal/world`
+when changing the cache helpers or concurrent Git operations.
 
 ## Verification points
 
@@ -216,7 +219,18 @@ All data structures for value struct must have a stem prefix:
 var xyzHelper = []string{1, 2, 3}
 ```
 
+Name subvalidator installation helpers `addSubvalidatorXXX`, with
+`addSubvalidator` as the dispatcher. Name completion candidate generators
+`genCompletions`; specialized generators may append a suffix such as `Glob`.
+Filepath keeps its `Complete` override to bypass the base valid-input shortcut
+and delegates candidate generation to `genCompletions`.
+
 # Testing
+
+These rules apply to every package, including `internal/world`, not only
+`internal/values`. Use testify suites for new tests, with named table subtests
+where appropriate. Keep suite subtests serial; tests that change the working
+directory or process environment must also run in a serial suite.
 
 Use table tests when possible.
 
@@ -243,7 +257,12 @@ func TestSomething(t *testing.T) {
 In case of table tests with a common arrange, set these separators inside a
 subtest.
 
-Separate getting values and their verifications by blank lines.
+Keep a result-producing call and its associated assertions together. Insert a
+blank line before the next independent call/assertion group. When calls are
+collected in Act and verified later in Assert, separate assertions for each
+independent result with a blank line. Also separate setup or mutation assertions
+(such as creating or removing a file) from the next lookup. Apply this spacing
+inside fixtures, helpers, loops, and subtests as well as test methods.
 
 Good:
 

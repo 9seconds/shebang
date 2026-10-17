@@ -73,9 +73,9 @@ func NewIP(properties map[string]any, subvalidators map[string][]any) (Value, er
 func (v *valueIP) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "subnets":
-		return v.addSubnets(properties)
+		return v.addSubvalidatorSubnets(properties)
 	case "type": //nolint:goconst // Keep subvalidator names explicit in switch cases.
-		return v.addType(properties)
+		return v.addSubvalidatorType(properties)
 	}
 
 	if _, ok := ipClassifiers[name]; !ok {
@@ -101,7 +101,7 @@ func (v *valueIP) addSubvalidator(name string, properties []any) error {
 	return nil
 }
 
-func (v *valueIP) addSubnets(properties []any) error {
+func (v *valueIP) addSubvalidatorSubnets(properties []any) error {
 	if len(properties) == 0 {
 		return utils.ErrEmpty
 	}
@@ -135,7 +135,7 @@ func (v *valueIP) addSubnets(properties []any) error {
 	return nil
 }
 
-func (v *valueIP) addType(properties []any) error {
+func (v *valueIP) addSubvalidatorType(properties []any) error {
 	name, err := utils.One[string](properties)
 	if err != nil {
 		return err

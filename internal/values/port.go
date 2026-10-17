@@ -57,21 +57,21 @@ func (v *valuePort) addSubvalidator(name string, properties []any) error {
 
 	switch name {
 	case "well-known":
-		v.addRangeSubvalidator(
+		v.addSubvalidatorRange(
 			"well-known",
 			0,
 			portSystemLast,
 			val,
 		)
 	case "registered":
-		v.addRangeSubvalidator(
+		v.addSubvalidatorRange(
 			"registered",
 			portSystemLast+1,
 			portRegisteredLast,
 			val,
 		)
 	case "ephemeral":
-		v.addRangeSubvalidator(
+		v.addSubvalidatorRange(
 			"ephemeral",
 			portRegisteredLast+1,
 			math.MaxUint16,
@@ -84,7 +84,7 @@ func (v *valuePort) addSubvalidator(name string, properties []any) error {
 	return nil
 }
 
-func (v *valuePort) addRangeSubvalidator(name string, first, last uint16, expected bool) {
+func (v *valuePort) addSubvalidatorRange(name string, first, last uint16, expected bool) {
 	v.setSubvalidator(name, "", func(input uint16) error {
 		if expected == (first <= input && input <= last) {
 			return nil

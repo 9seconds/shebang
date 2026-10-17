@@ -48,15 +48,15 @@ func NewFloat(properties map[string]any, subvalidators map[string][]any) (Value,
 func (v *valueFloat) addSubvalidator(name string, properties []any) error {
 	switch name {
 	case "min":
-		return v.addMin(properties)
+		return v.addSubvalidatorMin(properties)
 	case "max":
-		return v.addMax(properties)
+		return v.addSubvalidatorMax(properties)
 	}
 
 	return ErrUnknownSubvalidator
 }
 
-func (v *valueFloat) addMin(properties []any) error {
+func (v *valueFloat) addSubvalidatorMin(properties []any) error {
 	limit, err := utils.One[float64](properties)
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (v *valueFloat) addMin(properties []any) error {
 	return nil
 }
 
-func (v *valueFloat) addMax(properties []any) error {
+func (v *valueFloat) addSubvalidatorMax(properties []any) error {
 	limit, err := utils.One[float64](properties)
 	if err != nil {
 		return err
