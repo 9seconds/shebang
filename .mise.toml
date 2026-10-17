@@ -12,6 +12,11 @@ run = "go build -o shebang"
 sources = ["**/*.go", "go.mod", "go.sum"]
 outputs = ["shebang"]
 
+[tasks.test]
+description = "Run tests"
+run = "go test -race ./..."
+sources = ["**/*.go", "go.mod", "go.sum"]
+
 [tasks.lint]
 description = "Run a static analysis"
 sources = ["**/*.go", "go.mod", "go.sum"]
