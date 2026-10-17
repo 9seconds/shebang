@@ -82,12 +82,12 @@ func parseConfig(path string) (config.Config, error) {
 }
 
 func getScript() (string, error) {
-	scriptPath, err := filepath.Abs(os.Args[1])
+	scriptPath, err := exec.LookPath(os.Args[1])
 	if err != nil {
 		return "", err
 	}
 
-	return exec.LookPath(scriptPath)
+	return filepath.Abs(scriptPath)
 }
 
 func runExecve(_ *cobra.Command, args []string) error {
