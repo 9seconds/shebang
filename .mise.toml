@@ -24,7 +24,7 @@ run = "golangci-lint run"
 
 [tasks.release]
 description = "Create release tarballs"
-sources = ["**/*.go", "go.mod", "go.sum", ".goreleaser.yml", "README.md"]
+sources = ["**/*.go", "go.mod", "go.sum", ".goreleaser.yaml", "README.md"]
 run = [
     "goreleaser release --snapshot --clean",
     "fd --type directory . ./dist -X rm -rf",
