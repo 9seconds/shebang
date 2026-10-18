@@ -57,13 +57,9 @@ func (v *valueFloat) addSubvalidator(name string, properties []any) error {
 }
 
 func (v *valueFloat) addSubvalidatorMin(properties []any) error {
-	limit, err := utils.One[float64](properties)
+	limit, err := v.getFloat(properties)
 	if err != nil {
 		return err
-	}
-
-	if math.IsNaN(limit) || math.IsInf(limit, 0) {
-		return ErrFloatNonFinite
 	}
 
 	v.setSubvalidator("min", fmt.Sprintf("%g", limit), func(input float64) error {
@@ -78,13 +74,9 @@ func (v *valueFloat) addSubvalidatorMin(properties []any) error {
 }
 
 func (v *valueFloat) addSubvalidatorMax(properties []any) error {
-	limit, err := utils.One[float64](properties)
+	limit, err := v.getFloat(properties)
 	if err != nil {
 		return err
-	}
-
-	if math.IsNaN(limit) || math.IsInf(limit, 0) {
-		return ErrFloatNonFinite
 	}
 
 	v.setSubvalidator("max", fmt.Sprintf("%g", limit), func(input float64) error {
@@ -96,4 +88,28 @@ func (v *valueFloat) addSubvalidatorMax(properties []any) error {
 	})
 
 	return nil
+}
+
+func (v *valueFloat) getFloat(properties []any) (float64, error) {
+	val, err := utils.One[any](properties)
+	if err != nil {
+		return 0.0, err
+	}
+
+	var parsed float64
+
+	switch typed := val.(type) {
+	case int64:
+		parsed = float64(typed)
+	case float64:
+		parsed = typed
+	default:
+		return 0.0, utils.NewArgumentTypeError(float64(0), val)
+	}
+
+	if math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return 0.0, ErrFloatNonFinite
+	}
+
+	return parsed, nil
 }

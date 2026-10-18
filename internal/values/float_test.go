@@ -125,7 +125,7 @@ func (suite *FloatTestSuite) TestBounds() {
 	for _, test := range []struct {
 		name     string
 		property string
-		bound    float64
+		bound    any
 		input    string
 		want     *values.ErrNumConstraint[float64]
 		message  string
@@ -135,6 +135,20 @@ func (suite *FloatTestSuite) TestBounds() {
 			property: "min",
 			bound:    1.25,
 			input:    "1.25",
+		},
+		{
+			name:     "integer minimum inclusive",
+			property: "min",
+			bound:    int64(1),
+			input:    "1.0",
+		},
+		{
+			name:     "below integer minimum",
+			property: "min",
+			bound:    int64(1),
+			input:    "0.5",
+			want:     values.NewErrNumConstraint(values.NumConstraintMin, 1.0, 0.5),
+			message:  "number must be at least 1, got 0.5",
 		},
 		{
 			name:     "below negative minimum",
@@ -151,6 +165,12 @@ func (suite *FloatTestSuite) TestBounds() {
 			input:    "1.25",
 		},
 		{
+			name:     "integer maximum inclusive",
+			property: "max",
+			bound:    int64(2),
+			input:    "2.0",
+		},
+		{
 			name:     "above maximum",
 			property: "max",
 			bound:    1.25,
@@ -161,6 +181,7 @@ func (suite *FloatTestSuite) TestBounds() {
 		{
 			name:     "zero bound accepts negative zero",
 			property: "min",
+			bound:    0.0,
 			input:    "-0.0",
 		},
 		{
@@ -220,11 +241,6 @@ func (suite *FloatTestSuite) TestProperties() {
 					name: "multiple",
 					args: []any{1.0, 2.0},
 					want: utils.ErrSingleArgumentExpected,
-				},
-				{
-					name:      "integer is not a float bound",
-					args:      []any{int64(1)},
-					typeError: true,
 				},
 				{
 					name:      "string is not converted",
