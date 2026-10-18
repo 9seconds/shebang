@@ -85,6 +85,23 @@ func (suite *ConfigTestSuite) TestHelpText() {
 			},
 			want: "Positional arguments:\n  ПРИВЕТ   Greeting\n  END      End",
 		},
+		{
+			name: "positional arguments without descriptions have no trailing spaces",
+			conf: v1.Config{
+				FirstArgs: []v1.Arg{
+					{
+						Name: "src",
+					},
+				},
+				LastArgs: []v1.Arg{
+					{
+						Name:        "destination",
+						Description: "Destination",
+					},
+				},
+			},
+			want: "Positional arguments:\n  SRC\n  DESTINATION   Destination",
+		},
 	} {
 		suite.Run(test.name, func() {
 			// Arrange

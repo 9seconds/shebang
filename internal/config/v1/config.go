@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/9seconds/shebang/internal/cli"
@@ -136,6 +137,10 @@ func (c *Config) configureDescription(cmd *cli.Command) {
 			description,
 			fmt.Sprintf(fmtPositionalArgs, strings.ToUpper(arg.Name), arg.Description),
 		)
+	}
+
+	for idx, arg := range description {
+		description[idx] = strings.TrimRightFunc(arg, unicode.IsSpace)
 	}
 
 	cmd.Cmd.Long = c.Description
