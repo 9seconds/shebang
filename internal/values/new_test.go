@@ -185,9 +185,17 @@ func (suite *NewTestSuite) TestDatetimeConfiguration() {
 		},
 		{
 			input: "100",
+			valid: true,
 		},
 		{
 			input: "200",
+			valid: true,
+		},
+		{
+			input: "99",
+		},
+		{
+			input: "201",
 		},
 		{
 			input: "2026-10-12",

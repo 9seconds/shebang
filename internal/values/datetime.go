@@ -233,7 +233,7 @@ func (v *valueDatetime) addSubvalidatorDateAfter(properties []any) error {
 
 func (v *valueDatetime) makeValidatorAfter(datetime time.Time) func(time.Time) error {
 	return func(input time.Time) error {
-		if !input.After(datetime) {
+		if input.Before(datetime) {
 			return NewErrDatetimeConstraint(input, datetime, "after")
 		}
 
@@ -243,7 +243,7 @@ func (v *valueDatetime) makeValidatorAfter(datetime time.Time) func(time.Time) e
 
 func (v *valueDatetime) makeValidatorBefore(datetime time.Time) func(time.Time) error {
 	return func(input time.Time) error {
-		if !input.Before(datetime) {
+		if input.After(datetime) {
 			return NewErrDatetimeConstraint(input, datetime, "before")
 		}
 
@@ -255,12 +255,16 @@ func (v *valueDatetime) genCompletions(input string) ([]string, cobra.ShellCompD
 	choices := make([]string, 0, 1+len(v.knownDates))
 
 	if val := v.formatValue(time.Now()); strings.HasPrefix(val, input) {
-		choices = append(choices, val)
+		if err := v.Validate(val); err == nil {
+			choices = append(choices, val)
+		}
 	}
 
 	for _, tme := range v.knownDates {
 		if val := v.formatValue(tme); strings.HasPrefix(val, input) {
-			choices = append(choices, val)
+			if err := v.Validate(val); err == nil {
+				choices = append(choices, val)
+			}
 		}
 	}
 

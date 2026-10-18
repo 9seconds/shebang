@@ -279,7 +279,7 @@ func (suite *DatetimeTestSuite) TestAbsoluteBounds() {
 						err = value.Validate(formatTime(input))
 
 						// Assert
-						if (relation == "before" && offset < 0) || (relation == "after" && offset > 0) {
+						if (relation == "before" && offset <= 0) || (relation == "after" && offset >= 0) {
 							suite.Require().NoError(err)
 
 							continue
@@ -359,8 +359,10 @@ func (suite *DatetimeTestSuite) TestCombinedBoundsAndCompletion() {
 	})
 	suite.Require().NoError(err)
 	suite.Require().NoError(value.Validate("-150"))
-	suite.Require().Error(value.Validate("-200"))
-	suite.Require().Error(value.Validate("-100"))
+	suite.Require().NoError(value.Validate("-200"))
+	suite.Require().NoError(value.Validate("-100"))
+	suite.Require().Error(value.Validate("-201"))
+	suite.Require().Error(value.Validate("-99"))
 	suite.Equal("datetime(date-after:-200, date-before:-100)", value.String())
 
 	// Act
@@ -380,6 +382,16 @@ func (suite *DatetimeTestSuite) TestCombinedBoundsAndCompletion() {
 	suite.Equal([]cobra.Completion{"-100"}, choices)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 
+	// Act
+	choices, directive = value.Complete("")
+
+	// Assert
+	suite.Equal([]cobra.Completion{
+		"-100",
+		"-200",
+	}, choices)
+	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
+
 	// Arrange
 	value, err = values.NewDatetime(map[string]any{
 		"format": "unix-ms",
@@ -394,6 +406,22 @@ func (suite *DatetimeTestSuite) TestCombinedBoundsAndCompletion() {
 
 	// Assert
 	suite.Equal([]cobra.Completion{"-1001"}, choices)
+	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
+
+	// Arrange
+	value, err = values.NewDatetime(map[string]any{
+		"format": "unix",
+	}, map[string][]any{
+		"date-after":  {"-100"},
+		"date-before": {"-200"},
+	})
+	suite.Require().NoError(err)
+
+	// Act
+	choices, directive = value.Complete("-")
+
+	// Assert
+	suite.Empty(choices)
 	suite.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
 }
 

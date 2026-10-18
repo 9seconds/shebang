@@ -1247,13 +1247,13 @@ UTC; time-only layouts use year 0, January 1 for their date.
 
 | Subvalidator | Example definition | Passes | Fails | Description |
 | ------------ | ------------------ | ------ | ----- | ----------- |
-| `before` | `before "1h"` | A timestamp 30 minutes from now. | A timestamp 2 hours from now. | Requires a time before now plus the duration. |
-| `after` | `after "-1h"` | A timestamp 30 minutes ago. | A timestamp 2 hours ago. | Requires a time after now plus the duration. |
-| `date-before` | `date-before "2026-11-01T00:00:00Z"` | `2026-10-12T00:00:00Z` | `2026-11-01T00:00:00Z` | Requires a time before the supplied timestamp. |
-| `date-after` | `date-after "2026-10-01T00:00:00Z"` | `2026-10-12T00:00:00Z` | `2026-10-01T00:00:00Z` | Requires a time after the supplied timestamp. |
+| `before` | `before "1h"` | A timestamp 30 minutes from now. | A timestamp 2 hours from now. | Requires a time at or before now plus the duration. |
+| `after` | `after "-1h"` | A timestamp 30 minutes ago. | A timestamp 2 hours ago. | Requires a time at or after now plus the duration. |
+| `date-before` | `date-before "2026-11-01T00:00:00Z"` | `2026-10-12T00:00:00Z`, `2026-11-01T00:00:00Z` | `2026-11-01T00:00:01Z` | Requires a time at or before the supplied timestamp. |
+| `date-after` | `date-after "2026-10-01T00:00:00Z"` | `2026-10-12T00:00:00Z`, `2026-10-01T00:00:00Z` | `2026-09-30T23:59:59Z` | Requires a time at or after the supplied timestamp. |
 
-Each subvalidator takes exactly one quoted string. All bounds are strict:
-a timestamp equal to a bound fails. Absolute bounds (`date-before` and
+Each subvalidator takes exactly one quoted string. All bounds are inclusive:
+a timestamp equal to a bound passes. Absolute bounds (`date-before` and
 `date-after`) use the selected `format`, so with `format="unix"` write
 `date-after "0"` rather than an ISO 8601 date.
 
@@ -1264,14 +1264,13 @@ Relative bounds (`before` and `after`) use durations:
 > Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h", "d", "w",
 > "y". Units "day", "week" and "year" are all approximate units with the values
 > of "24h" in a day, "7d" in a week, "365d" in a year.
->
-> `"-1h"`, or `"30m"`. The cutoff is calculated when the validator is
-> constructed: positive durations move it into the future and negative
-> durations into the past. It is not recalculated for each input. All
-> configured bounds must pass.
+
+The cutoff is calculated when the validator is constructed: positive durations
+move it into the future and negative durations into the past. It is not
+recalculated for each input. All configured bounds must pass.
 
 Completion suggests the current time and configured cutoff timestamps in
-the selected format.
+the selected format when they satisfy all configured bounds.
 
 #### Example
 
@@ -1286,8 +1285,8 @@ option "scheduled-at" {
 }
 ```
 
-This accepts a timestamp strictly after command configuration and less than
-24 hours ahead, for example `--scheduled-at 2026-10-12T14:00:00Z` if the
+This accepts a timestamp from command configuration up to 24 hours ahead
+(inclusive), for example `--scheduled-at 2026-10-12T14:00:00Z` if the
 command is configured at `2026-10-12T13:00:00Z`. The script reads the original
 value from `SHEBANG_OL_SCHEDULED_AT` or `SHEBANG_OS_S`.
 
