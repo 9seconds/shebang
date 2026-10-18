@@ -80,7 +80,7 @@ func (suite *IPTestSuite) TestParsing() {
 			// Arrange
 			value, err := values.New("ip", nil, nil)
 			suite.Require().NoError(err)
-			suite.Equal("ip(classifiers)", value.String())
+			suite.Equal("ip()", value.String())
 
 			// Act
 			err = value.Validate(test.input)
@@ -143,7 +143,7 @@ func (suite *IPTestSuite) TestTypes() {
 				"type": {test.name},
 			})
 			suite.Require().NoError(err)
-			suite.Equal("ip(classifiers, type:"+test.name+")", value.String())
+			suite.Equal("ip(type:"+test.name+")", value.String())
 
 			for _, address := range test.accepted {
 				// Act
@@ -504,7 +504,10 @@ func (suite *IPTestSuite) TestCombinedConstraints() {
 			err := value.Validate(test.input)
 
 			// Assert
-			suite.Equal("ip(classifiers, subnets:10.0.0.0/8,192.168.0.0/16, type:v4)", value.String())
+			suite.Equal(
+				"ip(classifiers:loopback,private, subnets:10.0.0.0/8,192.168.0.0/16, type:v4)",
+				value.String(),
+			)
 
 			if test.valid {
 				suite.Require().NoError(err)

@@ -41,6 +41,8 @@ func New(
 	subvalidators map[string][]any,
 ) (Value, error) {
 	if valueType == "" {
+		// Deliberate default: when no value block is specified, return an
+		// unconstrained string validator and ignore any properties/subvalidators.
 		return NewStr(nil, nil)
 	}
 

@@ -58,15 +58,24 @@ func NewIP(properties map[string]any, subvalidators map[string][]any) (Value, er
 		}
 	}
 
-	val.setSubvalidator("classifiers", "", func(input netip.Addr) error {
-		for name, expected := range val.classifiers {
-			if ipClassifiers[name](input) != expected {
-				return NewErrIPClassifier(input, name, expected)
-			}
+	if len(val.classifiers) > 0 {
+		details := make([]string, 0, len(val.classifiers))
+		for name := range val.classifiers {
+			details = append(details, name)
 		}
 
-		return nil
-	})
+		slices.Sort(details)
+
+		val.setSubvalidator("classifiers", strings.Join(details, ","), func(input netip.Addr) error {
+			for name, expected := range val.classifiers {
+				if ipClassifiers[name](input) != expected {
+					return NewErrIPClassifier(input, name, expected)
+				}
+			}
+
+			return nil
+		})
+	}
 
 	return val, nil
 }
@@ -89,15 +98,6 @@ func (v *valueIP) addSubvalidator(name string, properties []any) error {
 	}
 
 	v.classifiers[name] = expected
-
-	details := make([]string, 0, len(v.classifiers))
-	for name := range v.classifiers {
-		details = append(details, name)
-	}
-
-	slices.Sort(details)
-
-	v.subvalidatorDetails["classifiers"] = strings.Join(details, ",")
 
 	return nil
 }
