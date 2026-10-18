@@ -2,6 +2,7 @@ package values
 
 import (
 	"fmt"
+	"net"
 	"net/netip"
 	"slices"
 	"strings"
@@ -160,33 +161,15 @@ func (v *valueIP) addSubvalidatorType(properties []any) error {
 func (v *valueIP) genCompletions(input string) ([]string, cobra.ShellCompDirective) {
 	addresses := make([]string, 0, 2*len(v.prefixes))
 
-	isOk := func(addr netip.Addr) bool {
-		for _, subvalidator := range v.subvalidators {
-			if err := subvalidator(addr); err != nil {
-				return false
-			}
-		}
-
-		return true
-	}
-
 	for _, prefix := range v.prefixes {
-		addr := prefix.Addr()
-
-		if isOk(addr) {
-			addresses = append(addresses, addr.String(), addr.StringExpanded())
-		}
+		addresses = append(addresses, v.getPrefixCompletions(prefix)...)
 	}
 
 	candidates := make([]cobra.Completion, 0, len(addresses))
 
 	for _, address := range addresses {
-		// cut 1 character out of the ip address because we do not
-		// want actually to finish with an own address of the prefix,
-		// we want to complete up to that string
-		address = address[:len(address)-1]
-
-		if strings.HasPrefix(address, input) {
+		// address could be empty here for /0 subnets
+		if address != "" && strings.HasPrefix(address, input) {
 			candidates = append(candidates, address)
 		}
 	}
@@ -197,4 +180,51 @@ func (v *valueIP) genCompletions(input string) ([]string, cobra.ShellCompDirecti
 	}
 
 	return candidates, directive
+}
+
+func (v *valueIP) getPrefixCompletions(prefix netip.Prefix) []string {
+	first := prefix.Addr()
+	lastRaw := first.AsSlice()
+	mask := net.CIDRMask(prefix.Bits(), first.BitLen())
+
+	// mask has 1s in the network porting and 0s in the host portion:
+	// 255.255.255.0 for /24. By inverting this mask we are getting
+	// 0.0.0.255. It sets all host bits to 1, keeping all network part intact.
+	//  This gives the very last IP address in the subnet.
+	for i := range lastRaw {
+		lastRaw[i] |= ^mask[i]
+	}
+
+	last, _ := netip.AddrFromSlice(lastRaw)
+
+	if !v.isValidAddr(first) && !v.isValidAddr(last) {
+		return nil
+	}
+
+	return []string{
+		v.largestCommonPrefix(first.String(), last.String()),
+		v.largestCommonPrefix(first.StringExpanded(), last.StringExpanded()),
+	}
+}
+
+func (v *valueIP) isValidAddr(addr netip.Addr) bool {
+	for _, subvalidator := range v.subvalidators {
+		if err := subvalidator(addr); err != nil {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (v *valueIP) largestCommonPrefix(fst, lst string) string {
+	limit := min(len(fst), len(lst))
+
+	for i := range limit {
+		if fst[i] != lst[i] {
+			return fst[:i]
+		}
+	}
+
+	return fst[:limit]
 }

@@ -1065,12 +1065,6 @@ an explicitly empty subnet list is rejected.
 > mapped prefix such as `::ffff:192.0.2.0/120` instead. Scoped IPv6 addresses
 > containing a zone identifier do not match CIDR prefixes.
 
-Completion suggests the base addresses of configured subnets, in compressed
-and expanded forms where applicable. Suggestions are filtered by the remaining
-constraints and the text already typed, deduplicated, and sorted. It does not
-enumerate all addresses in a subnet. Without subnets, it provides no address
-suggestions and disables file completion.
-
 #### Example
 
 ```kdl

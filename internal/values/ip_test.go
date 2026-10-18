@@ -578,7 +578,7 @@ func (suite *IPTestSuite) TestCompletion() {
 				"type": {"v6-only"},
 			},
 			want: []cobra.Completion{
-				"2001:0db8:0000:0000:0000:0000:0000:000",
+				"2001:0db8:",
 				"2001:db8:",
 			},
 			directive: cobra.ShellCompDirectiveNoSpace,
@@ -597,8 +597,49 @@ func (suite *IPTestSuite) TestCompletion() {
 					"192.0.2.19/24",
 				},
 			},
-			input:     "192.0.2.",
-			want:      []cobra.Completion{"192.0.2."},
+			input: "192.0.2.",
+			want: []cobra.Completion{
+				"192.0.2.",
+				"192.0.2.1",
+			},
+			directive: cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name: "IPv4 classful and non-octet masks use common prefix",
+			properties: map[string][]any{
+				"subnets": {
+					"10.0.0.0/8",
+					"192.168.0.0/16",
+					"192.0.2.128/25",
+					"192.0.2.100/30",
+				},
+			},
+			want: []cobra.Completion{
+				"10.",
+				"192.0.2.",
+				"192.0.2.10",
+				"192.168.",
+			},
+			directive: cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name: "zero prefix length produces no empty candidate",
+			properties: map[string][]any{
+				"subnets": {
+					"0.0.0.0/0",
+					"::/0",
+				},
+			},
+			want:      []cobra.Completion{},
+			directive: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name: "subnet valid via last address when first address is unspecified",
+			properties: map[string][]any{
+				"subnets":     {"0.0.0.0/8"},
+				"unspecified": {false},
+			},
+			want:      []cobra.Completion{"0."},
 			directive: cobra.ShellCompDirectiveNoSpace,
 		},
 		{
@@ -607,7 +648,7 @@ func (suite *IPTestSuite) TestCompletion() {
 				"subnets": {"2001:db8::/32"},
 			},
 			want: []cobra.Completion{
-				"2001:0db8:0000:0000:0000:0000:0000:000",
+				"2001:0db8:",
 				"2001:db8:",
 			},
 			directive: cobra.ShellCompDirectiveNoSpace,
