@@ -421,7 +421,8 @@ func (suite *ConfigTestSuite) TestOptionsAndFlags() {
 			valueType:   "str",
 		},
 		{
-			name: "plain",
+			name:      "plain",
+			valueType: "str",
 		},
 		{
 			name:        "verbose",
@@ -450,6 +451,7 @@ func (suite *ConfigTestSuite) TestOptionsAndFlags() {
 	suite.Equal("o", cmd.Options[0].Short)
 	suite.Equal("str", cmd.Options[0].ValueType)
 	suite.Equal("plain", cmd.Options[1].Long)
+	suite.Equal("str", cmd.Options[1].ValueType)
 	suite.Nil(cmd.Options[0].Value)
 	suite.Nil(cmd.Options[1].Value)
 	suite.Equal([]cli.Flag{

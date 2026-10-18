@@ -269,8 +269,12 @@ func (c *Config) configureOptions(cmd *cli.Command) error {
 
 		cmd.Options[idx].Long = opt.Name
 		cmd.Options[idx].Short = opt.Short
-		cmd.Options[idx].ValueType = opt.Type
 		cmd.Options[idx].Validator = value
+
+		cmd.Options[idx].ValueType = opt.Type
+		if cmd.Options[idx].ValueType == "" {
+			cmd.Options[idx].ValueType = "str"
+		}
 
 		flagSet.VarP(&cmd.Options[idx], opt.Name, opt.Short, opt.Description)
 
