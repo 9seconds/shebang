@@ -42,14 +42,8 @@ var (
 	// ErrFilepathNoSuitableType indicates that no configured path type matches.
 	ErrFilepathNoSuitableType = errors.New("path has no suitable type")
 
-	// ErrFilepathOutsideRoot indicates a path outside the configured lexical root.
-	ErrFilepathOutsideRoot = errors.New("path is outside root")
-
 	// ErrFilepathUnknownType indicates an unsupported filesystem type.
 	ErrFilepathUnknownType = errors.New("unknown type")
-
-	// ErrFilepathUnsupportedExtension indicates an extension outside the configured set.
-	ErrFilepathUnsupportedExtension = errors.New("unsupported file extension")
 
 	// ErrFilepathMissingMetadata indicates unavailable Unix ownership metadata.
 	ErrFilepathMissingMetadata = errors.New("path has no Unix ownership metadata")
