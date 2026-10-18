@@ -25,7 +25,12 @@ func (suite *FilepathTestSuite) TestDirectoryNavigation() {
 	// Arrange
 	root := suite.T().TempDir()
 	directory := filepath.Join(root, "привет")
+	linkedDirectory := filepath.Join(root, "ссылка")
+	danglingLink := filepath.Join(root, "dangling")
+
 	suite.Require().NoError(os.Mkdir(directory, 0o755))
+	suite.Require().NoError(os.Symlink(directory, linkedDirectory))
+	suite.Require().NoError(os.Symlink(filepath.Join(root, "missing"), danglingLink))
 	suite.Require().NoError(os.WriteFile(filepath.Join(directory, "report.txt"), nil, 0o600))
 	suite.Require().NoError(os.WriteFile(filepath.Join(directory, "report.json"), nil, 0o600))
 
@@ -33,7 +38,9 @@ func (suite *FilepathTestSuite) TestDirectoryNavigation() {
 		"type": {"regular"},
 	})
 	suite.Require().NoError(err)
+
 	suite.Require().Error(value.Validate(directory))
+	suite.Require().Error(value.Validate(linkedDirectory))
 
 	for _, test := range []struct {
 		name      string
@@ -42,15 +49,24 @@ func (suite *FilepathTestSuite) TestDirectoryNavigation() {
 		directive cobra.ShellCompDirective
 	}{
 		{
-			name:      "directory despite file constraints",
-			input:     root + string(os.PathSeparator),
-			want:      []string{directory + string(os.PathSeparator)},
+			name:  "directory and symlinked directory despite file constraints",
+			input: root + string(os.PathSeparator),
+			want: []string{
+				directory + string(os.PathSeparator),
+				linkedDirectory + string(os.PathSeparator),
+			},
 			directive: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
 			name:      "unicode directory prefix",
 			input:     filepath.Join(root, "при"),
 			want:      []string{directory + string(os.PathSeparator)},
+			directive: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:      "symlinked directory prefix",
+			input:     filepath.Join(root, "ссы"),
+			want:      []string{linkedDirectory + string(os.PathSeparator)},
 			directive: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
 		},
 		{

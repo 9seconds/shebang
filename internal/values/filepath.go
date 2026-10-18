@@ -153,12 +153,26 @@ func (v *valueFilepath) genCompletionsCwd(input string) ([]string, cobra.ShellCo
 			continue
 		}
 
-		fullPath := filepath.Join(directory, name)
+		// we use '+' here instead to filepath.Join to preserve leading dot.
+		// for example, if user has typed './report.json', then join makes
+		// 'report.json' because of filepath.Clean. In all cases except of
+		// shell completion this is fine, but we want to complete.
+		fullPath := directory + name
 
-		if entry.IsDir() {
+		isDir := entry.IsDir()
+		// DirEntry uses Lstat, so symlink here is not followed. We want to
+		// follow, so let's resolve it on our own
+		if !isDir && entry.Type()&os.ModeSymlink != 0 {
+			if info, err := world.World.Files.Stat(fullPath); err == nil {
+				isDir = info.IsDir()
+			}
+		}
+
+		switch {
+		case isDir:
 			paths = append(paths, fullPath+string(os.PathSeparator))
 			directive |= cobra.ShellCompDirectiveNoSpace
-		} else if v.Validate(fullPath) == nil {
+		case v.Validate(fullPath) == nil:
 			paths = append(paths, fullPath)
 		}
 	}
@@ -185,7 +199,26 @@ func (v *valueFilepath) genCompletionsGlob(input string) ([]string, cobra.ShellC
 		}
 
 		relative, err := filepath.Rel(cwd, absolute)
-		if err != nil || !strings.HasPrefix(relative, input) {
+
+		switch {
+		case
+			// filepath.Rel fails when paths cannot be made relative (e.g., on
+			// different Windows volumes or if a path is not lexical).
+			err != nil,
+			// A broad glob such as "**" can match the working directory itself;
+			// skip "." so completion only suggests entries under cwd.
+			relative == ".",
+			// A glob such as "../**/*.json" or "/tmp/*.json" can match files
+			// outside cwd, producing "../foo.json".
+			strings.HasPrefix(relative, ".."+string(os.PathSeparator)):
+			continue
+		case strings.HasPrefix(input, "."+string(os.PathSeparator)):
+			// filepath.Rel strips a leading "./" (returning "report.json"),
+			// so restore "./" when the user is completing "./rep" -> "./report.json".
+			relative = "." + string(os.PathSeparator) + relative
+		}
+
+		if !strings.HasPrefix(relative, input) {
 			continue
 		}
 

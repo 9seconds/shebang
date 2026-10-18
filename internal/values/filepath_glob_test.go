@@ -16,8 +16,13 @@ type FilepathGlobTestSuite struct {
 
 func (s *FilepathGlobTestSuite) TestRelativeCompletions() {
 	// Arrange
-	root := s.T().TempDir()
+	parent := s.T().TempDir()
+	root := filepath.Join(parent, "work")
+	outside := filepath.Join(parent, "outside.txt")
+
+	s.Require().NoError(os.Mkdir(root, 0o700))
 	s.Require().NoError(os.Mkdir(filepath.Join(root, "nested"), 0o700))
+	s.Require().NoError(os.WriteFile(outside, nil, 0o600))
 
 	for _, name := range []string{
 		"a.txt",
@@ -34,12 +39,38 @@ func (s *FilepathGlobTestSuite) TestRelativeCompletions() {
 		filepath.Join(root, "**", "*.txt"),
 	} {
 		s.Run(pattern, func() {
-			for _, prefix := range []string{
-				"",
-				"nested/",
-				"missing",
+			for _, test := range []struct {
+				prefix string
+				want   []string
+			}{
+				{
+					prefix: "",
+					want: []string{
+						"a.txt",
+						"nested/привет.txt",
+					},
+				},
+				{
+					prefix: "nested/",
+					want:   []string{"nested/привет.txt"},
+				},
+				{
+					prefix: "./",
+					want: []string{
+						"./a.txt",
+						"./nested/привет.txt",
+					},
+				},
+				{
+					prefix: "./nested/",
+					want:   []string{"./nested/привет.txt"},
+				},
+				{
+					prefix: "missing",
+					want:   []string{},
+				},
 			} {
-				s.Run(prefix, func() {
+				s.Run(test.prefix, func() {
 					// Arrange
 					value, err := values.NewFilepath(nil, map[string][]any{
 						"glob": {pattern},
@@ -48,22 +79,11 @@ func (s *FilepathGlobTestSuite) TestRelativeCompletions() {
 					s.Require().NoError(err)
 
 					// Act
-					paths, directive := value.Complete(prefix)
+					paths, directive := value.Complete(test.prefix)
 
 					// Assert
 					s.Equal(cobra.ShellCompDirectiveNoFileComp, directive)
-
-					switch prefix {
-					case "":
-						s.Equal([]string{
-							"a.txt",
-							"nested/привет.txt",
-						}, paths)
-					case "nested/":
-						s.Equal([]string{"nested/привет.txt"}, paths)
-					default:
-						s.Empty(paths)
-					}
+					s.Equal(test.want, paths)
 
 					for _, path := range paths {
 						s.False(filepath.IsAbs(path))
@@ -71,6 +91,78 @@ func (s *FilepathGlobTestSuite) TestRelativeCompletions() {
 					}
 				})
 			}
+		})
+	}
+}
+
+func (s *FilepathGlobTestSuite) TestGlobEdgeCasesAndDotSlash() {
+	// Arrange
+	parent := s.T().TempDir()
+	root := filepath.Join(parent, "work")
+	outside := filepath.Join(parent, "outside.txt")
+
+	s.Require().NoError(os.Mkdir(root, 0o700))
+	s.Require().NoError(os.Mkdir(filepath.Join(root, "nested"), 0o700))
+	s.Require().NoError(os.WriteFile(outside, nil, 0o600))
+	s.Require().NoError(os.WriteFile(filepath.Join(root, "a.txt"), nil, 0o600))
+
+	s.T().Chdir(root)
+
+	for _, test := range []struct {
+		name      string
+		glob      string
+		input     string
+		want      []string
+		directive cobra.ShellCompDirective
+	}{
+		{
+			name:      "broad glob skips current directory dot",
+			glob:      "**",
+			input:     "./",
+			want:      []string{"./a.txt"},
+			directive: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:      "glob outside working directory skipped",
+			glob:      filepath.Join(parent, "*.txt"),
+			input:     "",
+			want:      []string{},
+			directive: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			name:  "cwd completion preserves dot-slash for directories and files",
+			input: "./",
+			want: []string{
+				"./a.txt",
+				"./nested/",
+			},
+			directive: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			name:      "cwd completion preserves dot-slash file prefix",
+			input:     "./a",
+			want:      []string{"./a.txt"},
+			directive: cobra.ShellCompDirectiveNoFileComp,
+		},
+	} {
+		s.Run(test.name, func() {
+			// Arrange
+			subvalidators := map[string][]any{
+				"type": {"regular"},
+			}
+			if test.glob != "" {
+				subvalidators["glob"] = []any{test.glob}
+			}
+
+			value, err := values.NewFilepath(nil, subvalidators)
+			s.Require().NoError(err)
+
+			// Act
+			paths, directive := value.Complete(test.input)
+
+			// Assert
+			s.Equal(test.want, paths)
+			s.Equal(test.directive, directive)
 		})
 	}
 }
