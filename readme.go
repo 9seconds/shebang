@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"charm.land/glamour/v2"
+	"github.com/9seconds/shebang/internal/log"
 )
 
 //go:embed README.md
@@ -13,7 +14,7 @@ var readmeContent string
 func renderReadme() {
 	out, err := glamour.RenderWithEnvironmentConfig(readmeContent)
 	if err != nil {
-		panic(err)
+		log.Dief("cannot render a readme: %s", err)
 	}
 
 	fmt.Println(out) //nolint:forbidigo // We explicitly want to print to stdout
