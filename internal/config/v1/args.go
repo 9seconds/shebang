@@ -204,25 +204,20 @@ func newFixedArgValidators(args []Arg) ([]argValidator, error) {
 func newVarArgValidators(arg *VarArg) ([]argValidator, *varArgValidator, error) {
 	name := strings.ToUpper(arg.Name)
 
+	value, err := values.New(arg.Type, arg.Properties, arg.Subvalidators)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid argument %s: %w", name, err)
+	}
+
 	var required []argValidator
 
 	if arg.MinCount != nil {
-		value, err := values.New(arg.Type, arg.Properties, arg.Subvalidators)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid vararg type: %w", err)
-		}
-
 		for i := 1; i <= int(*arg.MinCount); i++ {
 			required = append(required, argValidator{
 				name:      fmt.Sprintf("%s%d", name, i),
 				validator: value,
 			})
 		}
-	}
-
-	value, err := values.New(arg.Type, arg.Properties, arg.Subvalidators)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid argument %s: %w", name, err)
 	}
 
 	minCount := 0

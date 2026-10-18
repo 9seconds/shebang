@@ -603,7 +603,7 @@ func (suite *ArgsTestSuite) TestNewArgValidatorsErrors() {
 		{
 			name:    "required vararg type",
 			doc:     "vararg \"items\" {\nmin-count 1\nvalue \"unknown\"\n}\n",
-			message: "invalid vararg type:",
+			message: "invalid argument ITEMS:",
 			want:    values.ErrUnknownValueType,
 		},
 		{
