@@ -24,7 +24,7 @@ func NewErrStrNegativeLength(length int64) *ErrStrNegativeLength {
 
 // Error describes the rejected length bound.
 func (e *ErrStrNegativeLength) Error() string {
-	return fmt.Sprintf("length must be positive, not %d", e.Length)
+	return fmt.Sprintf("length must be non-negative, not %d", e.Length)
 }
 
 // StrLengthConstraintKind identifies the string-length constraint that failed.
@@ -64,7 +64,7 @@ func (e *ErrStrLengthConstraint) Error() string {
 	case StrLengthConstraintMinimum:
 		return fmt.Sprintf("minimum length must be at least %d, got %d", e.Expected, e.Actual)
 	case StrLengthConstraintMaximum:
-		return fmt.Sprintf("minimum length must be at most %d, got %d", e.Expected, e.Actual)
+		return fmt.Sprintf("maximum length must be at most %d, got %d", e.Expected, e.Actual)
 	}
 
 	return fmt.Sprintf("expected length %d, got %d", e.Expected, e.Actual)

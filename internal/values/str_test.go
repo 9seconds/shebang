@@ -70,7 +70,7 @@ func (suite *StrTestSuite) TestValidate() {
 				"max-length": {int64(5)},
 			},
 			input:   "привет",
-			message: "minimum length must be at most 5, got 6",
+			message: "maximum length must be at most 5, got 6",
 		},
 		{
 			name: "zero maximum accepts empty",
@@ -84,7 +84,7 @@ func (suite *StrTestSuite) TestValidate() {
 				"max-length": {int64(0)},
 			},
 			input:   "a",
-			message: "minimum length must be at most 0, got 1",
+			message: "maximum length must be at most 0, got 1",
 		},
 		{
 			name: "regex matches unicode",
@@ -226,13 +226,13 @@ func (suite *StrTestSuite) TestInvalidProperties() {
 			name:     "negative minimum",
 			property: "min-length",
 			args:     []any{int64(-1)},
-			message:  "length must be positive, not -1",
+			message:  "length must be non-negative, not -1",
 		},
 		{
 			name:     "negative maximum",
 			property: "max-length",
 			args:     []any{int64(-1)},
-			message:  "length must be positive, not -1",
+			message:  "length must be non-negative, not -1",
 		},
 		{
 			name:     "invalid regex",

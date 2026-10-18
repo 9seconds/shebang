@@ -29,7 +29,7 @@ func (suite *StrErrorsTestSuite) TestNegativeLengthError() {
 			// Assert
 			suite.Nil(value)
 			suite.Equal(int64(-2), constructed.Length)
-			suite.Equal("length must be positive, not -2", constructed.Error())
+			suite.Equal("length must be non-negative, not -2", constructed.Error())
 			suite.Require().ErrorAs(err, &lengthError)
 			suite.Equal(*constructed, *lengthError)
 			suite.Require().ErrorContains(err, "cannot add validator "+property+":")
@@ -57,7 +57,7 @@ func (suite *StrErrorsTestSuite) TestLengthConstraintError() {
 			property: "max-length",
 			kind:     values.StrLengthConstraintMaximum,
 			bound:    5,
-			message:  "minimum length must be at most 5, got 6",
+			message:  "maximum length must be at most 5, got 6",
 		},
 	} {
 		suite.Run(test.name, func() {
