@@ -18,6 +18,7 @@ func (suite *EnumTestSuite) TestValidate() {
 		name    string
 		choices []any
 		input   string
+		repr    string
 		valid   bool
 	}{
 		{
@@ -27,12 +28,14 @@ func (suite *EnumTestSuite) TestValidate() {
 				"prod",
 			},
 			input: "prod",
+			repr:  "enum(choices:dev,prod)",
 			valid: true,
 		},
 		{
 			name:    "unicode match",
 			choices: []any{"привет"},
 			input:   "привет",
+			repr:    "enum(choices:привет)",
 			valid:   true,
 		},
 		{
@@ -42,32 +45,38 @@ func (suite *EnumTestSuite) TestValidate() {
 				"dev",
 			},
 			input: "dev",
+			repr:  "enum(choices:dev)",
 			valid: true,
 		},
 		{
 			name:    "explicit empty choice",
 			choices: []any{""},
+			repr:    "enum(choices)",
 			valid:   true,
 		},
 		{
 			name:    "case sensitive",
 			choices: []any{"prod"},
 			input:   "Prod",
+			repr:    "enum(choices:prod)",
 		},
 		{
 			name:    "prefix is not a valid choice",
 			choices: []any{"prod"},
 			input:   "pro",
+			repr:    "enum(choices:prod)",
 		},
 		{
 			name:    "whitespace is not trimmed",
 			choices: []any{"prod"},
 			input:   " prod ",
+			repr:    "enum(choices:prod)",
 		},
 		{
 			name:    "empty choice list",
 			choices: []any{},
 			input:   "dev",
+			repr:    "enum(choices)",
 		},
 	} {
 		suite.Run(test.name, func() {
@@ -76,7 +85,7 @@ func (suite *EnumTestSuite) TestValidate() {
 				"choices": test.choices,
 			})
 			suite.Require().NoError(err)
-			suite.Equal("enum(choices)", value.String())
+			suite.Equal(test.repr, value.String())
 
 			// Act
 			err = value.Validate(test.input)

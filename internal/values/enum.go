@@ -31,19 +31,15 @@ func NewEnum(properties map[string]any, subvalidators map[string][]any) (Value, 
 		return nil, ErrNoProperties
 	}
 
+	if err := val.addSubvalidatorChoices(nil); err != nil {
+		panic(err)
+	}
+
 	for k, v := range subvalidators {
 		if err := val.addSubvalidator(k, v); err != nil {
 			return nil, fmt.Errorf("cannot add validator %s: %w", k, err)
 		}
 	}
-
-	val.setSubvalidator("choices", "", func(input string) error {
-		if !val.choices[input] {
-			return ErrEnumUnknownChoice
-		}
-
-		return nil
-	})
 
 	return val, nil
 }
@@ -63,12 +59,21 @@ func (v *valueEnum) addSubvalidatorChoices(properties []any) error {
 	}
 
 	slices.Sort(choices)
-	v.subvalidatorDetails["choices"] = strings.Join(choices, ",")
+	choices = slices.Compact(choices)
+
 	v.choices = make(map[string]bool, len(choices))
 
-	for _, choice := range choices {
-		v.choices[choice] = true
+	for _, item := range choices {
+		v.choices[item] = true
 	}
+
+	v.setSubvalidator("choices", strings.Join(choices, ","), func(input string) error {
+		if v.choices[input] {
+			return nil
+		}
+
+		return ErrEnumUnknownChoice
+	})
 
 	return nil
 }
