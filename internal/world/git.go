@@ -15,7 +15,6 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/hash"
-	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 // GitCollectMinLength is the minimum hexadecimal hash-prefix length in
@@ -33,11 +32,12 @@ type gitCollectedReferences struct {
 // repositories. The working directory must remain unchanged during the
 // instance's lifetime.
 type Git struct {
-	repoPool   sync.Pool
-	references funcOnce[gitCollectedReferences]
-	hasHead    funcOnce[bool]
-	commits    memoized[string, bool]
-	hasCommit  memoized[string, bool]
+	repoPool      sync.Pool
+	references    funcOnce[gitCollectedReferences]
+	hasHead       funcOnce[bool]
+	commits       memoized[string, bool]
+	hasCommit     memoized[string, bool]
+	annotatedTags memoized[string, bool]
 }
 
 // HasHead reports whether HEAD resolves to an existing commit.
@@ -293,7 +293,6 @@ func (g *Git) GetRemoteBranches() ([]string, error) {
 	return refs.remoteBranches, err
 }
 
-//nolint:funlen // Collect and sort one consistent snapshot of the four reference categories.
 func (g *Git) collectReferences() (gitCollectedReferences, error) {
 	return g.references.DoE(func() (gitCollectedReferences, error) {
 		log.Printf("Git: collecting local repository reference snapshot")
@@ -306,22 +305,6 @@ func (g *Git) collectReferences() (gitCollectedReferences, error) {
 		}
 
 		defer g.releaseRepo(repo)
-
-		tagIter, err := repo.TagObjects()
-		if err != nil {
-			return collected, fmt.Errorf("cannot scan tags: %w", err)
-		}
-
-		annotatedTags := map[plumbing.Hash]bool{}
-
-		err = tagIter.ForEach(func(tag *object.Tag) error {
-			annotatedTags[tag.Hash] = true
-
-			return nil
-		})
-		if err != nil {
-			return collected, fmt.Errorf("cannot collect tags: %w", err)
-		}
 
 		refIter, err := repo.References()
 		if err != nil {
@@ -336,7 +319,7 @@ func (g *Git) collectReferences() (gitCollectedReferences, error) {
 				collected.branches = append(collected.branches, name.Short())
 			case name.IsTag():
 				sn := name.Short()
-				if annotatedTags[ref.Hash()] {
+				if g.containsAnnotatedTag(ref.Hash().String()) {
 					collected.annotatedTags = append(collected.annotatedTags, sn)
 				} else {
 					collected.tags = append(collected.tags, sn)
@@ -386,6 +369,30 @@ func (g *Git) containsCommit(strHash string) bool {
 		_, err = repo.CommitObject(plumbing.NewHash(strHash))
 		if err != nil {
 			log.Printf("Git: hash %s is not a commit: %s", strHash, err)
+		}
+
+		return err == nil
+	})
+}
+
+func (g *Git) containsAnnotatedTag(strHash string) bool {
+	return g.annotatedTags.Do(strHash, func() bool {
+		if !plumbing.IsHash(strHash) {
+			return false
+		}
+
+		repo, err := g.acquireRepo()
+		if err != nil {
+			log.Printf("Git: cannot acquire repo: %s", err)
+
+			return false
+		}
+
+		defer g.releaseRepo(repo)
+
+		_, err = repo.TagObject(plumbing.NewHash(strHash))
+		if err != nil {
+			log.Printf("Git: hash %s is not an annotated tag: %s", strHash, err)
 		}
 
 		return err == nil
