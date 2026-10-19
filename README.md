@@ -11,8 +11,8 @@ Yet they are the workhorses that keep workflows running in companies of all
 sizes, from tiny startups to giants with hundreds of thousands of employees.
 
 They deserve a bit more love. shebang builds a CLI for them and validates input
-against the rules you configure before running the script. Your script can
-then focus on its job rather than repeating those validation checks.
+against the rules you configure before running the script. Your script can then
+focus on its job rather than repeating those validation checks.
 
 Also, you will get a beautiful autocompletion out of the box.
 
@@ -28,13 +28,14 @@ shebang is useful when:
 
 To use shebang:
 
-1. Change the interpreter in the script's shebang line to `#!/usr/bin/env shebang`.
+1. Change the interpreter in the script's shebang line to `#!/usr/bin/env
+   shebang`.
 2. Add a KDL configuration block in the format shebang recognizes. It declares
    flags, options, positional arguments, and any supported value validators.
 3. Run the script as usual. shebang parses the command line, validates values
    against the configured rules, and starts the original interpreter.
-4. Your script could also generate a shell autocompletion that uses a given
-   KDL configuration.
+4. Your script could also generate a shell autocompletion that uses a given KDL
+   configuration.
 
 The interpreter receives the script path and positional arguments. shebang
 exports configured flags and options as environment variables, so the script
@@ -61,9 +62,9 @@ shebang
 shebang --help
 ```
 
-The help displays the this README embedded in your installed binary, formatted
-for the terminal. It reflects the documentation from that binary's build and
-may differ from the latest version on GitHub.
+The help displays this README embedded in your installed binary, formatted for
+the terminal. It reflects the documentation from that binary's build and may
+differ from the latest version on GitHub.
 
 To view a script's generated CLI help instead, run `your-script --help`.
 
@@ -102,6 +103,7 @@ archive_path="${archive_name}.tar.gz"
 tar -czf "$archive_path" -C "$(dirname -- "$source_dir")" "$archive_name"
 rsync -rlpt "$archive_path" "dev:${destination_dir%/}/"
 ```
+
 The script assumes its two arguments are present and meaningful. It has no
 standard `--help` output or descriptions of the expected arguments.
 
@@ -303,9 +305,9 @@ tar -czf "$archive_path" -C "$(dirname -- "$source_dir")" "$source_name"
 rsync -rlpt "$archive_path" "dev:${destination_dir%/}/"
 ```
 
-The script is now useful, but its boilerplate hides the actual work. Even if
-an LLM generates it for you, you still have to maintain the argument parsing,
-help text, and validation.
+The script is now useful, but its boilerplate hides the actual work. Even if an
+LLM generates it for you, you still have to maintain the argument parsing, help
+text, and validation.
 
 Now let's see how shebang could help.
 
@@ -344,8 +346,8 @@ tar -czf "$archive_path" -C "$(dirname -- "$source_dir")" "$source_name"
 rsync -rlpt "$archive_path" "dev:${destination_dir%/}/"
 ```
 
-shebang supplies `-h` and `--help`, parses `--archive-name` and `-a`, and checks
-the positional argument count.
+shebang supplies `-h` and `--help`, parses `--archive-name` and `-a`, and
+checks the positional argument count.
 
 Everything is defined and described by a special comment that is a part of the
 script. It generates a full CLI for you, and validates arguments and options.
@@ -735,10 +737,10 @@ name follows the same normalization rules as an `arg` name.
 | ------------- | ------------------------------- | ------------------------------------------------ |
 | `description` | `description "Paths to copy"`   | Help text for the group.                         |
 | `value`       | `value "str" { min-length 1; }`  | Optional validator applied to every item.         |
-| `min-count`   | `min-count 1`                   | Minimum number of items; omitted or negative means zero. |
-| `max-count`   | `max-count 10`                  | Maximum number of items; omitted or negative means unlimited. |
+| `min-count`   | `min-count 1`                   | Minimum number of items (up to 65,535); omitted or negative means zero. |
+| `max-count`   | `max-count 10`                  | Maximum number of items (up to 65,535); omitted or negative means unlimited. |
 
-Both `min-count` and `max-count` are optional.
+Both `min-count` and `max-count` are optional and cannot exceed 65,535.
 
 For example, combine a leading argument, a variadic group, and a trailing
 argument:
@@ -901,9 +903,11 @@ Make sure your constraints allow the values you intend to accept.
 
 ### `str` value
 
-`str` accepts strings. Without subvalidators, every command-line value passes,
-including an empty string. It provides no completion suggestions and disables
-automatic file completion.
+`str` accepts printable strings. Without subvalidators, any command-line value
+composed of printable Unicode characters passes, including an empty string;
+non-printable characters such as tabs, newlines, and control characters are
+rejected. It provides no completion suggestions and disables automatic file
+completion.
 
 | Subvalidator | Example definition | Passes                    | Fails                                   | Description                                                  |
 | ------------ | ------------------ | ------------------------- | --------------------------------------- | ------------------------------------------------------------ |
@@ -994,11 +998,18 @@ fails integer parsing. The script reads the original value from
 
 ### `float` value
 
-`float` accepts numbers float numbers in [IEEE
-754](https://en.wikipedia.org/wiki/IEEE_754) notation: this is a general way
-of specifying such numbers almost everywhere.
+`float` accepts finite floating-point numbers in
+[IEEE 754](https://en.wikipedia.org/wiki/IEEE_754) notation. Non-finite values
+such as `NaN` and `Inf` are rejected. It provides no completion suggestions and
+disables automatic file completion.
 
-It is very similar to `int`, even the meaning of subvalidators is the same.
+| Subvalidator | Example definition | Passes                 | Fails            | Description                             |
+| ------------ | ------------------ | ---------------------- | ---------------- | --------------------------------------- |
+| `min`        | `min 0.0`          | `"0"`, `"0.5"`, `"1e2"` | `"-0.1"`, `"-1"` | Requires a value at least this minimum. |
+| `max`        | `max 1.0`          | `"1.0"`, `"0"`, `"-1"`  | `"1.1"`, `"2"`   | Allows a value at most this maximum.    |
+
+Both bounds are inclusive and optional, and accept either floating-point or
+integer literals in KDL (for example, `min 0` or `min 0.0`).
 
 #### Example
 
@@ -1065,6 +1076,14 @@ an explicitly empty subnet list is rejected.
 > mapped prefix such as `::ffff:192.0.2.0/120` instead. Scoped IPv6 addresses
 > containing a zone identifier do not match CIDR prefixes.
 
+Completion suggests the common address prefixes of configured subnets (for
+example, `10.` for `10.0.0.0/8`, or `2001:db8:` and `2001:0db8:` for
+`2001:db8::/32`), in compressed and expanded forms where applicable.
+Suggestions are filtered by the remaining constraints and the text already
+typed, deduplicated, and sorted. It does not enumerate all addresses in a
+subnet. Without subnets, it provides no address suggestions and disables file
+completion.
+
 #### Example
 
 ```kdl
@@ -1110,6 +1129,12 @@ subnet inside a listed subnet and a larger subnet containing it overlap. For
 example, `0.0.0.0/0` overlaps every IPv4 subnet. _All configured constraints
 must pass._ IPv4 and IPv4-mapped IPv6 prefixes are separate address families
 for overlap checks; they are not automatically converted into one another.
+
+When `overlaps` is configured without `not-overlaps`, completion suggests the
+masked base addresses of the configured `overlaps` subnets with a trailing `/`
+(in compressed and expanded forms where applicable), filtered by the configured
+`type` and typed prefix, and suppresses a trailing space so the prefix length
+can be entered.
 
 #### Example
 
@@ -1174,7 +1199,9 @@ case-sensitive: a choice of `"prod"` accepts `"prod"`, but not `"Prod"`,
 | ------------ | ---------------------------- | --------------- | ------------------- | ----------- |
 | `choices`    | `choices "dev" "stage" "prod"` | `"dev"`, `"prod"` | `"preview"`, `"Prod"` | Lists the permitted strings. |
 
-Each choice must be a quoted string.
+Each choice must be a quoted string. Omitting `choices` or providing an empty
+choice list accepts no values. Completion suggests configured choices that
+match the typed prefix.
 
 #### Example
 
@@ -1190,10 +1217,6 @@ option "environment" {
 
 The script reads the selected value from `SHEBANG_OL_ENVIRONMENT` or
 `SHEBANG_OS_E`.
-
-
-
-
 
 ### `datetime` value
 
@@ -1454,15 +1477,16 @@ The same as `readable` but for writes.
 
 #### `executable` subvalidator
 
-The same as `readable` but for executablity.
+The same as `readable` but for executability.
 
 #### Completion
 
-Completion lists entries matching the typed filename prefix and validates
-file candidates against the configured constraints. Directories remain
-available for navigation even under file-only constraints, are suffixed with
-`/`, and suppress a trailing space. Candidate paths retain their directory
-prefix. Completion reports an error if the directory cannot be read.
+Completion lists entries matching the typed filename prefix and validates file
+candidates against the configured constraints. Directories (including symlinks
+to directories) remain available for navigation even under file-only
+constraints, are suffixed with `/`, and suppress a trailing space. Candidate
+paths retain their directory prefix. Completion reports an error if the
+directory cannot be read.
 
 #### Example
 
@@ -1594,7 +1618,7 @@ the destination address from its first positional argument.
 
 ### `email` value
 
-`email` validates email addresses using that [famous RFC3522
+`email` validates email addresses using that [famous RFC 5322
 regexp](https://stackoverflow.com/a/201378/5405453). This has **a lot** of
 flaws but practically is doing a pretty good job. The only correct way to
 validate email is trying sending there something but this is an overkill for
