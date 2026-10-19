@@ -362,6 +362,58 @@ Environment variable names replace hyphens with underscores and use uppercase:
 same convention in help and diagnostics: `source-dir` is displayed as
 `SOURCE_DIR`. Positional argument values are passed unchanged.
 
+## Editor filetype detection
+
+The very first confusing thing you immediately notice is that having shebang as
+`#!/usr/bin/env shebang` will immediately break filetype autodetection in your
+editor, especially if a script has no file extensions.
+
+Luckily, this is not a big issue because there is still a way how to hint
+your IDE or editor what is the file type.
+
+[Vim/Neovim](https://vimdoc.sourceforge.net/htmldoc/options.html#modeline) and
+[Emacs](https://www.gnu.org/software/emacs/manual/html_node/elisp/Mode-Line-Format.html)
+support the feature called _mode lines_: you create a special comment and place
+it in the first or last 5 lines of the script. There you use a special syntax
+to define various editor options, including filetype.
+
+Vim modeline:
+
+```bash
+#!/usr/bin/env shebang
+# vim: set ft=bash:
+#!shebang.1
+# ...
+
+printenv
+```
+
+Emacs modeline:
+
+```bash
+#!/usr/bin/env shebang
+# -*- mode: python -*-
+#!shebang.1
+# ...
+
+printenv
+```
+
+So, if you use these editors, your are done, you have it out of the box. But if
+you use different editor, like VSCode, you need to install some plugin that
+does exactly that.
+
+* For **VSCode** install [Modelines](https://marketplace.visualstudio.com/items?itemName=chrislajoie.vscode-modelines).
+* For **Helix** install [modeline.hx](https://codeberg.org/gwid/modeline.hx).
+* **Zed** supports them [out of the box](https://zed.dev/docs/modelines).
+* **JetBrains IDEs (IntelliJ, PyCharm, GoLand):** Do not read Vim or Emacs
+  modelines for file types (even with IdeaVim installed). For extensionless
+  scripts, either associate the file via *Override File Type* or add `"shebang"`
+  under *Settings → Editor → File Types → Shell Script → HashBang patterns* if
+  your scripts are predominantly shell scripts.
+
+Github natively supports modelines.
+
 ## Embedding KDL configuration in a script
 
 Keep `#!/usr/bin/env shebang` as the first line of the script. This tells the
