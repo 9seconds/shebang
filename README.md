@@ -1,6 +1,6 @@
 # shebang
 
-[![codecov](https://codecov.io/gh/9seconds/shebang/graph/badge.svg?token=6LUVKG9X2L)](https://codecov.io/gh/9seconds/shebang)
+![Logotype](images/logotje.png)
 
 _When "Good Enough" is the pinnacle._
 
