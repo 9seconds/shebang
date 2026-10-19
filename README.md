@@ -2,6 +2,17 @@
 
 ![Logotype](images/logotje.png)
 
+<p>
+  <img src="images/build.gif" width="88" height="31" alt="Green build">
+  <img src="images/notepadpowered.gif" width="88" height="31" alt="Notepad powered">
+  <img src="images/coverage.gif" width="88" height="31" alt="Amazing coverage">
+  <img src="images/rambler.gif" width="88" height="31" alt="Rambler">
+  <img src="images/acdsee.gif" width="88" height="31" alt="ACDSee">
+  <img src="images/guestbook-button.gif" width="88" height="31" alt="Guestbook">
+  <img src="images/exler.gif" width="88" height="31" alt="Exler">
+  <img src="images/spylog.gif" width="88" height="31" alt="Spylog">
+</p>
+
 _When "Good Enough" is the pinnacle._
 
 The goal of shebang is to give your ad hoc, homegrown scripts a decent
