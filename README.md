@@ -55,6 +55,15 @@ Validation only covers rules declared in the configuration; application-level
 checks, such as whether a path exists or is a directory, remain the script's
 responsibility unless an appropriate validator is configured.
 
+> [!IMPORTANT]
+> This project may look stale but it does not mean it is abandoned. I use it
+> everyday, and run shenanged scripts 10-15 times per day. I wrote it for
+> myself in a first place and it covers 100% of my needs exactly how I like
+> it, that's why it does not have a lot of activity: it seems I've already
+> fixed all bugs that irritated me, and wrote all validators I need. Please try
+> it, and if you see any problems or want to add something - just ask, I'm happy
+> to help.
+
 ## Install
 
 Just go to [Releases](https://github.com/9seconds/shebang/releases) page and
